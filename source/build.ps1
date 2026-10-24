@@ -43,10 +43,10 @@ Copy-Item -LiteralPath $NodeExecutable -Destination (Join-Path $nodeRoot 'node.e
 Copy-Item -LiteralPath $NodeLicense -Destination (Join-Path $nodeRoot 'LICENSE')
 $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $nodeRoot 'node.exe')
 if ($signature.Status -ne 'Valid') { throw ('Bundled Node.js signature is invalid: ' + $signature.Status) }
-foreach ($file in @('control.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
+foreach ($file in @('control.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
-foreach ($file in @('Manager.cs','control.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
+foreach ($file in @('Manager.cs','control.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
 Copy-Item -LiteralPath (Join-Path $PortSource 'DreamSkinPortHook.cs'),(Join-Path $PortSource 'register-port.ps1') -Destination $port
@@ -80,8 +80,17 @@ Get-ChildItem -LiteralPath $out -Recurse -File -Filter '*.ps1' | ForEach-Object 
   $content = [IO.File]::ReadAllText($_.FullName)
   [IO.File]::WriteAllText($_.FullName, $content, [Text.UTF8Encoding]::new($true))
 }
+$compatibility = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'service-compatibility.json')) | ConvertFrom-Json
+$currentHashes = [ordered]@{}
+foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
+  $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
+}
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.0.1';hashes=$currentHashes})
+foreach ($destination in @($out,$sourceOut)) {
+  [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
+}
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.0.0';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.0.1';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

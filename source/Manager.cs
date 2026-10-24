@@ -18,7 +18,7 @@ internal sealed class Manager : Form {
     [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
 
     Manager() {
-        Text = "Codex 动态背景 · 1.0.0";
+        Text = "Codex 动态背景 · 1.0.1";
         Font = new Font("Microsoft YaHei UI", 10F);
         BackColor = Color.FromArgb(245,247,250);
         ClientSize = new Size(780, 555);

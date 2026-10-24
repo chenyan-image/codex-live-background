@@ -14,6 +14,7 @@ $startup = Join-Path $stateRoot 'startup'
 $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $engine = Join-Path $root 'engine'
 . (Join-Path $engine 'scripts\common-windows.ps1')
+. (Join-Path $root 'service-compatibility.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $lines = @(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\manager-actions.ps1') -Action $Operation -SkillRoot $engine @Extra 2>&1)
   $code = $LASTEXITCODE
@@ -38,29 +39,25 @@ try {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
-      if ($task -and -not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json'))) {
-        throw '检测到已有 Dream Skin 启动服务。请先在原安装中移除启动设置，再安装此包，避免覆盖现有配置。'
-      }
-      if ($task) {
-        & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $startup 'register-port.ps1') -Action Remove | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw '旧服务未能停止，安装已中止。' }
-        $saved = Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')
-        if ($saved) { $null = Stop-DreamSkinRecordedInjector -State $saved }
-      }
+      $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
       if ([IO.Path]::GetFullPath($root).TrimEnd('\') -ine [IO.Path]::GetFullPath($installRoot).TrimEnd('\')) {
-        foreach ($name in @('CodexLiveBackground.exe','control.ps1','engine','startup','LICENSE','THIRD_PARTY_NOTICES.md','使用说明.txt')) {
-          Copy-Item -LiteralPath (Join-Path $root $name) -Destination $installRoot -Recurse -Force
-        }
+        Copy-DreamBackgroundPackage -SourceRoot $root -DestinationRoot $installRoot
       }
-      foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
-        Copy-Item -LiteralPath (Join-Path $installRoot ('startup\' + $name)) -Destination $startup -Force
+      if ($plan.Mode -eq 'new') {
+        foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
+          Copy-Item -LiteralPath (Join-Path $installRoot ('startup\' + $name)) -Destination $startup -Force
+        }
       }
       [IO.File]::WriteAllText((Join-Path $stateRoot 'keep-codex-open'), 'Attach only. Never close a running Codex.')
       [IO.File]::WriteAllText((Join-Path $stateRoot 'startup-animation.disabled'), 'Startup animation disabled.')
-      [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ('{"version":"1.0.0","installedAt":"' + [DateTime]::UtcNow.ToString('o') + '"}'))
-      & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $startup 'register-port.ps1') -Action Install | Out-Null
-      if ($LASTEXITCODE -ne 0) { throw '启动服务注册失败。请在 Windows 任务计划程序中检查当前用户的权限，然后重新安装。' }
+      if ($plan.Mode -eq 'new') {
+        & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $startup 'register-port.ps1') -Action Install | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw '启动服务注册失败。请在 Windows 任务计划程序中检查当前用户的权限，然后重新安装。' }
+      } elseif ($task.State -ne 'Running') { Start-ScheduledTask -TaskName CodexDreamSkinPort }
+      $guard = Wait-DreamBackgroundService -StartupRoot $startup
+      $installation = [ordered]@{version='1.0.1';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid}
+      [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
         $link = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk'))
@@ -68,7 +65,11 @@ try {
         $link.WorkingDirectory = $installRoot
         $link.Save()
       } finally { [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null }
-      Write-Output ('安装完成，已识别 Codex {0}。首次启用：保存聊天输入，手动完全退出 Codex，再点击“打开 Codex”。以后更换背景无需退出。' -f $codex.Version)
+      if ($plan.Mode -eq 'reuse') {
+        Write-Output '安装完成，已复用验证过的旧 Dream Skin 服务，并保留原有背景、素材及登录目录。当前 Codex 未关闭。可直接查看状态或选择素材。'
+      } else {
+        Write-Output ('安装完成，已识别 Codex {0}。首次启用：保存聊天输入，手动完全退出 Codex，再点击“打开 Codex”。以后更换背景无需退出。' -f $codex.Version)
+      }
     }
     'Apply' {
       Assert-Installed
