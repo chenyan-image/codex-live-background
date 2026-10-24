@@ -1,0 +1,59 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "bytes": 51440505,
+      "path": "water-eyes.mp4",
+      "sha256": "7E33E69CDB2AC12FED485FCF041D246DAAA1CA4DC2C70AB7D95D105D414CC22D"
+    },
+    {
+      "bytes": 1046328,
+      "path": "water-eyes-preview.gif",
+      "sha256": "1FE85627435EEDA3E685A4F1BC81B08CBF35C2442D925B83D1B720CF9E013551"
+    },
+    {
+      "bytes": 178569463,
+      "path": "talking-eyes-2.mp4",
+      "sha256": "B7212D392B648C915C5F21817905EC9CB7F7546EC230B696D824D1BEB4C0B4A8"
+    },
+    {
+      "bytes": 522390,
+      "path": "talking-eyes-2-preview.jpg",
+      "sha256": "F4906CAC3708E93A4DA4C0F18DB262809A5F67F098B4C81CEF1ACC1E0676CC96"
+    },
+    {
+      "bytes": 631450,
+      "path": "zero-two.jpg",
+      "sha256": "338B73ECE8184F044314A26557211A6F851656747EF428E07FB722BDC0444A31"
+    }
+  ],
+  "wallpapers": [
+    {
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3582218429",
+      "thumbnail": "water-eyes-preview.gif",
+      "kind": "video",
+      "id": "water-eyes",
+      "file": "water-eyes.mp4",
+      "note": "内置动态 · 4K / 60 FPS · Steam Workshop 素材",
+      "name": "水中会说话的眼睛"
+    },
+    {
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3488045446",
+      "thumbnail": "talking-eyes-2-preview.jpg",
+      "kind": "video",
+      "id": "talking-eyes-2",
+      "file": "talking-eyes-2.mp4",
+      "note": "内置动态 · 4K / 60 FPS · Steam Workshop 素材",
+      "name": "会说话的眼睛2"
+    },
+    {
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3295448069",
+      "thumbnail": "zero-two.jpg",
+      "kind": "image",
+      "id": "zero-two",
+      "file": "zero-two.jpg",
+      "note": "内置静态 · 原场景预览图 · Steam Workshop 素材",
+      "name": "零二 02 FRANXX"
+    }
+  ]
+}

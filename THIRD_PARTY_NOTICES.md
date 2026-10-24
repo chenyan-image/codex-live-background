@@ -25,3 +25,6 @@ Publisher, exact version, checksum, download URL, license texts and upstream sou
 ## Phosphor Icons
 
 Application icon geometry is adapted from Mountains (duotone) in https://github.com/phosphor-icons/core, MIT licensed. The original SVG and license are in source/assets; release ZIPs also include THIRD_PARTY/Phosphor-LICENSE. Colors and the landscape tile treatment are modifications in this project.
+# 附带壁纸素材
+
+从 v1.5.3 起，安装包另附用户指定的两段 4K / 60 FPS 视频与一张静态预览图。它们来自 Wallpaper Engine Workshop，不属于本仓库原创素材，亦不纳入代码的 MIT 授权。项目链接、类型和安装目录见 [附带壁纸来源](docs/bundled-wallpapers.md)；文件校验值见 `source/bundled-wallpapers.json`。其余六张内置背景由本仓库代码生成。
