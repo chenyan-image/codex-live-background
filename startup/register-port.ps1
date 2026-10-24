@@ -54,7 +54,7 @@ if ($Action -eq 'Install') {
   Stop-PortGuard
   Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
   Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-  $guardState = [IO.File]::ReadAllText($guardStatePath) | ConvertFrom-Json
+  $guardState = if (Test-Path -LiteralPath $guardStatePath) { [IO.File]::ReadAllText($guardStatePath) | ConvertFrom-Json } else { $null }
 }
 $report = [ordered]@{ time = [DateTime]::UtcNow.ToString('o'); action = $Action; task = $taskName; port = 9335; helper = $hook; closesExistingCodex = $false; startupAnimationEnabled = $false; guard = $guardState }
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'registration.json'), ($report | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))

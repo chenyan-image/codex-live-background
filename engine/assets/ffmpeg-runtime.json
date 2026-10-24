@@ -49,6 +49,11 @@
       "name": "LICENSE.txt",
       "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/LICENSE.txt",
       "bytes": 7651
+    },
+    {
+      "name": "ffprobe.exe",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/ffprobe.exe",
+      "bytes": 229888
     }
   ]
 }
