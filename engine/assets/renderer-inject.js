@@ -538,7 +538,16 @@
     return detectShellAppearance();
   };
 
+  let previousColorScheme = null;
   const applyTheme = (root, shell) => {
+    if (THEME.appearance === "dark") {
+      // Keep native surfaces consistent with the saved dark wallpaper theme.
+      const classes = new Set(String(root.className || "").split(/\s+/).filter(Boolean));
+      classes.delete("light"); classes.add("dark");
+      setAttribute(root, "class", [...classes].join(" "));
+      if (!previousColorScheme) previousColorScheme = {value: root.style.getPropertyValue("color-scheme"), priority: root.style.getPropertyPriority("color-scheme")};
+      setStyleProperty(root, "color-scheme", "dark");
+    }
     const declaredColors = THEME.colors && typeof THEME.colors === "object" ? THEME.colors : {};
     const legacyPalette = THEME.palette && typeof THEME.palette === "object" ? THEME.palette : {};
     // macOS themes use the full `colors` contract; older Windows themes used
@@ -1224,6 +1233,10 @@
     videoSourceGeneration += 1;
     window[DISABLED_KEY] = true;
     const root = document.documentElement;
+    if (previousColorScheme && root?.style.getPropertyValue("color-scheme") === "dark") {
+      if (previousColorScheme.value) root.style.setProperty("color-scheme", previousColorScheme.value, previousColorScheme.priority);
+      else root.style.removeProperty("color-scheme");
+    }
     for (const name of ROOT_ATTRS) root?.removeAttribute(name);
     for (const attribute of [...(root?.attributes || [])]) {
       if (attribute.name.startsWith("data-dream-")) root.removeAttribute(attribute.name);

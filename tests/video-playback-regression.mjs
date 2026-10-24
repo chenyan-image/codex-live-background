@@ -143,6 +143,15 @@ const sessionType = vm.runInNewContext(`${sessionSource}\nCdpSession`);
 // Execute the actual playback functions from the canonical renderer, with a
 // minimal DOM. This tests the policy branch without recreating its algorithm.
 const renderer = await fs.readFile(`${engineRoot}/assets/renderer-inject.js`, "utf8");
+{
+  const start=renderer.indexOf('  let previousColorScheme = null;');
+  const stop=renderer.indexOf('    const declaredColors',start);
+  assert.ok(start>0&&stop>start);
+  const root={className:'light existing-class',style:{getPropertyValue:()=>'',getPropertyPriority:()=>''}};
+  const context=vm.createContext({root,THEME:{appearance:'dark'},setAttribute:(node,key,value)=>{if(key==='class')node.className=value;},setStyleProperty:(node,key,value)=>{node.style[key]=value;}});
+  vm.runInContext(renderer.slice(start,stop)+'}; applyTheme(root,"dark"); applyTheme(root,"dark");',context);
+  check(root.className==='existing-class dark'&&root.style['color-scheme']==='dark','saved dark wallpaper overrides a light native root without duplicate classes');
+}
 const begin = renderer.indexOf("  const removePlaybackRecovery = () => {");
 const end = renderer.indexOf("  const ensureMediaLayer = () => {", begin);
 assert.ok(begin > 0 && end > begin);
