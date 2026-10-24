@@ -33,4 +33,6 @@ const thumb=await prepareMediaPreview(source,path.join(directory,'thumbnail'),{.
 assert.equal(thumb.animated,false);assert.equal(path.extname(thumb.path),'.png');assert.ok(thumb.width<=192);
 const diagnostic=JSON.parse(await fs.readFile(path.join(directory,'thumbnail','last-preview-diagnostic.json'),'utf8'));assert.equal(diagnostic.errors.length,3);assert.equal(diagnostic.stage,'ready');
 await assert.rejects(prepareMediaPreview(source,path.join(directory,'no-runtime'),{ensureRuntime:async()=>{throw new Error('download blocked');}}),/预览组件无法准备/);
-console.log(JSON.stringify({pass:true,cases:12,frames:animation.frameCount,previewSeconds:6,sourcePreserved:true,lowerQualityFallback:true,staticFallback:true}));
+const webp=path.join(directory,'sample.webp');const webpGenerated=spawnSync(executable,['-nostdin','-hide_banner','-loglevel','error','-f','lavfi','-i','color=c=navy:s=640x360','-frames:v','1',webp],{windowsHide:true});assert.equal(webpGenerated.status,0,String(webpGenerated.stderr));
+const webpPreview=await prepareMediaPreview(webp,state,options);assert.equal(path.extname(webpPreview.path),'.png');assert.equal(webpPreview.animated,false);assert.ok(webpPreview.width<=192);
+console.log(JSON.stringify({pass:true,cases:13,frames:animation.frameCount,previewSeconds:6,sourcePreserved:true,lowerQualityFallback:true,staticFallback:true,webpThumbnail:true}));

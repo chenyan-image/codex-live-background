@@ -15,8 +15,8 @@ using System.Reflection;
 [assembly: AssemblyTitle("Codex Background Startup")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.1")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.1")]
 
 [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IDreamSkinPackageDebug {
@@ -49,6 +49,18 @@ internal static class DreamSkinPortHook {
   [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
   [DllImport("user32.dll")] static extern bool IsIconic(IntPtr window);
   [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr window,int command);
+  [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern IntPtr LoadImage(IntPtr instance,string name,uint type,int width,int height,uint flags);
+  [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern IntPtr SendMessageTimeout(IntPtr window,uint message,IntPtr wParam,IntPtr lParam,uint flags,uint timeout,out IntPtr result);
+  static IntPtr largeIcon,smallIcon;
+  static void SetWindowIcons(IntPtr window){
+    if(window==IntPtr.Zero)return;string icon=Path.GetFullPath(Path.Combine(Root,@"..\icons\codex-official.ico"));if(!File.Exists(icon))return;
+    if(largeIcon==IntPtr.Zero)largeIcon=LoadImage(IntPtr.Zero,icon,1,64,64,0x10);if(smallIcon==IntPtr.Zero)smallIcon=LoadImage(IntPtr.Zero,icon,1,16,16,0x10);
+    IntPtr result;if(largeIcon!=IntPtr.Zero)SendMessageTimeout(window,0x80,(IntPtr)1,largeIcon,2,100,out result);if(smallIcon!=IntPtr.Zero)SendMessageTimeout(window,0x80,IntPtr.Zero,smallIcon,2,100,out result);
+  }
+  static void RefreshWindowIcons(){
+    if(!File.Exists(Path.GetFullPath(Path.Combine(Root,@"..\icons\codex-official.ico"))))return;
+    foreach(var app in Process.GetProcessesByName("ChatGPT"))using(app)try{if(app.MainWindowHandle==IntPtr.Zero)continue;IntPtr process=OpenProcess(0x1010,false,app.Id);if(process==IntPtr.Zero)continue;try{Verify(process);string command=CommandLine(process);if(command.IndexOf("--type=",StringComparison.OrdinalIgnoreCase)<0&&command.IndexOf("--remote-debugging-port=9335",StringComparison.OrdinalIgnoreCase)>=0)SetWindowIcons(app.MainWindowHandle);}catch{}finally{CloseHandle(process);}}catch{}
+  }
   static readonly string Root=AppDomain.CurrentDomain.BaseDirectory;
   static void Log(string message){try{File.AppendAllText(Path.Combine(Root,"startup.log"),DateTime.UtcNow.ToString("o")+" "+message+Environment.NewLine);}catch{}}
   static string Image(IntPtr process){int size=32768;var path=new StringBuilder(size);if(!QueryFullProcessImageName(process,0,path,ref size))throw new Win32Exception();return path.ToString();}
@@ -101,6 +113,7 @@ internal static class DreamSkinPortHook {
             command.IndexOf("--remote-debugging-port=9335",StringComparison.OrdinalIgnoreCase)>=0){
             IntPtr window=candidate.MainWindowHandle;
             if(window==IntPtr.Zero)continue;
+            SetWindowIcons(window);
             if(IsIconic(window))ShowWindow(window,9);
             SetForegroundWindow(window);return true;
           }
@@ -129,9 +142,10 @@ internal static class DreamSkinPortHook {
     using(var mutex=new Mutex(false,"Local\\CodexDreamSkin.PortGuard."+WindowsIdentity.GetCurrent().User.Value)){
       bool acquired=false;try{try{acquired=mutex.WaitOne(0);}catch(AbandonedMutexException){acquired=true;}if(!acquired)return;
         object settings=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("B1AEC16F-2383-4852-B0E9-8F0B1DC66B4D")));
-        var registered=new HashSet<string>();DateTime nextRefresh=DateTime.MinValue,nextMonitor=DateTime.MinValue;Process monitor=null;
+        var registered=new HashSet<string>();DateTime nextRefresh=DateTime.MinValue,nextMonitor=DateTime.MinValue,nextIcon=DateTime.MinValue;Process monitor=null;
         try{
           while(!File.Exists(Path.Combine(Root,"stop-guard"))){
+            if(DateTime.UtcNow>=nextIcon){RefreshWindowIcons();nextIcon=DateTime.UtcNow.AddSeconds(5);}
             if(monitor!=null&&monitor.HasExited){
               Log("Skin monitor exited with code "+monitor.ExitCode+"; retrying in 10 seconds");
               monitor.Dispose();monitor=null;nextMonitor=DateTime.UtcNow.AddSeconds(10);
