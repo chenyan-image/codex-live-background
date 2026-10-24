@@ -1,0 +1,54 @@
+{
+  "version": "n9.0.2-17-g2a571b6068",
+  "url": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip",
+  "sha256": "7157177b8a6cb2174c1650ba8c71b363f2c78cba5330f88c4c02cf5b2b880646",
+  "archiveName": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip",
+  "archiveBytes": 76972461,
+  "files": [
+    {
+      "name": "ffmpeg.exe",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/ffmpeg.exe",
+      "bytes": 540160
+    },
+    {
+      "name": "avcodec-63.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/avcodec-63.dll",
+      "bytes": 91182080
+    },
+    {
+      "name": "avfilter-12.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/avfilter-12.dll",
+      "bytes": 31195648
+    },
+    {
+      "name": "avformat-63.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/avformat-63.dll",
+      "bytes": 22764032
+    },
+    {
+      "name": "avutil-61.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/avutil-61.dll",
+      "bytes": 3016704
+    },
+    {
+      "name": "avdevice-63.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/avdevice-63.dll",
+      "bytes": 4948480
+    },
+    {
+      "name": "swscale-10.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/swscale-10.dll",
+      "bytes": 2332160
+    },
+    {
+      "name": "swresample-7.dll",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/bin/swresample-7.dll",
+      "bytes": 734720
+    },
+    {
+      "name": "LICENSE.txt",
+      "archivePath": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/LICENSE.txt",
+      "bytes": 7651
+    }
+  ]
+}

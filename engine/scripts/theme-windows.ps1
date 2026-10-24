@@ -288,6 +288,8 @@ function Get-DreamSkinValidatedImageMetadata {
   $metadataScript = Join-Path $PSScriptRoot 'image-metadata.mjs'
   $metadataError = if ([System.IO.Path]::GetExtension($Path) -ieq '.mp4') {
     'MP4 验证失败：仅支持标准非分片 H.264/AVC 或 H.265/HEVC MP4，最长 10 分钟、最高 120 FPS，单边不能超过 16384 像素、总像素不能超过 50MP。'
+  } elseif ([System.IO.Path]::GetExtension($Path) -ieq '.webm') {
+    'WebM 验证失败：仅支持单视频轨 VP8/VP9，最长 10 分钟、最高 120 FPS，单边不能超过 16384 像素、总像素不能超过 50MP。'
   } else {
     '图片验证失败：文件已损坏，或超过单边 16384 像素、总像素 50MP、动画 300 帧的限制。'
   }
@@ -321,14 +323,14 @@ function Assert-DreamSkinImageFile {
     throw "Image does not exist: $fullPath"
   }
   $extension = [System.IO.Path]::GetExtension($fullPath).ToLowerInvariant()
-  if ($extension -notin @('.png', '.apng', '.jpg', '.jpeg', '.webp', '.gif', '.mp4')) {
+  if ($extension -notin @('.png', '.apng', '.jpg', '.jpeg', '.webp', '.gif', '.mp4', '.webm')) {
     throw "Unsupported image format: $extension"
   }
   $length = (Get-Item -LiteralPath $fullPath -Force).Length
   if ($length -lt 1) { throw 'Theme image cannot be empty.' }
-  $maxBytes = if ($extension -eq '.mp4') { $script:DreamSkinMaxVideoBytes } else { $script:DreamSkinMaxImageBytes }
+  $maxBytes = if ($extension -in @('.mp4', '.webm')) { $script:DreamSkinMaxVideoBytes } else { $script:DreamSkinMaxImageBytes }
   if ($length -gt $maxBytes) {
-    if ($extension -eq '.mp4') { throw 'Theme video exceeds the 512 MiB limit.' }
+    if ($extension -in @('.mp4', '.webm')) { throw 'Theme video exceeds the 512 MiB limit.' }
     throw 'Theme image exceeds the 512 MiB limit.'
   }
   if (-not $SkipImageMetadata) {
@@ -341,7 +343,7 @@ function Assert-DreamSkinVideoDecodable {
     [Parameter(Mandatory = $true)][string]$Path,
     [string]$StateRoot = (Join-Path $env:LOCALAPPDATA 'CodexDreamSkin')
   )
-  if ([System.IO.Path]::GetExtension($Path) -ine '.mp4') { return }
+  if ([System.IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.mp4', '.webm')) { return }
   Assert-DreamSkinImageFile -Path $Path
   $node = Get-DreamSkinNodeRuntime
   $stateFile = (Get-DreamSkinThemePaths -StateRoot $StateRoot).State
@@ -1332,7 +1334,7 @@ function Expand-DreamSkinThemeZipSecurely {
     $officialNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($name in @(
       'manifest.json', 'manifest.sig', 'theme.json', 'theme.css', 'LICENSE.txt',
-      'background.webp', 'background.jpg', 'background.png', 'background.apng', 'background.gif', 'background.mp4'
+      'background.webp', 'background.jpg', 'background.png', 'background.apng', 'background.gif', 'background.mp4', 'background.webm'
     )) { $null = $officialNames.Add($name) }
     foreach ($sourceFile in $sourceFiles) {
       if (-not $officialNames.Contains($sourceFile.Name)) {
@@ -1340,7 +1342,7 @@ function Expand-DreamSkinThemeZipSecurely {
       }
     }
     $backgroundCount = @($sourceFiles | Where-Object {
-      $_.Name -cin @('background.webp', 'background.jpg', 'background.png', 'background.apng', 'background.gif', 'background.mp4')
+      $_.Name -cin @('background.webp', 'background.jpg', 'background.png', 'background.apng', 'background.gif', 'background.mp4', 'background.webm')
     }).Count
     if ($backgroundCount -ne 1) {
       throw 'Official theme ZIP must contain exactly one registered background file.'

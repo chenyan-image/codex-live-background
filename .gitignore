@@ -54,3 +54,6 @@ last-video-diagnostic.json
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Tiny FFmpeg-generated test patterns; never personal media.
+!/tests/fixtures/*.webm

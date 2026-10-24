@@ -40,7 +40,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.1.1' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne '1.1.2' -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -66,6 +66,34 @@ function Connect-YzCodex {
   }while([DateTime]::UtcNow -lt $deadline)
   throw '已请求打开 Codex，背景连接尚未就绪。等主窗口完成加载后，再点“换壁纸”。'
 }
+function Prepare-YzVideo([string]$Path) {
+  if([IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.mp4','.webm')){return [pscustomobject]@{path=$Path;converted=$false}}
+  $node=Get-DreamSkinNodeRuntime
+  $requestPath=Join-Path $stateRoot ('video-request-'+[guid]::NewGuid().ToString('N')+'.json')
+  [IO.File]::WriteAllText($requestPath,(@{media=[IO.Path]::GetFullPath($Path);stateRoot=$stateRoot}|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
+  try{
+    $info=[Diagnostics.ProcessStartInfo]::new()
+    $info.FileName=$node.Path
+    $info.Arguments='"'+(Join-Path $engine 'scripts\prepare-video.mjs')+'" "'+$requestPath+'"'
+    $info.UseShellExecute=$false;$info.CreateNoWindow=$true
+    $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+    $info.StandardOutputEncoding=[Text.UTF8Encoding]::new($false);$info.StandardErrorEncoding=[Text.UTF8Encoding]::new($false)
+    $process=[Diagnostics.Process]::Start($info)
+    try{
+      $errors=$process.StandardError.ReadToEndAsync()
+      $result=$null
+      while(-not $process.StandardOutput.EndOfStream){
+        $line=$process.StandardOutput.ReadLine()
+        if($line.StartsWith('DREAM_PROGRESS:')){[Console]::Out.WriteLine($line.Substring(15))}
+        elseif($line.StartsWith('DREAM_RESULT:')){$result=$line.Substring(13)|ConvertFrom-Json}
+      }
+      $process.WaitForExit()
+      if($process.ExitCode -ne 0){throw $errors.Result.Trim()}
+      if(-not $result -or -not $result.path){throw '视频兼容处理没有返回有效结果。'}
+      return $result
+    }finally{$process.Dispose()}
+  }finally{Remove-Item -LiteralPath $requestPath -Force -ErrorAction SilentlyContinue}
+}
 try {
   switch ($Action) {
     'Check' {
@@ -88,7 +116,7 @@ try {
       $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.1.1';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.1.2';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -106,8 +134,8 @@ try {
       Write-Output '服务已装载，登录 Windows 后会在后台自动运行。后台监控已验证正常；以后直接点“换壁纸”，选中素材即可应用。'
     }
     'Apply' {
-      if (-not $Media -or -not (Test-Path -LiteralPath $Media -PathType Leaf)) { throw '请选择本地视频或 GIF 文件。' }
-      if ([IO.Path]::GetExtension($Media).ToLowerInvariant() -notin @('.mp4','.gif','.png','.jpg','.jpeg','.webp')) { throw '仅支持 MP4、GIF、PNG、JPG、WebP。' }
+      if (-not $Media -or -not (Test-Path -LiteralPath $Media -PathType Leaf)) { throw '请选择本地视频或图片文件。' }
+      if ([IO.Path]::GetExtension($Media).ToLowerInvariant() -notin @('.mp4','.webm','.gif','.png','.jpg','.jpeg','.webp')) { throw '仅支持 MP4、WebM、GIF、PNG、JPG、WebP。' }
       if ((Get-Item -LiteralPath $Media).Length -gt 512MB) { throw '素材超过 512 MiB。请选择较小文件或先压缩；本工具不会修改原始素材。' }
       Ensure-YzService
       $identity=Connect-YzCodex
@@ -118,9 +146,11 @@ try {
         $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -ConnectOnly -OperationLockTimeoutMilliseconds 180000 2>&1)
         if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
       }
+      $prepared=Prepare-YzVideo -Path $Media
+      $applyMedia=$prepared.path
       $needsConnect=$false
       try{
-        $result = Invoke-Engine 'ApplyTheme' @('-ImagePath',$Media,'-Name',[IO.Path]::GetFileNameWithoutExtension($Media),'-ThemeId',('custom-' + [guid]::NewGuid().ToString('N')),'-Category','custom','-TaskMode','full','-SurfaceOpacity',$Opacity.ToString([Globalization.CultureInfo]::InvariantCulture))
+        $result = Invoke-Engine 'ApplyTheme' @('-ImagePath',$applyMedia,'-Name',[IO.Path]::GetFileNameWithoutExtension($Media),'-ThemeId',('custom-' + [guid]::NewGuid().ToString('N')),'-Category','custom','-TaskMode','full','-SurfaceOpacity',$Opacity.ToString([Globalization.CultureInfo]::InvariantCulture))
         $needsConnect=-not $result.rendererApplied
       }catch{
         if($_.Exception.Message -notmatch 'DREAM_SKIN_LIVE_APPLY_FAILED'){throw}
@@ -133,6 +163,7 @@ try {
         if(-not $applied.rendererApplied){throw '素材已保存，当前窗口还在加载。等主窗口就绪后再点“换壁纸”。'}
       }
       if(-not $result){$result=Get-Content -LiteralPath (Join-Path $stateRoot 'active-theme\theme.json') -Raw|ConvertFrom-Json}
+      if($prepared.converted){Write-Output '已使用经过真实解码验证的 VP9 兼容副本，原视频保持不变。'}
       Write-Output ('已应用并保存：' + $result.name + '。动态素材静音循环播放，重新打开 Codex 后会自动恢复。')
     }
     'Launch' {

@@ -27,6 +27,7 @@ const BACKGROUND_MEDIA = new Map([
   ["background.apng", "image/png"],
   ["background.gif", "image/gif"],
   ["background.mp4", "video/mp4"],
+  ["background.webm", "video/webm"],
 ]);
 const PAYLOAD_MEDIA = new Map([
   ["theme.json", "application/json"],
@@ -211,7 +212,7 @@ function expectedLimit(name, simple = false) {
   if (name === "theme.css") return LIMITS.css;
   if (name === "LICENSE.txt") return LIMITS.license;
   if (name === "manifest.sig") return LIMITS.signature;
-  if (/\.mp4$/i.test(name)) return LIMITS.video;
+  if (/\.(?:mp4|webm)$/i.test(name)) return LIMITS.video;
   if (BACKGROUND_MEDIA.has(name) || /\.(?:png|apng|jpe?g|webp|gif)$/i.test(name)) return LIMITS.image;
   return 0;
 }
@@ -491,6 +492,7 @@ function detectedImageMedia(bytes) {
     && bytes.subarray(8, 12).toString() === "WEBP"
   ) return "image/webp";
   if (bytes.length >= 12 && bytes.subarray(4, 8).toString() === "ftyp") return "video/mp4";
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "video/webm";
   return "";
 }
 
@@ -500,6 +502,9 @@ function validateMediaPayload(name, bytes, expectedMedia) {
   }
   if (expectedMedia === "video/mp4" && !readImageMetadata(bytes, ".mp4")) {
     fail(`${name} must be a standard non-fragmented H.264/AVC or H.265/HEVC MP4 within the video safety limits`);
+  }
+  if (expectedMedia === "video/webm" && !readImageMetadata(bytes, ".webm")) {
+    fail(`${name} must contain one unencrypted VP8/VP9 WebM video track within the video safety limits`);
   }
 }
 
@@ -551,7 +556,7 @@ async function validateSimple(root, names) {
   if (
     path.basename(theme.image) !== theme.image
     || CONTROL_PATTERN.test(theme.image)
-    || !/\.(?:png|apng|jpe?g|webp|gif|mp4)$/i.test(theme.image)
+    || !/\.(?:png|apng|jpe?g|webp|gif|mp4|webm)$/i.test(theme.image)
     || !names.includes(theme.image)
   ) fail("Local simplified theme image must be beside theme.json");
   const [imageBytes, cssBytes] = await Promise.all([
@@ -562,7 +567,8 @@ async function validateSimple(root, names) {
     ? "image/png"
     : /\.webp$/i.test(theme.image) ? "image/webp"
       : /\.gif$/i.test(theme.image) ? "image/gif"
-        : /\.mp4$/i.test(theme.image) ? "video/mp4" : "image/jpeg";
+        : /\.mp4$/i.test(theme.image) ? "video/mp4"
+          : /\.webm$/i.test(theme.image) ? "video/webm" : "image/jpeg";
   validateMediaPayload(theme.image, imageBytes, expectedMedia);
   decodeAndValidateSafeCss(cssBytes);
   return {

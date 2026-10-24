@@ -61,11 +61,21 @@ if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
 $repoRoot = Split-Path -Parent $EngineSource
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE'),(Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination $out
+foreach($name in @('README.md','CHANGELOG.md')){
+ if(Test-Path -LiteralPath (Join-Path $repoRoot $name)){Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $out}
+}
 $thirdParty = Join-Path $out 'THIRD_PARTY'
 New-Item -ItemType Directory -Path $thirdParty | Out-Null
 Copy-Item -LiteralPath (Join-Path $ThirdPartySource 'Codex-Dream-Skin') -Destination $thirdParty -Recurse
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $thirdParty 'Dream-Skin-Manager-LICENSE')
 Copy-Item -LiteralPath $NodeLicense -Destination (Join-Path $thirdParty 'Node-LICENSE')
+$runtimeNotices=Join-Path $ThirdPartySource 'FFmpeg-Runtime'
+if(-not (Test-Path -LiteralPath $runtimeNotices -PathType Container)){$runtimeNotices=Join-Path $repoRoot 'ffmpeg-notices'}
+$runtimeNoticeOut=Join-Path $thirdParty 'FFmpeg-Runtime'
+New-Item -ItemType Directory -Path $runtimeNoticeOut | Out-Null
+foreach($name in @('runtime-download.json','README.md','COPYING.LGPLv3','COPYING.GPLv3','publisher-checksums.sha256')){
+ Copy-Item -LiteralPath (Join-Path $runtimeNotices $name) -Destination $runtimeNoticeOut
+}
 @'
 This distribution adds a Windows launcher, startup-port guard, no-close behavior,
 visible-thread selector repairs, and theme recovery to the MIT-licensed engine.
@@ -85,12 +95,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.1.1';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.1.2';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.1.1';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.1.2';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

@@ -38,6 +38,11 @@ param(
   [ValidateRange(0, 180)][int]$OperationLockTimeoutSeconds = 180
 )
 
+trap {
+  [Console]::Error.WriteLine($_.Exception.Message)
+  exit 1
+}
+
 $ErrorActionPreference = 'Stop'
 if ($TagsJson) {
   try {
@@ -306,7 +311,7 @@ function Get-ManagerPresetCandidates {
     $candidates += @($catalog)
   } else {
     foreach ($image in @(Get-ChildItem -LiteralPath $PresetRoot -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Extension -match '^\.(jpg|jpeg|png|apng|webp|gif|mp4)$' })) {
+        Where-Object { $_.Extension -match '^\.(jpg|jpeg|png|apng|webp|gif|mp4|webm)$' })) {
       $id = [System.IO.Path]::GetFileNameWithoutExtension($image.Name)
       $fallback = [ordered]@{
         id = "preset-$id"
@@ -1035,6 +1040,9 @@ function Get-ManagerImageMetadata {
     if ($format -eq 'mp4') {
       throw 'MP4 验证失败：仅支持标准非分片 H.264/AVC 或 H.265/HEVC MP4，且视频不能超过 10 分钟、120 FPS、512 MiB、单边 16384 像素或总像素 50MP。'
     }
+    if ($format -eq 'webm') {
+      throw 'WebM 验证失败：仅支持单视频轨 VP8/VP9，且视频不能超过 10 分钟、120 FPS、512 MiB、单边 16384 像素或总像素 50MP。'
+    }
     throw '背景文件验证失败：文件已损坏，或超过图片/视频安全限制。'
   }
   try { $metadata = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop } catch {
@@ -1051,8 +1059,8 @@ function Get-ManagerImageMetadata {
     animated = [bool]$metadata.animated
     frameCount = [int]$metadata.frameCount
     canPreview = $canPreview
-    previewMessage = if ($format -eq 'mp4') {
-      '管理器显示 MP4 静态封面；视频会在 Codex 中静音循环播放。'
+    previewMessage = if ($format -in @('mp4', 'webm')) {
+      '视频会在 Codex 中静音循环播放。'
     } elseif ($canPreview) { '' } else { 'WebP 可以保存并应用，但当前 WPF 预览器可能无法显示。' }
   }
 }
