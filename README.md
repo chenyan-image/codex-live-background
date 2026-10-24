@@ -1,5 +1,7 @@
 # Codex 动态背景
 
+> **原项目的 Bug 修复与源码精简版。** 原始软件由 [xxloocee / Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager) 提供；底层皮肤引擎来自 [Fei-Away / Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。本仓库主要修复使用中遇到的 Bug、简化管理器与源文件并补充 Windows 兼容处理，不将原项目及其主要功能标为我们原创。原始版权和许可证均予以保留。
+
 `codex-live-background` 为 Windows 上的官方 Codex 稳定版添加本地图片、GIF 和视频背景，支持静音循环与登录后自动恢复。
 
 这是基于开源 Dream Skin 引擎的**非官方定制工具**，与 OpenAI 不存在隶属、认可或赞助关系。它不会修改 Codex 的应用安装文件。OpenAI、Codex 和 ChatGPT 的名称、商标及相关权利不属于本项目的 MIT 授权范围。

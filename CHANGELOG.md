@@ -1,5 +1,12 @@
 # 更新记录
 
+原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
+
+## 文档修订 — 明确原作者与衍生版本性质
+
+- 在仓库首页、发布说明及 NOTICE.md 显著注明原作者仓库。
+- 保留原始版权和 MIT 许可，明确历史快照导入不代表原创代码署名。
+
 以下历史依据保留的真实发布包及源码快照整理；未填写无法核实的历史发布日期。Git 历史恢复时使用快照对应的版本标签，不将恢复提交时间表述为最初开发时间。
 
 ## v1.1.2 — 跨电脑视频兼容

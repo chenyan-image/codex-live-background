@@ -61,7 +61,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
 $repoRoot = Split-Path -Parent $EngineSource
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE'),(Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination $out
-foreach($name in @('README.md','CHANGELOG.md')){
+foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
  if(Test-Path -LiteralPath (Join-Path $repoRoot $name)){Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $out}
 }
 $thirdParty = Join-Path $out 'THIRD_PARTY'
