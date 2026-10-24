@@ -1,4 +1,4 @@
-This distribution adds a Windows launcher, startup-port guard, no-close behavior,
+﻿This distribution adds a Windows launcher, startup-port guard, no-close behavior,
 visible-thread selector repairs, and theme recovery to the MIT-licensed engine.
 Source: https://github.com/xxloocee/Codex-Dream-Skin-Manager
 Upstream: https://github.com/Fei-Away/Codex-Dream-Skin (MIT)

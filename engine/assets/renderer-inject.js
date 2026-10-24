@@ -121,6 +121,10 @@
   let videoErrorHandler = null;
   let videoFailure = null;
   let videoDisposed = false;
+  let videoPlaybackBlocked = false;
+  let playbackRecoveryHandler = null;
+  let playbackRecoveryAttempts = 0;
+  let videoSourceGeneration = 0;
   const now = () => typeof performance === "object" && typeof performance.now === "function"
     ? performance.now() : Date.now();
   const metrics = {
@@ -149,14 +153,15 @@
   const styleRegistry = existingStyleRegistry instanceof Set ? existingStyleRegistry : new Set();
   window[STYLE_REGISTRY_KEY] = styleRegistry;
   const dataMime = /^data:([^;,]+)/.exec(artDataUrl)?.[1] || null;
-  const fileMime = /^dreamskin-file:(image\/(?:png|jpeg|webp|gif)|video\/mp4)$/.exec(artDataUrl)?.[1] || null;
+  const fileMime = /^dreamskin-file:(image\/(?:png|jpeg|webp|gif)|video\/(?:mp4|webm))$/.exec(artDataUrl)?.[1] || null;
   const fileMediaSource = Boolean(fileMime);
   if (!dataMime && !fileMediaSource) throw new Error("Rejected an invalid Dream Skin media source");
   const artMime = fileMime || dataMime;
   const mediaExtensions = { "image/png": /\.(?:png|apng)$/i, "image/jpeg": /\.jpe?g$/i,
-    "image/webp": /\.webp$/i, "image/gif": /\.gif$/i, "video/mp4": /\.mp4$/i };
+    "image/webp": /\.webp$/i, "image/gif": /\.gif$/i, "video/mp4": /\.mp4$/i,
+    "video/webm": /\.webm$/i };
   let imageProbe = null;
-  const artMediaType = artMime === "video/mp4" ? "video" : "image";
+  const artMediaType = /^video\/(?:mp4|webm)$/.test(artMime) ? "video" : "image";
   let artUrlOwned = !fileMediaSource;
   let artUrl = (() => {
     if (fileMediaSource) return null;
@@ -174,9 +179,12 @@
     videoLayer.id = "codex-dream-skin-video";
     videoLayer.muted = true;
     videoLayer.defaultMuted = true;
+    videoLayer.volume = 0;
+    videoLayer.setAttribute("muted", "");
     videoLayer.loop = true;
     videoLayer.autoplay = true;
     videoLayer.playsInline = true;
+    videoLayer.setAttribute("playsinline", "");
     videoLayer.preload = "auto";
     videoLayer.disablePictureInPicture = true;
     videoLayer.setAttribute("aria-hidden", "true");
@@ -191,11 +199,39 @@
     mediaFileInput.setAttribute("tabindex", "-1");
   }
 
+  const removePlaybackRecovery = () => {
+    if (!playbackRecoveryHandler) return;
+    document.removeEventListener?.("pointerdown", playbackRecoveryHandler, true);
+    document.removeEventListener?.("keydown", playbackRecoveryHandler, true);
+    playbackRecoveryHandler = null;
+  };
   const failVideo = (error) => {
     if (!videoLayer || videoFailure || videoDisposed || error?.name === "AbortError") return;
     const currentState = window[STATE_KEY];
     if (currentState && currentState.installToken !== installToken) return;
     if (!currentState && window[DISABLED_KEY]) return;
+    // A playback-policy rejection says nothing about codec support. Keep the
+    // layer available and recover on at most two subsequent real interactions.
+    if (error?.name === "NotAllowedError") {
+      videoPlaybackBlocked = true;
+      if (currentState?.installToken === installToken) currentState.videoPlaybackBlocked = true;
+      document.documentElement?.setAttribute("data-dream-video-status", "blocked");
+      if (!playbackRecoveryHandler && playbackRecoveryAttempts < 2) {
+        playbackRecoveryHandler = (event) => {
+          if (event?.isTrusted !== true) return;
+          removePlaybackRecovery();
+          if (videoDisposed || window[STATE_KEY]?.installToken !== installToken) return;
+          playbackRecoveryAttempts += 1;
+          videoPlaybackBlocked = false;
+          window[STATE_KEY].videoPlaybackBlocked = false;
+          syncVideoPlayback();
+        };
+        document.addEventListener?.("pointerdown", playbackRecoveryHandler, true);
+        document.addEventListener?.("keydown", playbackRecoveryHandler, true);
+      }
+      return;
+    }
+    removePlaybackRecovery();
     const mediaCode = Number(videoLayer.error?.code) || 0;
     const detail = typeof error?.message === "string" ? error.message.trim() : "";
     videoFailure = detail || (mediaCode ? `Media error ${mediaCode}` : "Video playback failed");
@@ -229,6 +265,11 @@
       state.artUrlOwned = true;
     }
     if (videoLayer) {
+      videoSourceGeneration += 1;
+      removePlaybackRecovery();
+      videoPlaybackBlocked = false;
+      playbackRecoveryAttempts = 0;
+      state.videoPlaybackBlocked = false;
       videoLayer.src = artUrl;
       videoLayer.load?.();
     } else {
@@ -279,10 +320,21 @@
       videoLayer.pause?.();
       return;
     }
+    if (videoPlaybackBlocked) return;
     if (videoLayer.paused) {
+      const sourceGeneration = videoSourceGeneration;
       try {
         const playback = videoLayer.play?.();
-        playback?.catch?.(failVideo);
+        playback?.then?.(() => {
+          if (videoDisposed || sourceGeneration !== videoSourceGeneration ||
+              window[STATE_KEY]?.installToken !== installToken) return;
+          videoPlaybackBlocked = false;
+          window[STATE_KEY].videoPlaybackBlocked = false;
+          removePlaybackRecovery();
+          root?.setAttribute("data-dream-video-status", "playing");
+        }).catch?.((error) => {
+          if (sourceGeneration === videoSourceGeneration) failVideo(error);
+        });
       } catch (error) {
         failVideo(error);
       }
@@ -1168,6 +1220,8 @@
   const cleanup = () => {
     const state = window[STATE_KEY];
     if (state?.installToken !== installToken) return false;
+    removePlaybackRecovery();
+    videoSourceGeneration += 1;
     window[DISABLED_KEY] = true;
     const root = document.documentElement;
     for (const name of ROOT_ATTRS) root?.removeAttribute(name);
@@ -1295,6 +1349,7 @@
     videoLayer,
     mediaFileInput,
     videoError: videoFailure,
+    videoPlaybackBlocked,
     videoErrorHandler,
     installToken,
     styleMode,

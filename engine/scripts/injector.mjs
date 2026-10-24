@@ -429,10 +429,10 @@ class CdpSession {
     this.listeners.set(method, listeners);
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, timeoutMs = 10000) {
     if (this.closed) return Promise.reject(new Error("CDP session is closed"));
     return new Promise((resolve, reject) => {
-      const commandTimeoutMs = remainingOperationTime(10000);
+      const commandTimeoutMs = remainingOperationTime(timeoutMs);
       const id = this.nextId++;
       const timeout = setTimeout(() => {
         this.pending.delete(id);
@@ -449,13 +449,13 @@ class CdpSession {
     });
   }
 
-  async evaluate(expression) {
+  async evaluate(expression, { userGesture = false, timeoutMs = 10000 } = {}) {
     const result = await this.send("Runtime.evaluate", {
       expression,
       awaitPromise: true,
       returnByValue: true,
-      userGesture: false,
-    });
+      userGesture: userGesture === true,
+    }, timeoutMs);
     if (result.exceptionDetails) {
       const detail = result.exceptionDetails.exception?.description ?? result.exceptionDetails.text;
       throw new Error(`Renderer evaluation failed: ${detail}`);
@@ -689,7 +689,7 @@ async function pruneMediaCache(mediaCacheRoot, retainedPath) {
   for (const entry of entries) {
     if (!entry.isFile()) continue;
     const entryPath = path.join(mediaCacheRoot, entry.name);
-    if (/^[a-f0-9]{64}\.(?:mp4|png|apng|jpg|jpeg|webp|gif)$/.test(entry.name)) {
+    if (/^[a-f0-9]{64}\.(?:mp4|webm|png|apng|jpg|jpeg|webp|gif)$/.test(entry.name)) {
       const stat = await fs.lstat(entryPath);
       if (stat.isFile()) snapshots.push({ path: entryPath, size: stat.size, mtimeMs: stat.mtimeMs });
       continue;
@@ -723,7 +723,7 @@ async function pruneMediaCache(mediaCacheRoot, retainedPath) {
 }
 
 export async function materializeMediaSnapshot(mediaBytes, mediaCacheRoot = MEDIA_CACHE_ROOT, extension = ".mp4") {
-  if (![".mp4", ".png", ".apng", ".jpg", ".jpeg", ".webp", ".gif"].includes(extension)) {
+  if (![".mp4", ".webm", ".png", ".apng", ".jpg", ".jpeg", ".webp", ".gif"].includes(extension)) {
     throw new Error("Unsupported media snapshot extension");
   }
   const digest = createHash("sha256").update(mediaBytes).digest("hex");
@@ -816,7 +816,7 @@ export async function loadTheme(themeDir) {
     throw new Error("Theme image must remain inside the selected theme directory");
   }
   const extension = path.extname(imagePath).toLowerCase();
-  if (![".png", ".apng", ".jpg", ".jpeg", ".webp", ".gif", ".mp4"].includes(extension)) {
+  if (![".png", ".apng", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm"].includes(extension)) {
     throw new Error(`Unsupported theme image format: ${extension || "missing"}`);
   }
   const realImagePath = await fs.realpath(imagePath);
@@ -894,7 +894,7 @@ export async function loadTheme(themeDir) {
     fs.stat(realImagePath),
     loadSafeCss(realThemeDir),
   ]);
-  const maxArtBytes = extension === ".mp4" ? MAX_VIDEO_BYTES : MAX_ART_BYTES;
+  const maxArtBytes = [".mp4", ".webm"].includes(extension) ? MAX_VIDEO_BYTES : MAX_ART_BYTES;
   if (!imageStat.isFile()) throw new Error("Theme image is not a file");
   if (imageStat.size < 1) throw new Error("Theme image cannot be empty");
   if (imageStat.size > maxArtBytes) {
@@ -951,7 +951,7 @@ export async function loadPayload(
   const mime = extension === ".jpg" || extension === ".jpeg" ? "image/jpeg"
     : extension === ".webp" ? "image/webp"
       : extension === ".gif" ? "image/gif"
-        : extension === ".mp4" ? "video/mp4" : "image/png";
+        : extension === ".mp4" ? "video/mp4" : extension === ".webm" ? "video/webm" : "image/png";
   const artDataUrl = `dreamskin-file:${mime}`;
   const styleRevision = createHash("sha256").update(combinedCss).digest("hex").slice(0, 20);
   loadedTheme.theme.artKey = createHash("sha256")
@@ -1252,7 +1252,7 @@ export async function bindMediaFileToSession(session, loadedPayload, timeoutMs =
     const bound = await session.evaluate(`(() => {
       const state = window.__CODEX_DREAM_SKIN_STATE__;
       return state?.revision === ${revision} && Boolean(state.bindMediaFile?.());
-    })()`);
+    })()`, { userGesture: loadedPayload.theme?.artMetadata?.video === true });
     if (!bound) throw new Error("Renderer rejected the validated media file bridge");
     while (Date.now() < deadline) {
       const status = await session.evaluate(`(() => {
@@ -1282,7 +1282,7 @@ export async function applyLoadedToSession(session, loadedPayload) {
 }
 
 export function earlyPayloadFor(payload, revision) {
-  if (payload.includes("dreamskin-file:video/mp4")) return "void 0;";
+  if (/dreamskin-file:video\/(?:mp4|webm)/.test(payload)) return "void 0;";
   return `(() => {
     const generationKey = "__CODEX_DREAM_SKIN_EARLY_GENERATION__";
     const appliedKey = "__CODEX_DREAM_SKIN_EARLY_APPLIED__";

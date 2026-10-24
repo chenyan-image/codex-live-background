@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -11,8 +11,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
-[assembly: AssemblyVersion("1.1.1.0")]
-[assembly: AssemblyFileVersion("1.1.1.0")]
+[assembly: AssemblyVersion("1.1.2.0")]
+[assembly: AssemblyFileVersion("1.1.2.0")]
 
 internal sealed class Manager : Form {
     readonly TextBox media = new TextBox();
@@ -24,7 +24,7 @@ internal sealed class Manager : Form {
     [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
 
     Manager(bool checkStatus) {
-        Text = "Codex 动态背景 · 1.1.1";
+        Text = "Codex 动态背景 · 1.1.2";
         Font = new Font("Microsoft YaHei UI", 10F);
         BackColor = Color.FromArgb(245,247,250);
         ClientSize = new Size(780, 490);
@@ -36,14 +36,14 @@ internal sealed class Manager : Form {
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute,32));
         Controls.Add(layout);
         layout.Controls.Add(new Label { Text="Codex 动态背景", Font=new Font(Font.FontFamily,18,FontStyle.Bold), Dock=DockStyle.Fill },0,0);
-        layout.Controls.Add(new Label { Text="装载服务：启用登录自启动和背景自动恢复。\r\n换壁纸：选好 MP4 / GIF / 图片后立即应用，关闭此工具后服务继续运行。", Dock=DockStyle.Fill },0,1);
+        layout.Controls.Add(new Label { Text="装载服务：启用登录自启动和背景自动恢复。\r\n换壁纸：自动检查并处理视频兼容性，关闭此工具后服务继续运行。", Dock=DockStyle.Fill },0,1);
         media.Dock=DockStyle.Fill; media.ReadOnly=true; media.Margin=new Padding(0,7,0,0);
         layout.Controls.Add(media,0,2);
         var settings = new FlowLayoutPanel { Dock=DockStyle.Fill };
         settings.Controls.Add(new Label { Text="界面不透明度", AutoSize=true, Margin=new Padding(0,7,10,0) });
         opacity.Minimum=10; opacity.Maximum=100; opacity.Value=72; opacity.Width=72;
         settings.Controls.Add(opacity);
-        settings.Controls.Add(new Label { Text="%　MP4 / GIF / 图片 · 最大 512 MiB", AutoSize=true, Margin=new Padding(8,7,0,0) });
+        settings.Controls.Add(new Label { Text="%　MP4 / WebM / GIF / 图片 · 最大 512 MiB", AutoSize=true, Margin=new Padding(8,7,0,0) });
         layout.Controls.Add(settings,0,3);
         commands.Dock=DockStyle.Fill;
         commands.Controls.Add(MakeButton("装载服务", delegate { Run("Install"); }));
@@ -68,7 +68,7 @@ internal sealed class Manager : Form {
     }
     void ChooseAndApply() {
         if (busy) return;
-        using (var dialog=new OpenFileDialog { Title="选择壁纸并应用", Filter="支持的素材|*.mp4;*.gif;*.png;*.jpg;*.jpeg;*.webp|MP4 视频|*.mp4|GIF 动图|*.gif|图片|*.png;*.jpg;*.jpeg;*.webp", CheckFileExists=true }) {
+        using (var dialog=new OpenFileDialog { Title="选择壁纸并应用", Filter="支持的素材|*.mp4;*.webm;*.gif;*.png;*.jpg;*.jpeg;*.webp|视频|*.mp4;*.webm|GIF 动图|*.gif|图片|*.png;*.jpg;*.jpeg;*.webp", CheckFileExists=true }) {
             if (dialog.ShowDialog(this)!=DialogResult.OK) return;
             media.Text=dialog.FileName;
         }
@@ -93,10 +93,16 @@ internal sealed class Manager : Form {
                 if (action=="Apply") args+=" -Media "+Quote(chosen)+" -Opacity "+alpha;
                 var info=new ProcessStartInfo(ps,args) { UseShellExecute=false, CreateNoWindow=true, WorkingDirectory=root, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8, StandardErrorEncoding=Encoding.UTF8 };
                 using(var p=Process.Start(info)) {
-                    Task<string> stdout=p.StandardOutput.ReadToEndAsync(), stderr=p.StandardError.ReadToEndAsync();
-                    p.WaitForExit(); Task.WaitAll(stdout,stderr);
+                    var stdout=new StringBuilder(); var stderr=new StringBuilder();
+                    p.OutputDataReceived += delegate(object sender,DataReceivedEventArgs e) {
+                        if(e.Data==null) return;
+                        stdout.AppendLine(e.Data);
+                        if(!IsDisposed) BeginInvoke((MethodInvoker)delegate { if(busy) log.AppendText(Environment.NewLine+e.Data); });
+                    };
+                    p.ErrorDataReceived += delegate(object sender,DataReceivedEventArgs e) { if(e.Data!=null) stderr.AppendLine(e.Data); };
+                    p.BeginOutputReadLine(); p.BeginErrorReadLine(); p.WaitForExit();
                     success=p.ExitCode==0;
-                    result=(stdout.Result+Environment.NewLine+stderr.Result).Trim();
+                    result=(stdout.ToString()+Environment.NewLine+stderr.ToString()).Trim();
                     if(result.Length==0) result=success?"操作完成。":"操作失败，请查看使用说明中的排错方法。";
                 }
             } catch(Exception error) { result=error.Message; }

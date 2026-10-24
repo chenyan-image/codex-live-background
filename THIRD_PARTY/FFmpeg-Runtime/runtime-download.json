@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "publisher": "BtbN/FFmpeg-Builds",
+  "version": "n9.0.2-17-g2a571b6068",
+  "variant": "win64-lgpl-shared-9.0",
+  "license": "LGPL-3.0-or-later",
+  "releaseTag": "autobuild-2026-09-30-13-08",
+  "releasePage": "https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-09-30-13-08",
+  "fileName": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip",
+  "downloadUrl": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip",
+  "checksumsUrl": "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/checksums.sha256",
+  "sha256": "7157177b8a6cb2174c1650ba8c71b363f2c78cba5330f88c4c02cf5b2b880646",
+  "archiveBytes": 76972461,
+  "archivePrefix": "ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/",
+  "runtimeFiles": [
+    {
+      "path": "bin/ffmpeg.exe",
+      "bytes": 540160
+    },
+    {
+      "path": "bin/avcodec-63.dll",
+      "bytes": 91182080
+    },
+    {
+      "path": "bin/avfilter-12.dll",
+      "bytes": 31195648
+    },
+    {
+      "path": "bin/avformat-63.dll",
+      "bytes": 22764032
+    },
+    {
+      "path": "bin/avutil-61.dll",
+      "bytes": 3016704
+    },
+    {
+      "path": "bin/avdevice-63.dll",
+      "bytes": 4948480
+    },
+    {
+      "path": "bin/swscale-10.dll",
+      "bytes": 2332160
+    },
+    {
+      "path": "bin/swresample-7.dll",
+      "bytes": 734720
+    }
+  ],
+  "licenseFile": {
+    "path": "LICENSE.txt",
+    "bytes": 7651
+  },
+  "runtimeBytes": 156713984.0,
+  "source": {
+    "ffmpegCommit": "2a571b6068",
+    "ffmpegArchive": "https://github.com/FFmpeg/FFmpeg/archive/2a571b6068.tar.gz",
+    "buildRecipeCommit": "6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b",
+    "buildRecipeArchive": "https://github.com/BtbN/FFmpeg-Builds/archive/6c9aec5fc9a72ec3abedd1fa84db141fa18cf52b.tar.gz",
+    "libvpxRepository": "https://chromium.googlesource.com/webm/libvpx",
+    "libvpxCommit": "5e680f30801d03c21078f8c4b772464752516211"
+  }
+}

@@ -344,6 +344,210 @@ function mp4VideoMetadata(bytes) {
   return null;
 }
 
+// A bounded WebM subset for local wallpaper videos. Element sizes are checked
+// against their parent before reading any field. Only Segment may be open-ended;
+// live/unknown-size clusters, encrypted tracks and laced blocks are deliberately
+// excluded. Decoder support is still tested in the actual Codex renderer.
+function webmVideoMetadata(bytes) {
+  const EBML = 0x1a45dfa3;
+  const SEGMENT = 0x18538067;
+  const INFO = 0x1549a966;
+  const TRACKS = 0x1654ae6b;
+  const CLUSTER = 0x1f43b675;
+  const MAX_ELEMENTS = 250_000;
+  let elements = 0;
+  function vint(offset, end, keepMarker = false) {
+    if (offset >= end || bytes[offset] === 0) return null;
+    let width = 1;
+    let marker = 0x80;
+    while (!(bytes[offset] & marker)) { marker >>= 1; width += 1; }
+    if (width > (keepMarker ? 4 : 8) || offset + width > end) return null;
+    let value = keepMarker ? bytes[offset] : bytes[offset] & (marker - 1);
+    let unknown = !keepMarker && value === marker - 1;
+    for (let index = 1; index < width; index += 1) {
+      value = value * 256 + bytes[offset + index];
+      unknown = unknown && bytes[offset + index] === 0xff;
+    }
+    if (!unknown && !Number.isSafeInteger(value)) return null;
+    return { value, width, unknown };
+  }
+  function element(offset, end, allowUnknownSegment = false) {
+    if (++elements > MAX_ELEMENTS) return null;
+    const id = vint(offset, end, true);
+    const size = id && vint(offset + id.width, end);
+    if (!size || (size.unknown && !(allowUnknownSegment && id.value === SEGMENT))) return null;
+    const data = offset + id.width + size.width;
+    const finish = size.unknown ? end : data + size.value;
+    if (!Number.isSafeInteger(finish) || finish > end || finish < data) return null;
+    return { id: id.value, data, end: finish };
+  }
+  function children(parent) {
+    const result = [];
+    for (let offset = parent.data; offset < parent.end;) {
+      const child = element(offset, parent.end);
+      if (!child) return null;
+      result.push(child);
+      offset = child.end;
+    }
+    return result;
+  }
+  function single(items, id) {
+    const found = items.filter((item) => item.id === id);
+    return found.length === 1 ? found[0] : null;
+  }
+  function uint(item) {
+    if (!item || item.end - item.data < 1 || item.end - item.data > 8) return null;
+    let value = 0;
+    for (let offset = item.data; offset < item.end; offset += 1) value = value * 256 + bytes[offset];
+    return Number.isSafeInteger(value) ? value : null;
+  }
+  function float(item) {
+    if (!item || ![4, 8].includes(item.end - item.data)) return null;
+    const view = new DataView(bytes.buffer, bytes.byteOffset + item.data, item.end - item.data);
+    const value = item.end - item.data === 4 ? view.getFloat32(0) : view.getFloat64(0);
+    return Number.isFinite(value) ? value : null;
+  }
+  function text(item, maximum = 64) {
+    if (!item || item.end - item.data > maximum || item.end === item.data) return null;
+    return ascii(bytes, item.data, item.end - item.data);
+  }
+  function uniqueFields(items, ids) {
+    return ids.every((id) => items.filter((item) => item.id === id).length <= 1);
+  }
+  const header = element(0, bytes.length);
+  if (!header || header.id !== EBML || header.end > 4096) return null;
+  const headerFields = children(header);
+  if (!headerFields || text(single(headerFields, 0x4282)) !== "webm" ||
+      !uniqueFields(headerFields, [0x4286, 0x42f7, 0x42f2, 0x42f3, 0x4282, 0x4287, 0x4285])) return null;
+  for (const [id, maximum] of [[0x42f7, 1], [0x42f2, 4], [0x42f3, 8], [0x4285, 4]]) {
+    const field = single(headerFields, id);
+    if (field && (!(uint(field) > 0) || uint(field) > maximum)) return null;
+  }
+  let segmentOffset = header.end;
+  while (segmentOffset < bytes.length) {
+    const next = element(segmentOffset, bytes.length, true);
+    if (!next) return null;
+    if (next.id === SEGMENT) break;
+    if (next.id !== 0xec) return null;
+    segmentOffset = next.end;
+  }
+  const segment = element(segmentOffset, bytes.length, true);
+  if (!segment || segment.id !== SEGMENT || segment.end !== bytes.length) return null;
+  const roots = children(segment);
+  const info = roots && single(roots, INFO);
+  const tracks = roots && single(roots, TRACKS);
+  if (!info || !tracks || roots.some((item) => !new Set([
+    0x114d9b74, INFO, TRACKS, CLUSTER, 0x1c53bb6b, 0x1254c367, 0xec, 0xbf,
+  ]).has(item.id))) return null;
+  const infoFields = children(info);
+  if (!infoFields || !uniqueFields(infoFields, [0x2ad7b1, 0x4489])) return null;
+  const scaleField = single(infoFields, 0x2ad7b1);
+  const scale = scaleField ? uint(scaleField) : 1_000_000;
+  const durationField = single(infoFields, 0x4489);
+  const durationTicks = durationField ? float(durationField) : null;
+  if (!(scale > 0) || scale > 1_000_000_000 ||
+      (durationField && !(durationTicks > 0))) return null;
+  const declaredDuration = durationTicks === null ? null : durationTicks * scale / 1e9;
+  if (declaredDuration !== null && declaredDuration > MAX_VIDEO_DURATION_SECONDS) return null;
+  const trackChildren = children(tracks);
+  if (!trackChildren || trackChildren.filter((item) => item.id === 0xae).length !== 1) return null;
+  const track = children(single(trackChildren, 0xae));
+  if (!track || !uniqueFields(track, [0xd7, 0x83, 0x86, 0xe0, 0x23e383, 0x23314f]) ||
+      track.some((item) => item.id === 0x6d80)) return null;
+  const trackNumber = uint(single(track, 0xd7));
+  const codec = text(single(track, 0x86));
+  if (!(trackNumber > 0) || uint(single(track, 0x83)) !== 1 || !["V_VP9", "V_VP8"].includes(codec)) return null;
+  const trackScale = single(track, 0x23314f);
+  if (trackScale && float(trackScale) !== 1) return null;
+  const defaultDurationField = single(track, 0x23e383);
+  const defaultDuration = defaultDurationField ? uint(defaultDurationField) : null;
+  if (defaultDurationField && (!(defaultDuration > 0) || 1e9 / defaultDuration > MAX_VIDEO_FPS + 0.01)) return null;
+  const videoElement = single(track, 0xe0);
+  const video = videoElement && children(videoElement);
+  if (!video || !uniqueFields(video, [0xb0, 0xba, 0x54b2]) ||
+      (single(video, 0x54b2) && uint(single(video, 0x54b2)) !== 0)) return null;
+  const width = uint(single(video, 0xb0));
+  const height = uint(single(video, 0xba));
+  if (!classifyImageDimensions({ width, height })) return null;
+  let sampleCount = 0;
+  let displayedCount = 0;
+  let firstTimestamp = null;
+  let lastTimestamp = null;
+  let minimumDelta = Infinity;
+  let maximumEnd = 0;
+  let keyframes = 0;
+  const clusters = roots.filter((item) => item.id === CLUSTER);
+  if (!clusters.length) return null;
+  for (const cluster of clusters) {
+    const entries = children(cluster);
+    if (!entries || !uniqueFields(entries, [0xe7])) return null;
+    const clusterTimestamp = uint(single(entries, 0xe7));
+    if (clusterTimestamp === null) return null;
+    let blocksInCluster = 0;
+    for (const entry of entries) {
+      let block = entry;
+      let blockDuration = null;
+      let groupKeyframe = false;
+      if (entry.id === 0xa0) {
+        const group = children(entry);
+        if (!group || !uniqueFields(group, [0xa1, 0x9b]) || group.some((item) => item.id === 0xa0)) return null;
+        block = single(group, 0xa1);
+        if (!block) return null;
+        const duration = single(group, 0x9b);
+        blockDuration = duration ? uint(duration) : null;
+        if (duration && !(blockDuration > 0)) return null;
+        groupKeyframe = !group.some((item) => item.id === 0xfb);
+      } else if (entry.id !== 0xa3) {
+        if (![0xe7, 0xa7, 0xab, 0x5854, 0xec, 0xbf].includes(entry.id)) return null;
+        continue;
+      }
+      const number = vint(block.data, block.end);
+      if (!number || number.unknown || number.value !== trackNumber || block.data + number.width + 3 >= block.end) return null;
+      const offset = block.data + number.width;
+      const rawTimestamp = uint16be(bytes, offset);
+      const relativeTimestamp = rawTimestamp >= 0x8000 ? rawTimestamp - 0x10000 : rawTimestamp;
+      const flags = bytes[offset + 2];
+      // Wallpaper conversion emits no lacing. This also makes every sample's
+      // payload and timing independently bounded without trusting lace counts.
+      if (flags & 0x06) return null;
+      const timestamp = (clusterTimestamp + relativeTimestamp) * scale / 1e9;
+      if (!Number.isFinite(timestamp) || timestamp < 0 || timestamp > MAX_VIDEO_DURATION_SECONDS) return null;
+      sampleCount += 1;
+      blocksInCluster += 1;
+      if (sampleCount > MAX_VIDEO_DURATION_SECONDS * MAX_VIDEO_FPS * 2) return null;
+      if ((entry.id === 0xa3 && flags & 0x80) || groupKeyframe) keyframes += 1;
+      if (!(flags & 0x08)) {
+        if (lastTimestamp !== null) {
+          const delta = timestamp - lastTimestamp;
+          // Matroska timestamps are quantized to TimecodeScale. Allow one tick
+          // of rounding at 120 FPS (8/9 ms with the usual 1 ms scale).
+          if (delta <= 0 || delta + scale / 1e9 + 1e-9 < 1 / MAX_VIDEO_FPS) return null;
+          minimumDelta = Math.min(minimumDelta, delta);
+        }
+        firstTimestamp ??= timestamp;
+        lastTimestamp = timestamp;
+        displayedCount += 1;
+      }
+      const duration = blockDuration !== null ? blockDuration * scale / 1e9 : (defaultDuration ?? 0) / 1e9;
+      maximumEnd = Math.max(maximumEnd, timestamp + duration);
+    }
+    if (!blocksInCluster) return null;
+  }
+  if (!keyframes || !displayedCount || displayedCount > MAX_VIDEO_DURATION_SECONDS * MAX_VIDEO_FPS) return null;
+  const inferredFrameDuration = defaultDuration !== null ? defaultDuration / 1e9
+    : Number.isFinite(minimumDelta) ? minimumDelta : null;
+  const durationSeconds = declaredDuration ?? (inferredFrameDuration !== null ? lastTimestamp + inferredFrameDuration : null);
+  if (!(durationSeconds > 0) || durationSeconds > MAX_VIDEO_DURATION_SECONDS + 1e-8 ||
+      maximumEnd > MAX_VIDEO_DURATION_SECONDS + 1e-8 ||
+      maximumEnd > durationSeconds + scale / 1e9 + 1e-8 ||
+      lastTimestamp >= durationSeconds || firstTimestamp > scale / 1e9) return null;
+  const fps = displayedCount / durationSeconds;
+  const peakFps = defaultDuration !== null ? 1e9 / defaultDuration
+    : Number.isFinite(minimumDelta) ? 1 / (minimumDelta + scale / 1e9) : fps;
+  if (fps > MAX_VIDEO_FPS + 0.01 || peakFps > MAX_VIDEO_FPS + 0.01) return null;
+  return { width, height, codec: codec === "V_VP9" ? "vp9" : "vp8", sampleCount, durationSeconds, fps, peakFps };
+}
+
 function gifDimensions(bytes) {
   if (bytes.length < 10 || !["GIF87a", "GIF89a"].includes(ascii(bytes, 0, 6))) return null;
   const width = uint16le(bytes, 6);
@@ -564,6 +768,11 @@ export function readRawDimensions(value, extension = "") {
   if (normalized === ".jpg" || normalized === ".jpeg" ||
     (bytes[0] === 0xff && bytes[1] === 0xd8)) return jpegDimensions(bytes);
   if (normalized === ".webp" || ascii(bytes, 8, 4) === "WEBP") return webpDimensions(bytes);
+  if (normalized === ".webm" || uint32be(bytes, 0) === 0x1a45dfa3) {
+    if (normalized && normalized !== ".webm") return null;
+    const metadata = webmVideoMetadata(bytes);
+    return metadata ? { width: metadata.width, height: metadata.height } : null;
+  }
   if (normalized === ".mp4" || ascii(bytes, 4, 4) === "ftyp") {
     const metadata = mp4VideoMetadata(bytes);
     return metadata ? { width: metadata.width, height: metadata.height } : null;
@@ -584,8 +793,10 @@ export function readImageAnimation(value, extension = "") {
   }
   if (normalized === ".png" || bytes[0] === 0x89) return pngAnimationInfo(bytes);
   if (normalized === ".webp" || ascii(bytes, 8, 4) === "WEBP") return webpAnimationInfo(bytes);
-  if (normalized === ".mp4" || ascii(bytes, 4, 4) === "ftyp") {
-    const metadata = mp4VideoMetadata(bytes);
+  const webm = normalized === ".webm" || uint32be(bytes, 0) === 0x1a45dfa3;
+  if (webm || normalized === ".mp4" || ascii(bytes, 4, 4) === "ftyp") {
+    if (webm && normalized && normalized !== ".webm") return null;
+    const metadata = webm ? webmVideoMetadata(bytes) : mp4VideoMetadata(bytes);
     return metadata ? {
       animated: true,
       frameCount: 0,
@@ -615,7 +826,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const metadata = readImageMetadata(bytes, path.extname(resolved));
       const animation = readImageAnimation(bytes, path.extname(resolved));
       if (!metadata || !animation || animation.frameCount > MAX_IMAGE_FRAMES) {
-        throw new Error(path.extname(resolved).toLowerCase() === ".mp4"
+        throw new Error(path.extname(resolved).toLowerCase() === ".webm"
+          ? "WebM must contain one unencrypted VP8/VP9 video track with valid blocks, within 10 minutes, 120 FPS and dimension limits."
+          : path.extname(resolved).toLowerCase() === ".mp4"
           ? "MP4 must be non-fragmented H.264/AVC or H.265/HEVC, within 10 minutes, 120 FPS and dimension limits."
           : "Media metadata is invalid or exceeds the image/video safety limits");
       }
