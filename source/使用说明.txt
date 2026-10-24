@@ -1,63 +1,54 @@
-﻿Codex 动态背景 1.1.2
+﻿Codex 动态背景 1.2.0
 
-界面只有两个按钮：
-1. 装载服务：安装或修复后台服务，并开启登录 Windows 后自动恢复背景。
-2. 换壁纸：选择 MP4 / WebM / GIF / 图片，自动连接、检查兼容性并应用。
+三个操作：
+1. 换壁纸：选择 MP4 / WebM / GIF / 图片，自动连接、检查并应用。
+2. 装载服务：安装或修复背景服务，开启登录 Windows 后自动恢复背景。
+3. 卸载皮肤：卸下背景效果并关闭自启动，保留聊天、素材和登录资料。
 
-从旧版升级：
-关闭旧的背景管理器，把新版 ZIP 完整解压到新文件夹。
-打开新版 CodexLiveBackground.exe，点一次装载服务，再点换壁纸。
-无需卸载旧版或删除原背景设置；服务会保留当前壁纸和聊天。
-此包应安装在实际使用它的电脑上，不需要沿用作者的用户名或安装路径。
-关闭管理器不会停止后台服务。以后从桌面「Codex 动态背景」直接换壁纸。
-登录 Windows 后只在后台启动，不自动弹出管理器窗口。
-已有 Codex 窗口时工具不会强制关闭或重启聊天。
-首次普通 Codex 实例没有背景连接时，请保存输入并手动完全退出一次，再换壁纸。
+首次使用先装载服务，以后直接换壁纸。关闭管理器不会停止背景服务。
+服务登录 Windows 后在后台运行，不自动弹出管理器窗口。
+软件不会强制关闭或重启正在使用的 Codex。
+首次普通启动的 Codex 没有背景连接时，保存输入并手动完全退出一次，再换壁纸。
 
-本版修复：
-播放权限拒绝、播放中断、窗口隐藏、真实编码不支持会分别处理并显示准确原因。
-探针与背景首次播放都使用明确的静音配置；只对媒体动作使用用户发起的播放请求。
-遇到此电脑确实无法解码的 MP4，会自动生成静音 VP9 WebM 兼容副本。
-兼容副本必须通过文件结构和当前 Codex 的真实解码帧验证后才应用。
-转码不改原文件、不截短时长；为降低其他电脑的解码负担，兼容副本长边最高1920、30FPS。
-能够直接播放的素材保留原画质。兼容副本会缓存，再次选择同一视频无需重复转换。
-播放策略或窗口隐藏问题不会误触发转码，也不会覆盖原壁纸。
-处理进度会显示在管理器内。较长视频首次转换可能需要几分钟，请等待完成。
+4K 与兼容：
+能够直接播放的标准视频保留原分辨率与帧率，包括 4K 60 FPS。
+无法解码时，兼容副本按源尺寸（长边最高4096）、2560、1920逐级尝试。
+兼容副本使用静音 VP9 WebM，最高30FPS，不放大小视频，保留完整时长。
+每一级均须通过结构、时长和当前 Codex 的真实解码帧验证后才应用。
+成功的清晰度会缓存。原文件不变；失败时当前壁纸保留。
+播放权限拒绝、播放中断和窗口隐藏不会误触发转码。
+分片MP4、AV1以及较大源文件先用本地FFprobe读取信息，再标准化。
+视频源文件最大2GiB，最终播放副本最大512MiB；最长10分钟、最高120FPS。
+单边最高16384，总像素最高50MP；GIF/PNG/JPG/WebP最大512MiB，动画最多300帧。
+低性能电脑不保证能流畅播放所有4K视频；转换进度会显示在管理器中。
 
-首次需要兼容转换时：
-程序从 BtbN/FFmpeg-Builds 官方固定发行下载约74MiB的LGPL运行时，核对SHA-256后解压白名单组件。
-之后复用本机运行时，不必重复下载；视频从不上传。
-下载或转换失败时原壁纸保留。无需安装HEVC商店扩展、修改系统或手动开放公网端口。
-下载受限/离线电脑：从官方发行下载原封不动的ZIP，放到：
+首次标准化或兼容转换：
+从 BtbN/FFmpeg-Builds 官方固定发行下载约74MiB的LGPL shared运行时。
+软件核对固定SHA-256，只解压白名单文件，包括FFmpeg与FFprobe，之后复用。
+视频全部本地处理，不上传；发布ZIP不包含FFmpeg二进制。
+离线电脑把官方原始ZIP原封不动放在：
   %LOCALAPPDATA%\CodexDreamSkin\runtime-downloads\ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip
-目录不存在时先创建，再点换壁纸。仍会核对SHA-256，不接受未知可执行文件。
-下载链接、精确校验值、许可及源码位置见 THIRD_PARTY\FFmpeg-Runtime\README.md。
-本项目ZIP包含转换程序和运行时下载配置，不重分发FFmpeg二进制。
+无需手动解压或改名，仍会核对校验值。
+固定链接、校验值、许可及源码位置见 THIRD_PARTY\FFmpeg-Runtime\README.md。
 
-素材支持与限制：
-MP4：标准非分片H.264/AVC或H.265/HEVC；WebM：单视频轨、无音频的VP8/VP9。
-GIF、PNG、JPG、WebP也可使用。素材最大512MiB，视频最长10分钟、最高120FPS；GIF最大300帧。
-动态素材静音循环播放。静态图片、视频的裁切规则沿用旧版；聊天底部透明修复保留。
-素材会保存副本；原文件移动后不影响已保存的背景。
-诊断文件：%LOCALAPPDATA%\CodexDreamSkin\last-video-diagnostic.json
-仅记录本地视频类型、尺寸及播放异常，不读取聊天内容；不会自动发送给任何人。
+升级：
+关闭旧管理器，将新版ZIP完整解压到新文件夹，打开CodexLiveBackground.exe。
+点击装载服务完成升级，无需移除旧设置；当前背景和Codex聊天会保留。
+程序安装在 %LOCALAPPDATA%\Programs\CodexLiveBackground。
+当前用户的背景、兼容副本和资料在 %LOCALAPPDATA%\CodexDreamSkin。
+诊断文件是该目录下的last-video-diagnostic.json；后台日志在startup目录。
+不需要沿用作者的路径或用户名；只支持Windows10/11 x64官方Codex稳定版。
 
-安装及服务：
-安装位置：%LOCALAPPDATA%\Programs\CodexLiveBackground
-背景、兼容副本、连接资料及运行时：%LOCALAPPDATA%\CodexDreamSkin
-后台入口：当前用户CodexDreamSkinPort登录计划任务 + HKCU Run后备入口，共用互斥锁只运行一份。
-装载服务会检查真实监控心跳并兼容升级旧组件。旧组件备份在 startup\upgrade-backup-...。
-连接仅限本机127.0.0.1:9335。后台日志在CodexDreamSkin\startup。
-适用Windows10/11 x64官方Codex稳定版；不支持未验证的Beta包、ChatGPT Classic或网页端。
-
-卸载（需要时）：
-Windows PowerShell运行：
+卸载皮肤：
+点击卸载皮肤并确认，停用背景、自启动和后台恢复，保留管理器入口以便重新启用。
+若窗口断开连接，会明确提示当前皮肤未确认卸下，可以稍后重试。
+也可在Windows PowerShell运行：
   & "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action Remove
-它会停用背景、移除后台启动和桌面入口。关闭管理器后可手动删除安装目录。
-用户素材和背景登录资料保留在CodexDreamSkin目录，删除前请自行备份。
+关闭管理器后可手动删除程序目录。素材、日志及独立登录资料默认保留。
 
-源码随包附带：source、engine、startup。构建命令：
-  .\source\build.ps1 -EngineSource .\engine -NodeExecutable .\engine\runtime\node\node.exe -NodeLicense .\engine\runtime\node\LICENSE -PortSource .\startup -ThirdPartySource .\THIRD_PARTY -OutputDirectory C:\Build\Codex-Background-new
-OutputDirectory必须为不存在的新目录。
-基于MIT许可Codex-Dream-Skin-Manager及Codex-Dream-Skin引擎，保留许可和第三方声明。
-非官方定制，与OpenAI无隶属关系。包内不包含个人壁纸、账号凭据或聊天记录。
+源码及构建见README.md与source\build.ps1；使用不存在的新输出目录。
+原始作者： https://github.com/xxloocee/Codex-Dream-Skin-Manager
+底层引擎： https://github.com/Fei-Away/Codex-Dream-Skin
+本版本是Bug修复与管理器精简衍生版，许可和第三方声明见LICENSE及THIRD_PARTY。
+应用图标改编自Phosphor Icons Mountains（MIT）。
+非官方定制工具，与OpenAI无隶属关系。包内不含用户壁纸、账号凭据或聊天记录。

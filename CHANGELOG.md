@@ -2,6 +2,15 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.2.0 — 4K 兼容与管理器改版
+
+- 原画质播放优先；需要兼容转换时按源尺寸（长边最高 4096）、2560、1920 逐级验证，不再直接降至 1080p。
+- 支持 2 GiB 内视频源文件，以及分片 MP4、AV1 等需要先标准化的 4K 输入；保留完整时长，原文件不变。
+- 固定 SHA-256 的运行时白名单新增 FFprobe，使用流式源文件哈希及经过验证的清晰度缓存。
+- 深色无系统边框的管理器、统一滑杆和窗口按钮；应用图标采用 Phosphor Mountains 的几何形状。
+- 增加「卸载皮肤」，移除皮肤和自启动并保留聊天、素材及登录资料；可重复执行，对断开连接明确报告状态。
+- 验证真实 Codex 3840×2160 H.264、H.265、VP9 及 AV1 标准化后的解码、逐级回退、完整时长、缓存、卸载和窗口操作；额外验证 513 MiB 源文件标准化。
+
 ## 文档修订 — 明确原作者与衍生版本性质
 
 - 在仓库首页、发布说明及 NOTICE.md 显著注明原作者仓库。

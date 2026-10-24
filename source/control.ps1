@@ -17,6 +17,7 @@ $engine = Join-Path $root 'engine'
 . (Join-Path $root 'service-compatibility.ps1')
 . (Join-Path $root 'service-upgrade.ps1')
 . (Join-Path $root 'autostart.ps1')
+. (Join-Path $root 'skin-removal.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $previousErrorActionPreference = $ErrorActionPreference
   try {
@@ -40,7 +41,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.1.2' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne '1.2.0' -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -116,7 +117,7 @@ try {
       $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.1.2';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.2.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -124,6 +125,7 @@ try {
         $link = $shell.CreateShortcut((Join-Path $desktop 'Codex 动态背景.lnk'))
         $link.TargetPath = Join-Path $installRoot 'CodexLiveBackground.exe'
         $link.WorkingDirectory = $installRoot
+        $link.IconLocation = (Join-Path $installRoot 'CodexBackground.ico')+',0'
         $link.Save()
         $oldLink=Join-Path $desktop 'yz Codex 动态背景.lnk'
         if(Test-Path -LiteralPath $oldLink){
@@ -136,7 +138,8 @@ try {
     'Apply' {
       if (-not $Media -or -not (Test-Path -LiteralPath $Media -PathType Leaf)) { throw '请选择本地视频或图片文件。' }
       if ([IO.Path]::GetExtension($Media).ToLowerInvariant() -notin @('.mp4','.webm','.gif','.png','.jpg','.jpeg','.webp')) { throw '仅支持 MP4、WebM、GIF、PNG、JPG、WebP。' }
-      if ((Get-Item -LiteralPath $Media).Length -gt 512MB) { throw '素材超过 512 MiB。请选择较小文件或先压缩；本工具不会修改原始素材。' }
+      $mediaLimit=if([IO.Path]::GetExtension($Media).ToLowerInvariant() -in @('.mp4','.webm')){2GB}else{512MB}
+      if ((Get-Item -LiteralPath $Media).Length -gt $mediaLimit) { throw '视频源文件最大 2 GiB，图片最大 512 MiB；请选择较小文件或先压缩。' }
       Ensure-YzService
       $identity=Connect-YzCodex
       $connection=Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')
@@ -163,7 +166,7 @@ try {
         if(-not $applied.rendererApplied){throw '素材已保存，当前窗口还在加载。等主窗口就绪后再点“换壁纸”。'}
       }
       if(-not $result){$result=Get-Content -LiteralPath (Join-Path $stateRoot 'active-theme\theme.json') -Raw|ConvertFrom-Json}
-      if($prepared.converted){Write-Output '已使用经过真实解码验证的 VP9 兼容副本，原视频保持不变。'}
+      if($prepared.converted){Write-Output ('已使用 VP9 兼容副本：'+$prepared.width+' × '+$prepared.height+'，原视频保持不变。')}
       Write-Output ('已应用并保存：' + $result.name + '。动态素材静音循环播放，重新打开 Codex 后会自动恢复。')
     }
     'Launch' {
@@ -183,23 +186,7 @@ try {
     }
     'Pause' { Assert-Installed; $null = Invoke-Engine 'Pause'; Write-Output '背景已暂停，窗口已恢复原貌。' }
     'Resume' { Assert-Installed; $result = Invoke-Engine 'Resume'; if (-not $result.rendererApplied) { throw '已取消暂停，等待 Codex 连接；也可打开 Codex 后再点恢复。' }; Write-Output '已恢复保存的背景。' }
-    'Remove' {
-      if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json'))) { throw '尚未安装此工具，无需移除启动设置。' }
-      $null = Invoke-Engine 'Pause'
-      & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $startup 'register-port.ps1') -Action Remove | Out-Null
-      if ($LASTEXITCODE -ne 0) { throw '自动启动设置未完全移除，请重试。' }
-      . (Join-Path $engine 'scripts\theme-windows.ps1')
-      $saved = Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')
-      if ($saved) { $null = Stop-DreamSkinRecordedInjector -State $saved }
-      $shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk'
-      Remove-Item -LiteralPath $shortcut -Force -ErrorAction SilentlyContinue
-      Remove-Item -LiteralPath (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk') -Force -ErrorAction SilentlyContinue
-      $runKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-      $run=(Get-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -ErrorAction SilentlyContinue).CodexDreamSkinPort
-      if($run -eq ('"'+(Join-Path $startup 'DreamSkinPortHook.exe')+'" --guard')){Remove-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort}
-      Remove-Item -LiteralPath (Join-Path $installRoot 'installed.json') -Force -ErrorAction SilentlyContinue
-      Write-Output '背景及自动启动已停用。当前聊天继续保留。关闭本工具后，可手动删除 LocalAppData\Programs\CodexLiveBackground；素材和独立登录目录保留在 LocalAppData\CodexDreamSkin。'
-    }
+    'Remove' { Remove-DreamBackgroundSkin -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
     'Status' {
       $codex = Get-DreamSkinCodexInstall
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue

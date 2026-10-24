@@ -1,5 +1,9 @@
 # 开发与发布约定
 
+4K 与卸载验证：在 Windows 上运行 `node tests/video-preparation.mjs` 和 Windows PowerShell 5.1 的 `tests/skin-removal.ps1`。前者默认验证原生 4K 和失败分类；将 `DREAM_TEST_FFMPEG` 指向开发测试用的已验证 FFmpeg 可额外执行真实 4K、1440p、1080p 转换、分片 MP4、完整时长和缓存回归。该变量仅用于测试，不影响产品运行时选择。
+
+编译后的管理器支持 `--ui-test <report.json>` 验证窗口按钮、缩放和不透明度反馈；`--smoke-test <image.png> [width height]` 生成无个人素材的界面截图。这些模式不会装载或卸载真实背景服务。
+
 ## 分支
 
 - `main` 保存稳定版本。
