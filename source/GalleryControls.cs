@@ -63,3 +63,99 @@ internal sealed class WallpaperTile : UserControl {
         if(Entry.Animated){int x=Width-39;using(var b=new SolidBrush(Color.FromArgb(185,12,18,22)))g.FillEllipse(b,x,17,23,23);using(var pen=new Pen(Color.FromArgb(220,235,229),1.2F))g.DrawPolygon(pen,new[]{new Point(x+9,23),new Point(x+9,34),new Point(x+16,28)});}
     }
 }
+
+// Keep a large Steam catalog scrollable without allocating a control or decoding
+// a thumbnail for every workshop item. Cards exist only around the visible rows.
+internal sealed class ContinuousWallpaperGallery : Panel {
+    readonly Panel viewport=new Panel();
+    readonly GalleryScrollBar scrollbar=new GalleryScrollBar();
+    readonly Dictionary<int,WallpaperTile> cards=new Dictionary<int,WallpaperTile>();
+    readonly List<WallpaperEntry> entries=new List<WallpaperEntry>();
+    string selectedId;int columns=1,tileWidth=180,tileHeight=154,offset;bool arranging;
+    public event Action<WallpaperEntry> EntrySelected;
+    public int ScrollOffset {get{return offset;}}
+    public int MaximumOffset {get{return scrollbar.Maximum;}}
+    public int RealizedCount {get{return cards.Count;}}
+    public int ColumnCount {get{return columns;}}
+    public int RowHeight {get{return tileHeight+12;}}
+    public IEnumerable<WallpaperTile> VisibleCards {get{return cards.Values;}}
+    internal GalleryScrollBar Scrollbar {get{return scrollbar;}}
+    public ContinuousWallpaperGallery(){
+        DoubleBuffered=true;TabStop=true;AccessibleName="Wallpaper Engine 连续壁纸列表";
+        viewport.Dock=DockStyle.Fill;scrollbar.Dock=DockStyle.Right;scrollbar.Width=14;Controls.Add(viewport);Controls.Add(scrollbar);
+        scrollbar.ValueChanged+=delegate{offset=scrollbar.Value;RealizeCards();};
+        viewport.MouseWheel+=delegate(object sender,MouseEventArgs e){Wheel(e);};
+    }
+    public void SetEntries(IEnumerable<WallpaperEntry> items,string selected){
+        ClearCards();entries.Clear();entries.AddRange(items);selectedId=selected;offset=0;ArrangeCards();
+    }
+    public void SetSelected(string id){selectedId=id;foreach(var tile in cards.Values){tile.Selected=tile.Entry.Id==id;tile.Invalidate();}}
+    public void UpdateThumbnail(string id,string path){foreach(var tile in cards.Values)if(tile.Entry.Id==id)tile.Picture.SetMedia(path);}
+    public void ScrollTo(int value){scrollbar.Value=value;}
+    void ClearCards(){foreach(var tile in cards.Values)tile.Dispose();cards.Clear();}
+    protected override void Dispose(bool disposing){if(disposing)ClearCards();base.Dispose(disposing);}
+    protected override void OnResize(EventArgs e){base.OnResize(e);ArrangeCards();}
+    protected override void OnFontChanged(EventArgs e){base.OnFontChanged(e);foreach(var tile in cards.Values)tile.Font=Font;}
+    void ArrangeCards(){
+        if(arranging||viewport==null||scrollbar==null||ClientSize.Width<1)return;arranging=true;
+        try{
+            int available=Math.Max(1,ClientSize.Width-scrollbar.Width-8);
+            columns=available>1050?4:available>=570?3:2;
+            tileWidth=Math.Max(1,(available-(columns-1)*12)/columns);tileHeight=Math.Max(100,(int)(tileWidth*.56)+54);
+            int total=((entries.Count+columns-1)/columns)*(tileHeight+12);if(total>0)total-=12;
+            int requested=offset;scrollbar.SetRange(Math.Max(0,total-viewport.ClientSize.Height),viewport.ClientSize.Height);
+            scrollbar.Value=requested;offset=scrollbar.Value;RealizeCards();
+        }finally{arranging=false;}
+    }
+    void RealizeCards(){
+        if(viewport.ClientSize.Height<1)return;
+        int firstRow=offset/RowHeight,lastRow=(offset+viewport.ClientSize.Height-1)/RowHeight+1;
+        int start=firstRow*columns,end=Math.Min(entries.Count,(lastRow+1)*columns);
+        var stale=new List<int>();foreach(int index in cards.Keys)if(index<start||index>=end)stale.Add(index);
+        viewport.SuspendLayout();
+        try{
+            foreach(int index in stale){cards[index].Dispose();cards.Remove(index);}
+            for(int index=start;index<end;index++){
+                WallpaperTile tile;
+                if(!cards.TryGetValue(index,out tile)){
+                    tile=new WallpaperTile(entries[index]){Font=Font,Selected=entries[index].Id==selectedId};
+                    var clicked=tile;tile.Click+=delegate{if(EntrySelected!=null)EntrySelected(clicked.Entry);};
+                    tile.MouseWheel+=delegate(object sender,MouseEventArgs e){Wheel(e);};
+                    tile.Picture.MouseWheel+=delegate(object sender,MouseEventArgs e){Wheel(e);};
+                    cards.Add(index,tile);viewport.Controls.Add(tile);
+                }
+                tile.SetBounds((index%columns)*(tileWidth+12),(index/columns)*RowHeight-offset,tileWidth,tileHeight);
+            }
+        }finally{viewport.ResumeLayout();}
+    }
+    void Wheel(MouseEventArgs e){
+        var handled=e as HandledMouseEventArgs;if(handled!=null&&handled.Handled)return;
+        int lines=SystemInformation.MouseWheelScrollLines;
+        int distance=lines<0?Math.Max(1,viewport.ClientSize.Height-RowHeight/2):Math.Max(1,lines)*36;
+        ScrollTo(offset-(int)Math.Round(e.Delta/120.0*distance));if(handled!=null)handled.Handled=true;
+    }
+    protected override void OnMouseWheel(MouseEventArgs e){Wheel(e);base.OnMouseWheel(e);}
+    protected override bool ProcessCmdKey(ref Message msg,Keys keyData){
+        switch(keyData){case Keys.PageDown:ScrollTo(offset+viewport.ClientSize.Height-24);return true;case Keys.PageUp:ScrollTo(offset-viewport.ClientSize.Height+24);return true;case Keys.Control|Keys.Home:ScrollTo(0);return true;case Keys.Control|Keys.End:ScrollTo(MaximumOffset);return true;default:return base.ProcessCmdKey(ref msg,keyData);}
+    }
+}
+
+internal sealed class GalleryScrollBar : Control {
+    int current,maximum,viewportHeight,grab;bool dragging;
+    public event EventHandler ValueChanged;
+    public int Maximum {get{return maximum;}}
+    public int Value {get{return current;}set{int next=Math.Max(0,Math.Min(maximum,value));if(next==current)return;current=next;Invalidate();if(ValueChanged!=null)ValueChanged(this,EventArgs.Empty);}}
+    internal Rectangle Thumb {
+        get{int track=Math.Max(1,Height-8),height=Math.Min(track,Math.Max(34,(int)((long)track*viewportHeight/Math.Max(1,maximum+viewportHeight))));return new Rectangle(4,4+(maximum==0?0:(int)((long)(track-height)*current/maximum)),6,height);}
+    }
+    public GalleryScrollBar(){SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);TabStop=true;AccessibleRole=AccessibleRole.ScrollBar;AccessibleName="壁纸列表垂直滚动条";Cursor=Cursors.Hand;}
+    public void SetRange(int max,int page){maximum=Math.Max(0,max);viewportHeight=Math.Max(1,page);Enabled=maximum>0;Value=current;Invalidate();}
+    protected override void OnPaint(PaintEventArgs e){e.Graphics.Clear(Parent.BackColor);if(maximum==0)return;var thumb=Thumb;e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var track=new SolidBrush(Color.FromArgb(27,33,37)))e.Graphics.FillRectangle(track,6,4,2,Math.Max(1,Height-8));using(var path=IconAssets.Round(thumb,3))using(var brush=new SolidBrush(dragging?Color.FromArgb(140,226,193):Color.FromArgb(76,104,101)))e.Graphics.FillPath(brush,path);}
+    protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(e.Button!=MouseButtons.Left||maximum==0)return;Focus();var thumb=Thumb;if(!thumb.Contains(e.Location)){Value+=e.Y<thumb.Top?-viewportHeight:viewportHeight;return;}dragging=true;grab=e.Y-thumb.Top;Capture=true;Invalidate();}
+    protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);if(!dragging)return;int travel=Math.Max(1,Height-8-Thumb.Height);Value=(int)Math.Round((e.Y-grab-4)*(double)maximum/travel);}
+    protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(e.Button==MouseButtons.Left){dragging=false;Capture=false;Invalidate();}}
+    protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture){dragging=false;Invalidate();}}
+    protected override void OnMouseWheel(MouseEventArgs e){Value-=(int)Math.Round(e.Delta/120.0*108);var handled=e as HandledMouseEventArgs;if(handled!=null)handled.Handled=true;base.OnMouseWheel(e);}
+    protected override bool IsInputKey(Keys key){return key==Keys.Up||key==Keys.Down||key==Keys.PageUp||key==Keys.PageDown||key==Keys.Home||key==Keys.End||base.IsInputKey(key);}
+    protected override void OnKeyDown(KeyEventArgs e){base.OnKeyDown(e);switch(e.KeyCode){case Keys.Up:Value-=36;break;case Keys.Down:Value+=36;break;case Keys.PageUp:Value-=viewportHeight;break;case Keys.PageDown:Value+=viewportHeight;break;case Keys.Home:Value=0;break;case Keys.End:Value=maximum;break;default:return;}e.Handled=true;e.SuppressKeyPress=true;}
+}

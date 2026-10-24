@@ -19,18 +19,20 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.0-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.1-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
 
 管理器采用黑色壁纸库界面，按侧栏浏览：
 
 | 页面 | 作用 |
 | --- | --- |
 | 本地壁纸 | 六张内置原创背景、导入的本地视频或图片，支持搜索、静态/动态过滤和分页。 |
-| Wallpaper Engine | 自动发现 Steam 库中的视频、GIF、图片；未发现时可手动定位 Steam 库或 `431960` 目录。 |
+| Wallpaper Engine | 自动发现 Steam 库中的视频、GIF、图片；所有匹配结果在同一列表中向下滚动，无需翻页。未发现时可手动定位 Steam 库或 `431960` 目录。 |
 | 使用记录 | 按最近成功应用的时间排列，重开软件仍保留；移除记录不会删除原文件。 |
 | 服务与设置 | 装载服务、卸载皮肤、彻底卸载服务、重新检测以及运行记录。 |
 
 点击右上角「导入壁纸」添加本地文件，或在卡片中选择内置/Steam 壁纸，再点右侧「应用这张壁纸」。导入和预览不会更改当前背景，成功应用后才写入使用记录。首次手动 ZIP 部署可在「服务与设置」装载服务。关闭管理器不会停止后台服务，登录后也不会自动弹出管理器窗口。拖动滑杆调整聊天框背景的不透明度：数值越低越透明。换壁纸时会同步启用 Codex 深色外观，避免浅色界面覆盖背景。
+
+Wallpaper Engine 列表支持鼠标滚轮和右侧深色滚动条，按需加载屏幕附近的卡片。搜索或切换静态/动态类型后回到列表顶部；滚动不影响已选壁纸和右侧预览。本地壁纸与使用记录沿用分页。
 
 左下角显示真实 Codex 连接状态、版本及背景服务状态，点击可重新检测；只有核验通过的 Codex 会话才显示绿色。六张内置背景由本仓库代码生成，不包含参考项目或个人壁纸。界面组织参考 [JiPaiFan1109/CodexPage](https://github.com/JiPaiFan1109/CodexPage)，黑色布局和交互独立实现。
 
@@ -131,7 +133,7 @@ $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
 
 ```powershell
 .\source\build-msi.ps1 -PackageRoot .\dist\Codex-Background-local-win-x64 `
-  -OutputFile .\dist\Codex-Background-1.5.0-win-x64.msi
+  -OutputFile .\dist\Codex-Background-1.5.1-win-x64.msi
 ```
 
 v1.3.0 自制 EXE 安装器的源码仅供历史参考，新版本优先发布标准 MSI。代码签名流程见 [Windows 发布与签名](docs/windows-trust.md)。

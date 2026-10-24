@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.0.0")]
-[assembly: AssemblyFileVersion("1.5.0.1")]
+[assembly: AssemblyVersion("1.5.1.0")]
+[assembly: AssemblyFileVersion("1.5.1.0")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -322,12 +322,13 @@ internal sealed partial class Manager : Form {
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
         if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
-        bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test";
-        bool test=smoke||uiTest||previewTest||lifecycle||galleryTest;Mutex instance=null;bool owns=false;
+        bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test",steamScrollTest=args.Length==2&&args[0]=="--steam-scroll-test";
+        bool test=smoke||uiTest||previewTest||lifecycle||galleryTest||steamScrollTest;Mutex instance=null;bool owns=false;
         try{
         if(!test){instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
             if(!owns){try{using(var activate=EventWaitHandle.OpenExisting("Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))activate.Set();}catch(WaitHandleCannotBeOpenedException){}return 0;}}
         using(var form=new Manager(!test)){
+            if(steamScrollTest)return form.TestSteamScroll(args[1]);
             if(galleryTest)return form.TestGallery(args[1]);
             if(lifecycle)return form.TestLifecycle(args[1]);
             if(previewTest)return form.TestPreview(args[1],args[2]);
