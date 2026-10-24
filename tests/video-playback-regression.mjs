@@ -10,14 +10,14 @@ const flush = async () => { for (let i = 0; i < 8; ++i) await Promise.resolve();
 let checks = 0;
 function check(condition, message) { assert.ok(condition, message); checks++; }
 
-function probeHarness(names = [], { name = "sample.mp4", type = "video/mp4", hidden = false } = {}) {
+function probeHarness(names = [], { name = "sample.mp4", type = "video/mp4", hidden = false, bitmap = false, bitmapRejects = false } = {}) {
   const timers = new Map();
   const attrs = new Map();
   const removed = [];
   let timerId = 0, frame = null, plays = 0, revoked = 0;
   const input = { files: [{ name, type, size: 32 }], remove() { removed.push("input"); } };
   const video = {
-    style: {}, error: null,
+    style: {}, error: null, readyState: 0, videoWidth: 0, videoHeight: 0,
     setAttribute(key, value) { attrs.set(key, value); },
     requestVideoFrameCallback(callback) { frame = callback; return 1; },
     cancelVideoFrameCallback() { frame = null; },
@@ -35,6 +35,11 @@ function probeHarness(names = [], { name = "sample.mp4", type = "video/mp4", hid
     URL: { createObjectURL() { return "blob:mock"; }, revokeObjectURL() { revoked++; } },
     setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
+    ...(bitmap ? { createImageBitmap: async source => {
+      check(source === video && source.readyState >= 2, "bitmap verifies actual current video data");
+      if (bitmapRejects) throw new Error("No decodable frame");
+      return {width: source.videoWidth, height: source.videoHeight, close() { removed.push("bitmap"); }};
+    }} : {}),
   });
   vm.runInContext(`(${installVideoDecodeProbe.toString()})("probe")`, context);
   const probe = context.window.probe;
@@ -46,8 +51,9 @@ function probeHarness(names = [], { name = "sample.mp4", type = "video/mp4", hid
       timers.delete(entry[0]); entry[1].fn(); await flush();
     },
     emitFrame(value = { width: 1920, height: 1080, presentedFrames: 1 }) { frame?.(0, value); },
+    async decodedData(){video.readyState=2;video.videoWidth=1920;video.videoHeight=1080;video.onloadeddata?.();await flush();},
     clean() {
-      check(removed.length === 2 && !context.window.probe && timers.size === 0, "probe cleans all DOM and timers");
+      check(removed.filter(x=>x!=="bitmap").length === 2 && !context.window.probe && timers.size === 0, "probe cleans all DOM and timers");
       check(revoked === (plays ? 1 : 0), "probe releases owned Blob URL");
     },
   };
@@ -92,8 +98,19 @@ for (const code of [3, 4]) {
   h.emitFrame(); check((await pending).pass === true, "a later valid decoded frame passes"); h.clean();
 }
 {
-  const h = probeHarness([], { hidden: true });
-  check(createVideoDecodeError(await h.probe.start()).code === "DREAM_VIDEO_WINDOW_HIDDEN" && h.plays() === 0, "hidden window is not a codec error"); h.clean();
+  const h = probeHarness([], { hidden: true, bitmap: true });const pending=h.probe.start();await flush();
+  check(h.timers.size===1, "hidden window alone is not a failed codec probe");
+  await h.decodedData();const result=await pending;
+  check(result.pass===true&&result.verification==="decoded-bitmap", "hidden renderer validates a decoded bitmap without frame presentation");h.clean();
+}
+{
+  const h = probeHarness([], { hidden: true, bitmap: true, bitmapRejects: true });const pending=h.probe.start();await flush();
+  await h.decodedData();check(h.timers.size===1, "failed bitmap capture cannot report successful decoding");
+  await h.timer(20000);check(createVideoDecodeError(await pending).code==="DREAM_VIDEO_WINDOW_HIDDEN", "hidden renderer without a decoded frame still fails closed");h.clean();
+}
+{
+  const h = probeHarness(["NotSupportedError"], { hidden: true, bitmap: true });
+  check(createVideoDecodeError(await h.probe.start()).code==="DREAM_VIDEO_UNSUPPORTED", "hidden renderer retains real unsupported-codec errors");h.clean();
 }
 {
   const h = probeHarness([], { name: "sample.webm", type: "video/webm" }); const pending = h.probe.start(); await flush();
@@ -178,7 +195,7 @@ function rendererHarness(errors = ["NotAllowedError"]) {
       failure:()=>videoFailure, blocked:()=>videoPlaybackBlocked,
       dispose:()=>{videoDisposed=true;videoSourceGeneration++;removePlaybackRecovery()},
       replace:()=>videoSourceGeneration++};`, context);
-  return { api: context.api, video, state, attrs, listeners, plays: () => plays,
+  return { api: context.api, video, state, document, attrs, listeners, plays: () => plays,
     interact(name = "pointerdown", isTrusted = true) { listeners.get(name)?.({ isTrusted }); } };
 }
 {
@@ -205,5 +222,11 @@ function rendererHarness(errors = ["NotAllowedError"]) {
 {
   const h = rendererHarness(["NotSupportedError"]); h.api.play(); await flush();
   check(Boolean(h.api.failure()) && h.video.hidden && h.listeners.size === 0, "true unsupported media remains a visible error state");
+}
+{
+  const h=rendererHarness([]);h.document.hidden=true;h.api.play();await flush();
+  check(h.plays()===0&&h.video.paused,"hidden background does not waste playback");
+  h.document.hidden=false;h.api.play();await flush();
+  check(h.plays()===1&&!h.video.paused,"background resumes when Codex becomes visible");
 }
 console.log(JSON.stringify({ pass: true, checks, codexConnected: false, filesWritten: false }));

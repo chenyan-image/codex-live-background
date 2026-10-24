@@ -1,170 +1,42 @@
 # Codex 动态背景
 
-> **原项目的 Bug 修复与源码精简版。** 原始软件由 [xxloocee / Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager) 提供；底层皮肤引擎来自 [Fei-Away / Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。本仓库主要修复使用中遇到的 Bug、简化管理器与源文件并补充 Windows 兼容处理，不将原项目及其主要功能标为我们原创。
+为 Windows 版 Codex 换上喜欢的图片、GIF 或视频背景。
 
-`codex-live-background` 为 Windows 上的官方 Codex 稳定版添加本地图片、GIF 和视频背景，支持静音循环与登录后自动恢复。
+基于原作者 [xxloocee / Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager) 和 [Fei-Away / Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin) 修改，主要修复 Bug、精简源码并改善 Windows 使用体验。
 
-这是基于开源 Dream Skin 引擎的**非官方定制工具**，与 OpenAI 不存在隶属、认可或赞助关系。它不会修改 Codex 的应用安装文件。OpenAI、Codex 和 ChatGPT 的名称、商标及相关权利不属于本项目的 MIT 授权范围。
+**[下载安装包](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md) · [详细说明](docs/guide.md)**
 
-![管理器界面](docs/manager.png)
+## 特点
 
-## 适用环境
+- **4K 视频背景**：优先使用原画质；电脑无法解码时自动生成兼容副本，并按需降低分辨率。
+- **图片铺满窗口**：横图、方图、竖图都按比例裁切铺满 Codex，覆盖侧栏和对话区域；聊天框透明度可调。
+- **Wallpaper Engine 壁纸库**：自动查找 Steam 库中的视频、GIF 和图片，支持搜索、类型筛选、连续向下滚动和预览。
+- **壁纸记录与内置背景**：保存最近使用的壁纸，附带六张原创背景。
+- **自动恢复**：服务随 Windows 登录运行，Codex 打开后恢复背景，无需一直开着管理器。
+- **便捷管理**：支持旧版升级、卸载皮肤和卸载服务，保留个人素材与壁纸记录。
 
-- Windows 10 / 11，x64。
-- 当前 Windows 用户已安装官方 Codex 稳定版商店包 `OpenAI.Codex`。
-- 不支持未验证的 Beta 包、ChatGPT Classic、网页端、macOS、Linux 或 ARM64。
-- 发布包自带经过签名验证的 Node.js，无需单独安装 Node.js 或 Python。
+支持 MP4、WebM、GIF、PNG、JPG、WebP；视频源文件最大 **2 GiB**，最长 **10 分钟**。视频静音循环，原素材不被修改。
 
-Codex 后续更新可能改变界面或启动行为；出现不兼容时请使用本仓库较新的发布版本。
+## 界面
+
+本地壁纸与预览：
+
+![本地壁纸管理界面](docs/manager.png)
+
+Wallpaper Engine 壁纸库（本机实际扫描），向下连续滚动浏览：
+
+![Wallpaper Engine 连续滚动壁纸库](docs/wallpaper-engine.png)
+
+本地页展示内置原创背景，Wallpaper Engine 页为本机真实壁纸库截图。实际壁纸由用户本机提供。场景项目 `scene.pkg`、网页及应用壁纸只显示可用预览图，不能直接播放原场景。
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.1-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
+1. 在 [Releases](https://github.com/chenyan-image/codex-live-background/releases/latest) 下载 `.msi`，双击安装；升级前先退出旧管理器。
+2. 导入本地素材，或在 Wallpaper Engine 页面选择壁纸。
+3. 右侧预览后点击「应用这张壁纸」。关闭管理器，背景仍继续运行。
 
-管理器采用黑色壁纸库界面，按侧栏浏览：
+适用 **Windows 10 / 11 x64 + 官方 Codex 稳定版**。首次开启背景连接时，若提示普通启动实例，请保存输入后手动完全退出 Codex 一次，再应用壁纸。
 
-| 页面 | 作用 |
-| --- | --- |
-| 本地壁纸 | 六张内置原创背景、导入的本地视频或图片，支持搜索、静态/动态过滤和分页。 |
-| Wallpaper Engine | 自动发现 Steam 库中的视频、GIF、图片；所有匹配结果在同一列表中向下滚动，无需翻页。未发现时可手动定位 Steam 库或 `431960` 目录。 |
-| 使用记录 | 按最近成功应用的时间排列，重开软件仍保留；移除记录不会删除原文件。 |
-| 服务与设置 | 装载服务、卸载皮肤、彻底卸载服务、重新检测以及运行记录。 |
+本工具为非官方项目，与 OpenAI 无隶属关系。当前安装包尚未正式代码签名，Windows 可能提示未知发布者；详见 [发布说明](docs/windows-trust.md)。
 
-点击右上角「导入壁纸」添加本地文件，或在卡片中选择内置/Steam 壁纸，再点右侧「应用这张壁纸」。导入和预览不会更改当前背景，成功应用后才写入使用记录。首次手动 ZIP 部署可在「服务与设置」装载服务。关闭管理器不会停止后台服务，登录后也不会自动弹出管理器窗口。拖动滑杆调整聊天框背景的不透明度：数值越低越透明。换壁纸时会同步启用 Codex 深色外观，避免浅色界面覆盖背景。
-
-Wallpaper Engine 列表支持鼠标滚轮和右侧深色滚动条，按需加载屏幕附近的卡片。搜索或切换静态/动态类型后回到列表顶部；滚动不影响已选壁纸和右侧预览。本地壁纸与使用记录沿用分页。
-
-左下角显示真实 Codex 连接状态、版本及背景服务状态，点击可重新检测；只有核验通过的 Codex 会话才显示绿色。六张内置背景由本仓库代码生成，不包含参考项目或个人壁纸。界面组织参考 [JiPaiFan1109/CodexPage](https://github.com/JiPaiFan1109/CodexPage)，黑色布局和交互独立实现。
-
-Wallpaper Engine 的 `scene.pkg`、网页及应用项目无法直接播放；有预览图时会明确显示为「场景预览图」，应用的是预览图而非原场景动画。不会执行壁纸项目脚本或修改 Steam 文件。壁纸库只记录原文件路径，文件被移动或磁盘离线后会显示不可用，可重新导入；不会批量复制或删除 Steam 壁纸。
-
-选中素材后，右侧显示实际预览：图片直接显示，视频和 GIF 优先显示 384×216 / 12 FPS 预览，失败时依次降低至 256×144 / 8 FPS、192×108 / 6 FPS，再尝试静态缩略图；最长 6 秒，实际背景保留完整时长。生成预览需要相同的可选 FFmpeg 运行时，预览不可用时仍会继续尝试应用壁纸。
-
-已有背景连接的 Codex 窗口可以直接更换壁纸。若首次启用时 Codex 是普通启动实例，请先保存未发送的输入，手动完全退出 Codex 一次，再点「应用这张壁纸」。工具不会强制关闭或重启聊天。独立背景配置首次使用时可能需要重新登录。
-
-## 素材与兼容转换
-
-| 素材 | 支持范围 |
-| --- | --- |
-| MP4 | 支持 4K H.264 / AVC、H.265 / HEVC、AV1 输入；分片或不能直接播放的文件会先标准化。 |
-| WebM | VP8 / VP9 输入；需要时转为单视频轨、无音轨的 VP9 兼容副本。 |
-| 图片和动画 | GIF、PNG、JPG / JPEG、WebP。 |
-| 大小 | 视频源文件最大 2 GiB，图片最大 512 MiB；最终播放副本最大 512 MiB。 |
-| 视频时长与帧率 | 最长 10 分钟，最高 120 FPS。 |
-| 像素尺寸 | 单边不超过 16384 像素，总像素不超过 50 MP。 |
-| 图片动画 | 最多 300 帧；该限制不用于计算视频帧数。 |
-
-动态素材静音循环播放。成功应用后的背景保存播放副本，移动原文件不影响当前效果；壁纸库引用原文件，移动原文件后原记录将无法再次应用。
-
-**4K 原画质优先。** 能直接播放的标准文件保留原始分辨率和帧率。需要转换时，先尝试保留源分辨率（长边最高 4096 像素）的 **VP9 WebM 兼容副本**；若此电脑仍不能解码，再依次尝试长边 2560、1920 像素。不放大小视频。兼容副本保留完整时长，关闭音频，最高 30 FPS。
-
-分片 MP4、AV1 或超过 512 MiB 的视频源文件先用经过校验的本地 FFprobe 读取信息，再生成符合播放要求的副本。大文件采用流式哈希校验。每一级副本必须通过文件结构、完整时长和当前 Codex 的真实解码帧验证后才应用；成功的清晰度会缓存，重复选择相同素材无需重新转换。4K 解码超时也可逐级降低分辨率；这不保证低性能电脑能流畅播放所有视频。
-
-播放权限被拒绝、播放中断或窗口隐藏会分别提示，不会误当作编码问题转换视频。导入失败时保留现有壁纸，原文件始终不变。
-
-### 首次转换需要的下载
-
-首次生成动态预览、标准化或兼容转换时，程序从 **BtbN/FFmpeg-Builds** 的固定发行下载约 **74 MiB** 的 LGPL shared Windows x64 运行时 ZIP，核对固定 SHA-256 后仅解压白名单组件（包括 FFprobe）。之后复用本机运行时。项目发布 ZIP 不包含 FFmpeg 二进制，也不会上传视频。
-
-离线电脑可在另一台电脑下载同一个原始 ZIP，将它原封不动放在目标电脑的：
-
-```text
-%LOCALAPPDATA%\CodexDreamSkin\runtime-downloads\ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0.zip
-```
-
-不需要手动解压或改名。软件仍会验证同一 SHA-256。精确下载地址、校验值、许可及对应源码见 [FFmpeg 运行时说明](THIRD_PARTY/FFmpeg-Runtime/README.md) 和 `runtime-download.json`。长视频首次转换可能需要几分钟，进度显示在管理器中。
-
-## 自启动、文件位置与诊断
-
-| 内容 | 当前用户目录或入口 |
-| --- | --- |
-| 程序安装位置 | `%LOCALAPPDATA%\Programs\CodexLiveBackground` |
-| 背景、兼容副本和运行时 | `%LOCALAPPDATA%\CodexDreamSkin` |
-| 后台日志 | `%LOCALAPPDATA%\CodexDreamSkin\startup` |
-| 最近的视频诊断 | `%LOCALAPPDATA%\CodexDreamSkin\last-video-diagnostic.json` |
-| 壁纸库、使用记录与 Steam 目录 | `%LOCALAPPDATA%\CodexDreamSkin\wallpaper-library.json` |
-| 本机官方 Codex 图标缓存 | `%LOCALAPPDATA%\CodexDreamSkin\icons` |
-| 登录启动入口 | `CodexDreamSkinPort` 当前用户登录计划任务 |
-
-仅保留一个可在任务计划程序中查看的当前用户登录任务；Codex 包启动入口会检查并补启守护服务。管理器不需要常驻，也不会随 Codex 弹出。「装载服务」会检查真实监控心跳，安装器会自动迁移已识别的旧版。连接仅使用本机 `127.0.0.1:9335`，无需开放公网防火墙规则。
-
-视频诊断用于区分播放策略、格式与解码问题，仅保存在本机，不读取聊天内容，也不会自动发送。提交 Issue 前请检查并删除不愿公开的文件名、路径和其他个人信息。
-
-## 升级与卸载
-
-直接运行新版 MSI。安装器会检测当前用户的 `CodexLiveBackground` 和 `CodexDreamSkinManager` 标准安装目录（包含通过历史发布校验值确认的 1.0.x），关闭旧管理器及已验证的背景组件，由 Windows Installer 更新程序文件；手动 ZIP 升级及旧版管理器目录迁移保留在 `CodexDreamSkin\upgrade-backups`。不关闭 Codex，不删除壁纸、背景配置和登录资料。失败时尝试恢复旧程序文件，旧版备份保留供恢复。不会扫描或删除用户任意文件夹。
-
-「卸载皮肤」只卸下当前效果，保留服务。需要彻底移除背景服务时，点击「卸载服务」。也可以在 Windows PowerShell 中运行：
-
-```powershell
-& "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action RemoveService
-```
-
-卸载服务会停用背景、删除服务启动文件并移除后台启动，保留管理器入口，方便以后重新装载。关闭管理器后可手动删除程序目录。用户素材、日志和独立背景登录资料仍保留在 `CodexDreamSkin` 用户目录；需要删除时请先自行备份。如果当前窗口断开连接，管理器会明确报告未确认卸下的状态，不会误报全部完成。
-
-## 从源码构建
-
-源码布局：
-
-```text
-source/       Windows 管理器、控制脚本和构建脚本
-engine/       Dream Skin 引擎及本项目的兼容性修改
-startup/      本地端口启动钩子与监控源码
-THIRD_PARTY/  第三方许可证、来源和运行时下载配置
-```
-
-构建需要 Windows x64、Windows PowerShell 5.1、系统 .NET Framework C# 编译器，以及来自官方发行且签名有效的 Node.js x64 22 或更高版本及其 LICENSE。以下变量填写本地 Node.js 文件位置：
-
-```powershell
-$nodeExe = Read-Host 'Node.js node.exe 的完整路径'
-$nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
-.\source\build.ps1 `
-  -EngineSource .\engine `
-  -NodeExecutable $nodeExe `
-  -NodeLicense $nodeLicense `
-  -PortSource .\startup `
-  -ThirdPartySource .\THIRD_PARTY `
-  -OutputDirectory .\dist\Codex-Background-local-win-x64
-```
-
-输出目录必须是尚不存在的新目录。构建会生成中性渐变示例图，不打包个人壁纸、账号凭据、聊天记录或机器配置。
-
-使用 Windows 自带的 Windows Installer COM 接口与 makecab 构建单文件 MSI，无需下载第三方编译器：
-
-```powershell
-.\source\build-msi.ps1 -PackageRoot .\dist\Codex-Background-local-win-x64 `
-  -OutputFile .\dist\Codex-Background-1.5.1-win-x64.msi
-```
-
-v1.3.0 自制 EXE 安装器的源码仅供历史参考，新版本优先发布标准 MSI。代码签名流程见 [Windows 发布与签名](docs/windows-trust.md)。
-
-## 验证源码
-
-使用 Node.js 22 或更高版本，在 Windows 下运行：
-
-~~~powershell
-node tests/video-playback-regression.mjs
-node tests/webm-validation.mjs
-~~~
-
-这些回归不连接 Codex，也不更改当前壁纸；测试媒体是 FFmpeg 生成的小尺寸图案。
-
-## 分支和版本
-
-- `main`：稳定主线，正式版本由 `vX.Y.Z` 标签标记。
-- `develop`：下一版本的集成开发分支。
-- `feat/<名称>`、`fix/<名称>`：独立功能和修复分支。
-- 每个完成的修改都使用独立、明确命名的提交和带说明的 `change/<序号>-<短名>` 标签，方便回溯。
-
-历史功能见 [CHANGELOG](CHANGELOG.md)，参与开发前请读 [CONTRIBUTING](CONTRIBUTING.md)。从旧发布包恢复的历史标签对应实际快照，不代表凭空补造旧提交日期。
-
-## 来源和许可
-
-本项目的软件代码按 [MIT License](LICENSE) 分发，并保留以下项目的版权和许可声明：
-
-- [Codex Dream Skin Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)：Windows 管理器与引擎整合的来源。
-- [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin)：背景注入引擎，MIT。
-- [Node.js](https://nodejs.org/)：发布包中的脚本运行时，许可随包保留。
-- [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds)：可选下载的 LGPL shared 运行时，用于生成 VP9 兼容副本。
-
-详细说明见 [第三方声明](THIRD_PARTY_NOTICES.md) 和 `THIRD_PARTY`。软件许可证不授予用户壁纸、第三方图片、人物肖像、角色、商标或 OpenAI 应用本身的使用和再分发权；请仅使用自己有权使用的素材。
+[MIT](LICENSE) · [第三方声明](THIRD_PARTY_NOTICES.md) · [构建与开发](docs/guide.md#从源码构建)

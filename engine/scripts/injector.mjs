@@ -214,6 +214,7 @@ function parseArgs(argv) {
     else if (arg === "--watch") options.mode = "watch";
     else if (arg === "--verify") options.mode = "verify";
     else if (arg === "--verify-live") options.mode = "verify-live";
+    else if (arg === "--background-status") options.mode = "background-status";
     else if (arg === "--verify-removed") options.mode = "verify-removed";
     else if (arg === "--remove") options.mode = "remove";
     else if (arg === "--begin-operation") options.mode = "begin-operation";
@@ -269,7 +270,7 @@ function parseArgs(argv) {
     if (!options.browserId) throw new Error("--browser-id is required in finish-operation mode");
   }
   if ([
-    "watch", "once", "apply-live", "verify", "verify-live", "verify-removed", "remove",
+    "watch", "once", "apply-live", "verify", "verify-live", "verify-removed", "remove", "background-status",
   ].includes(options.mode) && !options.browserId) {
     throw new Error(`--browser-id is required in ${options.mode} mode`);
   }
@@ -1052,6 +1053,7 @@ async function probeSession(session) {
       Boolean(document.querySelector(${stableTestidLiteral("theme-preview")}));
     return {
       markers,
+      documentVisible: document.visibilityState === 'visible' && !document.hidden,
       excludedPetSurface,
       codex: !excludedPetSurface && location.protocol === 'app:' &&
         ((markers.shell && markers.sidebar) || settings || markers.main || markers.generic),
@@ -1177,7 +1179,7 @@ export async function connectCodexTargets(port, timeoutMs, expectedBrowserId) {
           lastError = error;
         }
       }
-      if (connected.length) return connected;
+      if (connected.length) return connected.sort((a, b) => Number(b.probe.documentVisible) - Number(a.probe.documentVisible));
       lastError = new Error("No page matched the expected Codex shell markers");
     } catch (error) {
       if (error instanceof CdpIdentityMismatchError) throw error;
@@ -1560,6 +1562,53 @@ async function verifyRemovedSession(session) {
       !document.getElementById('codex-dream-skin-style') &&
       !window.__CODEX_DREAM_SKIN_STATE__;
   })()`);
+}
+
+// This function is serialized into the renderer. It only reads our own media
+// and root attributes; connection readiness must never imply working playback.
+export function rendererBackgroundStatus() {
+  const runtime = window.__CODEX_DREAM_SKIN_STATE__;
+  const visible = document.visibilityState === "visible" && !document.hidden;
+  const active = document.documentElement.getAttribute("data-dream-skin") === "active";
+  if (!active || !runtime) return {status: "not-applied", visible};
+  if (runtime.mediaType !== "video") return {
+    status: runtime.imageError ? "error" : runtime.imageReady ? "image-ready" : "loading",
+    mediaType: "image", visible,
+  };
+  const video = runtime.videoLayer;
+  const error = Boolean(runtime.videoError || video?.error);
+  const blocked = runtime.videoPlaybackBlocked === true;
+  const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  const frames = Number(video?.getVideoPlaybackQuality?.().totalVideoFrames) || 0;
+  const ready = Boolean(video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0);
+  return {mediaType: "video", visible, ready, frames, currentTime: Number(video?.currentTime) || 0,
+    status: error ? "error" : blocked ? "blocked" : !visible ? "waiting-visible"
+      : reducedMotion ? "reduced-motion" : !ready ? "loading" : video.paused ? "paused"
+        : frames > 0 ? "playing" : "loading"};
+}
+
+async function runBackgroundStatus(options) {
+  const records = [];
+  for (const target of await listAppTargets(options.port, options.browserId)) {
+    let session;
+    try {
+      session = await connectTarget(target, options.port);
+      if (!(await probeSession(session))?.codex) continue;
+      const status = await session.evaluate(`(${rendererBackgroundStatus.toString()})()`);
+      records.push({session, status});session = null;
+    } catch {} finally {session?.close();}
+  }
+  try {
+    const record = records.sort((a, b) => Number(b.status.visible) - Number(a.status.visible))[0];
+    let status = record?.status || {status: "no-renderer", visible: false};
+    if (status.status === "playing") {
+      await new Promise(resolve => setTimeout(resolve, 250));
+      const after = await record.session.evaluate(`(${rendererBackgroundStatus.toString()})()`);
+      status = {...after, status: after.status === "playing" &&
+        !(after.frames > status.frames || after.currentTime !== status.currentTime) ? "stalled" : after.status};
+    }
+    writeSync(1, JSON.stringify(status) + "\n");
+  } finally {for (const {session} of records) session.close();}
 }
 
 export async function verifyAppliedSession(
@@ -2382,7 +2431,8 @@ async function main(options) {
       artMetadata: loaded.theme.artMetadata ?? null,
       safeCssStatus: loaded.safeCssStatus,
     }));
-  } else if (options.mode === "begin-operation") await runBeginOperation(options);
+  } else if (options.mode === "background-status") await runBackgroundStatus(options);
+  else if (options.mode === "begin-operation") await runBeginOperation(options);
   else if (options.mode === "finish-operation") await runFinishOperation(options);
   else if (options.mode === "watch") await runWatch(options);
   else await runOneShot(options);

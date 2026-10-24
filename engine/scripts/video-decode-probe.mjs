@@ -27,6 +27,7 @@ export function installVideoDecodeProbe(key) {
   let disposed = false;
   let retryTimer = null;
   let started = null;
+  let bitmapPending = false;
   const cleanup = () => {
     if (disposed) return;
     disposed = true;
@@ -34,6 +35,8 @@ export function installVideoDecodeProbe(key) {
     if (retryTimer) clearTimeout(retryTimer);
     if (frameCallback !== null) video.cancelVideoFrameCallback?.(frameCallback);
     video.onerror = null;
+    video.onloadeddata = null;
+    video.oncanplay = null;
     video.pause();
     video.removeAttribute("src");
     video.load();
@@ -70,8 +73,23 @@ export function installVideoDecodeProbe(key) {
         finish({ pass: false, reason: "invalid-file" });
         return;
       }
-      if (hidden()) { finish({ pass: false, reason: "window-hidden" }); return; }
-      if (typeof video.requestVideoFrameCallback !== "function") {
+      // A manager covering/minimizing Codex can suspend frame presentation.
+      // HAVE_CURRENT_DATA plus a decoded ImageBitmap proves real decoding
+      // without spoofing visibility or requiring a presented screen frame.
+      const verifyBitmap = () => {
+        if (settled || disposed || bitmapPending || video.readyState < 2 ||
+            !(video.videoWidth > 0 && video.videoHeight > 0) ||
+            typeof createImageBitmap !== "function") return;
+        bitmapPending = true;
+        Promise.resolve().then(() => createImageBitmap(video)).then((bitmap) => {
+          const width = bitmap.width, height = bitmap.height;
+          bitmap.close?.();
+          if (!settled && !disposed && width > 0 && height > 0) {
+            finish({ pass: true, reason: "decoded-frame", verification: "decoded-bitmap", width, height });
+          }
+        }).catch(() => {}).finally(() => { bitmapPending = false; });
+      };
+      if (typeof video.requestVideoFrameCallback !== "function" && typeof createImageBitmap !== "function") {
         finish({ pass: false, reason: "frame-verification-unavailable" });
         return;
       }
@@ -82,19 +100,20 @@ export function installVideoDecodeProbe(key) {
           finish({ pass: true, reason: "decoded-frame", width: frame.width, height: frame.height });
         } else frameCallback = video.requestVideoFrameCallback(verifyFrame);
       };
-      frameCallback = video.requestVideoFrameCallback(verifyFrame);
+      if (typeof video.requestVideoFrameCallback === "function") frameCallback = video.requestVideoFrameCallback(verifyFrame);
+      video.onloadeddata = verifyBitmap;
+      video.oncanplay = verifyBitmap;
       url = URL.createObjectURL(file);
       video.src = url;
       let attempts = 0;
       const rejected = (error) => {
         if (settled || disposed) return;
         const detail = describe(error);
-        if (detail.errorName === "AbortError" && ++attempts < 2 && !detail.mediaError && !hidden()) {
+        if (detail.errorName === "AbortError" && ++attempts < 2 && !detail.mediaError) {
           retryTimer = setTimeout(play, 0);
           return;
         }
-        finish({ pass: false, reason: hidden() ? "window-hidden"
-          : detail.errorName === "NotAllowedError" ? "playback-blocked"
+        finish({ pass: false, reason: detail.errorName === "NotAllowedError" ? "playback-blocked"
             : detail.errorName === "AbortError" ? "playback-interrupted" : "playback-rejected", ...detail });
       };
       const play = () => {

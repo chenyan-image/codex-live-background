@@ -37,6 +37,15 @@ function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   if ($code -ne 0) { throw $output }
   return $output | ConvertFrom-Json
 }
+function Get-YzRendererHealth($Identity) {
+  if(-not $Identity){return [pscustomobject]@{status='disconnected'}}
+  try {
+    $node=Get-DreamSkinNodeRuntime
+    $output=@(& $node.Path (Join-Path $engine 'scripts\injector.mjs') --background-status --port 9335 --browser-id "$($Identity.BrowserId)" --timeout-ms 4000 2>$null)
+    if($LASTEXITCODE -eq 0){return ($output -join "`n")|ConvertFrom-Json}
+  }catch{}
+  return [pscustomobject]@{status='unknown'}
+}
 function Assert-Installed {
   if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json'))) { throw '请先点击“装载服务”。' }
   if (-not (Test-Path -LiteralPath (Join-Path $startup 'DreamSkinPortHook.exe'))) { throw '启动组件缺失，请重新安装。' }
@@ -47,7 +56,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.5.1' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne '1.5.2' -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -122,8 +131,8 @@ try {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       $prepared=$false
-      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.5.1' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
-      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.5.1')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
+      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.5.2' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
+      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.5.2')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
       $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
@@ -137,7 +146,7 @@ try {
       $shortcuts=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $stateRoot
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.5.1';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.5.2';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -194,7 +203,9 @@ try {
       $config=Join-Path $env:USERPROFILE '.codex\config.toml'
       if(Test-Path -LiteralPath $config){try{. (Join-Path $engine 'scripts\config-utf8.ps1');$null=Install-DreamSkinBaseTheme -ConfigPath $config -BackupPath (Join-Path $stateRoot 'config.before-dream-skin.toml') -AppearanceTheme dark}catch{Write-Output '当前壁纸已应用深色外观；桌面偏好设置暂未同步。'}}
       if($prepared.converted){Write-Output ('已使用 VP9 兼容副本：'+$prepared.width+' × '+$prepared.height+'，原视频保持不变。')}
-      Write-Output ('已应用并保存：' + $result.name + '。动态素材静音循环播放，重新打开 Codex 后会自动恢复。')
+      $health=Get-YzRendererHealth $identity
+      $playbackNote=if($health.status -eq 'waiting-visible'){'视频已保存；Codex 窗口显示后自动静音循环播放。'}elseif($health.status -eq 'playing'){'视频正在静音循环播放。'}elseif($health.status -eq 'image-ready'){'图片已铺满 Codex 窗口。'}elseif($health.status -eq 'reduced-motion'){'系统启用了减少动态效果，视频当前暂停。'}else{'可在左下角查看实际壁纸状态。'}
+      Write-Output ('已应用并保存：' + $result.name + '。'+$playbackNote+' 重新打开 Codex 后会自动恢复。')
     }
     'Launch' {
       Assert-Installed
@@ -219,7 +230,8 @@ try {
       $codex=$null;$identity=$null;$auto=$null
       try{$codex=Get-DreamSkinCodexInstall;$identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex}catch{}
       try{$auto=Get-YzBackgroundAutostart -StartupRoot $startup}catch{}
-      $data=@{installed=[bool]$codex;version=$(if($codex){"$($codex.Version)"}else{''});connected=[bool]$identity;serviceRunning=[bool]($auto -and $auto.running);autostart=[bool]($auto -and $auto.enabled)}
+      $health=Get-YzRendererHealth $identity
+      $data=@{installed=[bool]$codex;version=$(if($codex){"$($codex.Version)"}else{''});connected=[bool]$identity;serviceRunning=[bool]($auto -and $auto.running);autostart=[bool]($auto -and $auto.enabled);background=$health.status}
       [Console]::Out.WriteLine('DREAM_STATUS:'+($data|ConvertTo-Json -Compress))
     }
     'Status' {
