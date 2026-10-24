@@ -1,0 +1,1695 @@
+/* Canonical cross-platform skin. Run tools/sync-runtime-assets.mjs after editing. */
+@layer dreamskin-accessibility, dreamskin-community, dreamskin-surfaces;
+
+:root[data-dream-skin="active"] {
+  color-scheme: dark !important;
+  --ds-bg: #111318;
+  --ds-panel: #191c22;
+  --ds-panel-2: #20242b;
+  --ds-green: #8298a3;
+  --ds-lime: #a0adb3;
+  --ds-cyan: #8da397;
+  --ds-purple: #9d94a3;
+  --ds-text: #edf0f1;
+  --ds-muted: #a3aaae;
+  --ds-line: rgba(130, 152, 163, .24);
+  --ds-bg-rgb: 17 19 24;
+  --ds-panel-rgb: 25 28 34;
+  --ds-panel-2-rgb: 32 36 43;
+  /* Window tint is independent of the floating-panel opacity setting. */
+  --ds-shell-background: rgb(var(--ds-bg-rgb) / .58);
+  /* Shared floating surface settings. Change background alpha, never element
+     opacity: text, icons, images and semantic highlights must stay opaque. */
+  --ds-surface-opacity: .80;
+  --ds-surface-blur: 10px;
+  --ds-surface-background: rgb(var(--ds-panel-rgb) / var(--ds-surface-opacity));
+  --ds-surface-filter: blur(var(--ds-surface-blur)) saturate(106%);
+  --ds-text-rgb: 237 240 241;
+  --ds-muted-rgb: 163 170 174;
+  --ds-accent-rgb: 130 152 163;
+  --ds-secondary-rgb: 141 163 151;
+  --ds-highlight-rgb: var(--ds-secondary-rgb);
+  --ds-accent: var(--ds-green);
+  --ds-accent-soft: var(--ds-lime);
+  --ds-secondary: var(--ds-cyan);
+  --ds-highlight: var(--ds-purple);
+  --ds-on-accent: rgb(var(--ds-bg-rgb) / 1);
+  --ds-focus-x: var(--dream-skin-focus-x, var(--dream-art-focus-x, 50%));
+  --ds-focus-y: var(--dream-skin-focus-y, var(--dream-art-focus-y, 50%));
+  --ds-art-position: var(--dream-art-position, var(--dream-skin-art-position, var(--ds-focus-x) var(--ds-focus-y)));
+  --ds-safe-side: left;
+  --ds-hero-scrim: linear-gradient(90deg,
+    rgb(var(--ds-bg-rgb) / .90) 0%,
+    rgb(var(--ds-bg-rgb) / .76) 50%,
+    rgb(var(--ds-bg-rgb) / .18) 84%,
+    transparent 100%);
+  --ds-task-shade: linear-gradient(90deg,
+    rgb(var(--ds-bg-rgb) / .56) 0%,
+    rgb(var(--ds-bg-rgb) / .36) 48%,
+    rgb(var(--ds-bg-rgb) / .12) 100%);
+  --ds-task-fade: linear-gradient(180deg,
+    rgb(var(--ds-bg-rgb) / .10) 0%,
+    rgb(var(--ds-bg-rgb) / .18) 32%,
+    rgb(var(--ds-bg-rgb) / .76) 68%,
+    rgb(var(--ds-bg-rgb) / 1) 100%);
+  --ds-task-full-veil: linear-gradient(
+    rgb(var(--ds-bg-rgb) / .10),
+    rgb(var(--ds-bg-rgb) / .10));
+  --ds-immersive-edge: rgb(var(--ds-bg-rgb) / .40);
+  --ds-immersive-mid: rgb(var(--ds-bg-rgb) / .26);
+  --ds-immersive-far: rgb(var(--ds-bg-rgb) / .16);
+  --ds-immersive-sidebar: rgb(var(--ds-panel-rgb) / .46);
+  --ds-task-immersive-sidebar: rgb(var(--ds-panel-rgb) / .70);
+  --ds-immersive-chrome: rgb(var(--ds-panel-rgb) / .28);
+  --ds-immersive-composer: var(--ds-surface-background);
+  --ds-immersive-composer-solid: var(--ds-surface-background);
+  --ds-immersive-line: rgb(var(--ds-muted-rgb) / .42);
+  --ds-task-immersive-edge: rgb(var(--ds-bg-rgb) / .82);
+  --ds-task-immersive-mid: rgb(var(--ds-bg-rgb) / .74);
+  --ds-task-immersive-far: rgb(var(--ds-bg-rgb) / .60);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"] {
+  color-scheme: light !important;
+  --ds-shell-background: rgb(var(--ds-panel-rgb) / .64);
+  --ds-bg: #f3f5f6;
+  --ds-panel: #fafbfb;
+  --ds-panel-2: #e9edef;
+  --ds-text: #22272a;
+  --ds-muted: #687176;
+  --ds-line: rgba(91, 111, 121, .18);
+  --ds-bg-rgb: 243 245 246;
+  --ds-panel-rgb: 250 251 251;
+  --ds-panel-2-rgb: 233 237 239;
+  --ds-text-rgb: 34 39 42;
+  --ds-muted-rgb: 104 113 118;
+  --ds-accent-rgb: 84 112 126;
+  --ds-secondary-rgb: 102 128 116;
+  --ds-highlight-rgb: var(--ds-secondary-rgb);
+  --ds-on-accent: rgb(var(--ds-panel-rgb) / 1);
+  --ds-hero-scrim: linear-gradient(90deg,
+    rgb(var(--ds-panel-rgb) / .96) 0%,
+    rgb(var(--ds-panel-rgb) / .82) 50%,
+    rgb(var(--ds-panel-rgb) / .20) 84%,
+    transparent 100%);
+  --ds-task-shade: linear-gradient(90deg,
+    rgb(var(--ds-bg-rgb) / .68) 0%,
+    rgb(var(--ds-bg-rgb) / .40) 48%,
+    rgb(var(--ds-bg-rgb) / .12) 100%);
+  --ds-task-fade: linear-gradient(180deg,
+    rgb(var(--ds-bg-rgb) / .08) 0%,
+    rgb(var(--ds-bg-rgb) / .22) 34%,
+    rgb(var(--ds-bg-rgb) / .78) 70%,
+    rgb(var(--ds-bg-rgb) / 1) 100%);
+  --ds-task-full-veil: linear-gradient(
+    rgb(var(--ds-panel-rgb) / .10),
+    rgb(var(--ds-panel-rgb) / .10));
+  --ds-immersive-edge: rgb(var(--ds-panel-rgb) / .44);
+  --ds-immersive-mid: rgb(var(--ds-panel-rgb) / .28);
+  --ds-immersive-far: rgb(var(--ds-panel-rgb) / .14);
+  --ds-immersive-sidebar: rgb(var(--ds-panel-rgb) / .48);
+  --ds-task-immersive-sidebar: rgb(var(--ds-panel-rgb) / .72);
+  --ds-immersive-chrome: rgb(var(--ds-panel-rgb) / .34);
+  --ds-immersive-composer: var(--ds-surface-background);
+  --ds-immersive-composer-solid: var(--ds-surface-background);
+  --ds-immersive-line: rgb(var(--ds-accent-rgb) / .24);
+  --ds-task-immersive-edge: rgb(var(--ds-panel-rgb) / .86);
+  --ds-task-immersive-mid: rgb(var(--ds-panel-rgb) / .78);
+  --ds-task-immersive-far: rgb(var(--ds-panel-rgb) / .66);
+}
+
+/* Native token surfaces (dropdown/popover) resolve from Codex's own
+   appearanceTheme, not the skin; when that disagrees with data-dream-shell the
+   popover keeps the opposite palette (#233). Remap the dropdown token family to
+   skin variables so those surfaces inherit the theme in both shells. */
+html[data-dream-skin="active"] {
+  --color-token-dropdown-background: var(--ds-surface-background);
+  /* Codex's terminal theme reads this token and enables allowTransparency.
+     Keep the canvas clear; the shared outer surface supplies its tint. */
+  --color-codex-terminal-background: transparent !important;
+}
+
+/* Neutral native surfaces are bound once by the renderer, using semantic
+   containers and shared background classes rather than route-specific rules.
+   Important declarations in this layer beat old unlayered surface styling;
+   the earlier community layer still owns explicit user overrides. Only the
+   outer surface paints glass. Nested wrappers stay clear, preventing alpha
+   and backdrop blur from accumulating through the component tree. */
+@layer dreamskin-surfaces {
+  html[data-dream-skin="active"] [data-ds-surface="panel"] {
+    background: var(--ds-surface-background) !important;
+    backdrop-filter: var(--ds-surface-filter) !important;
+  }
+
+  html[data-dream-skin="active"] [data-ds-surface="clear"] {
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Shell surfaces never consume the panel slider or its backdrop blur.
+     Nested neutral navigation wrappers remain clear via the normal binder. */
+  html[data-dream-skin="active"] [data-ds-surface="shell"] {
+    background: var(--ds-shell-background) !important;
+    backdrop-filter: none !important;
+  }
+
+  /* The sidebar resize extension must not repeat its background. */
+  html[data-dream-skin="active"] [data-ds-part="sidebar"]::after {
+    background: transparent !important;
+  }
+
+  /* 26.924 summary section titles are sticky headers with an opaque ::before
+     strip. The enclosing summary panel already paints the configured glass;
+     do not stack another surface/blur on its titles or their top padding. */
+  html[data-dream-skin="active"] [data-summary-panel-variant] header.sticky,
+  html[data-dream-skin="active"] [data-summary-panel-variant] header.sticky::before {
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Utility routes use a sticky page header whose CSS-module class changes
+     every release.  Its structural wrapper is part of the canvas; only the
+     controls inside it (for example the plugin search field) should remain a
+     readable panel. */
+  html[data-dream-skin="active"][data-dream-art-wide="true"]
+    [data-app-shell-inline-page-header] :is([data-sticky="true"], [data-sticky][data-scroll-collapse]),
+  html[data-dream-skin="active"][data-dream-art-wide="true"]
+    [data-app-shell-inline-page-header] :is([data-sticky="true"], [data-sticky][data-scroll-collapse])::before {
+    background: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html[data-dream-skin="active"] [data-ds-surface] {
+    --app-shell-panel-background: transparent !important;
+    --color-codex-terminal-background: transparent !important;
+  }
+
+  /* Diff renderers inherit their base paint through the host. Do not touch
+     addition/deletion colors, syntax colors, images or embedded documents. */
+  html[data-dream-skin="active"] :is(
+    [data-ds-surface][class~="group/file-diff"],
+    [data-ds-surface] [class~="group/file-diff"]
+  ) {
+    --codex-diffs-surface-override: transparent !important;
+  }
+
+  html[data-dream-skin="active"] [data-ds-surface] diffs-container {
+    --color-surface: transparent !important;
+  }
+
+  html[data-dream-skin="active"] [data-ds-surface] :is(.xterm, .xterm-viewport) {
+    background-color: transparent !important;
+  }
+}
+
+/* Full-window artwork has one tint plane above the image/video and below
+   the entire interface. Do not paint separate sidebar/main gradients: those
+   restart at each boundary and leave the application menu visibly brighter.
+   Retain local artwork and task-mode=off behavior for existing themes. */
+@layer dreamskin-surfaces {
+  html[data-dream-skin="active"][data-dream-art-wide="true"]:not([data-dream-task-mode="off"]) body {
+    position: relative;
+    z-index: 0;
+    isolation: isolate;
+  }
+
+  html[data-dream-skin="active"][data-dream-art-wide="true"]:not([data-dream-task-mode="off"]) body::before {
+    content: "" !important;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--ds-shell-background);
+  }
+
+  /* Home showcases the artwork with a lighter window-wide tint. The home
+     part disappears on entering a conversation, restoring the existing tint.
+     Fade only this decorative plane, never the UI or floating panels. */
+  html[data-dream-skin="active"][data-dream-art-wide="true"]:not([data-dream-task-mode="off"])
+    body:has([data-ds-part="home"])::before {
+    opacity: .55;
+  }
+
+  html[data-dream-skin="active"][data-dream-art-wide="true"]:not([data-dream-task-mode="off"]) #codex-dream-skin-video {
+    z-index: -2 !important;
+  }
+
+  html[data-dream-skin="active"][data-dream-art-wide="true"]:not([data-dream-task-mode="off"]) :is(
+    [data-ds-part="sidebar"], [data-ds-part="main"],
+    [data-ds-part="home"], [data-ds-part="header"],
+    [class~="group/application-menu-top-bar"], [class*="_ApplicationMenuTopBar_"]
+  ) {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+
+  html[data-dream-skin="active"][data-dream-art-wide="true"]:not([data-dream-task-mode="off"]) :is(
+    [data-ds-part="main"], [data-ds-part="home"]
+  )::before {
+    content: none !important;
+  }
+}
+
+html[data-dream-skin="active"] [class~="bg-token-dropdown-background"] {
+  color: var(--ds-text);
+  --color-token-foreground: var(--ds-text);
+  --color-token-text-secondary: var(--ds-muted);
+  --color-token-muted-foreground: var(--ds-muted);
+  --color-token-description-foreground: var(--ds-muted);
+  --color-token-list-hover-background: rgb(var(--ds-panel-2-rgb) / .9);
+  --color-token-border: var(--ds-line);
+  --color-token-border-default: var(--ds-line);
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="left"], [data-dream-art-safe-area="left"]) {
+  --ds-safe-side: left;
+  --ds-art-position: 100% var(--ds-focus-y);
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"]) {
+  --ds-safe-side: right;
+  --ds-art-position: 0% var(--ds-focus-y);
+  --ds-hero-scrim: linear-gradient(270deg,
+    rgb(var(--ds-bg-rgb) / .90) 0%,
+    rgb(var(--ds-bg-rgb) / .76) 50%,
+    rgb(var(--ds-bg-rgb) / .18) 84%,
+    transparent 100%);
+  --ds-task-shade: linear-gradient(270deg,
+    rgb(var(--ds-bg-rgb) / .56) 0%,
+    rgb(var(--ds-bg-rgb) / .36) 48%,
+    rgb(var(--ds-bg-rgb) / .12) 100%);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"]) {
+  --ds-hero-scrim: linear-gradient(270deg,
+    rgb(var(--ds-panel-rgb) / .96) 0%,
+    rgb(var(--ds-panel-rgb) / .82) 50%,
+    rgb(var(--ds-panel-rgb) / .20) 84%,
+    transparent 100%);
+  --ds-task-shade: linear-gradient(270deg,
+    rgb(var(--ds-bg-rgb) / .68) 0%,
+    rgb(var(--ds-bg-rgb) / .40) 48%,
+    rgb(var(--ds-bg-rgb) / .12) 100%);
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"]) {
+  --ds-safe-side: center;
+  --ds-hero-scrim: linear-gradient(90deg,
+    transparent 0%,
+    rgb(var(--ds-bg-rgb) / .68) 25%,
+    rgb(var(--ds-bg-rgb) / .78) 50%,
+    rgb(var(--ds-bg-rgb) / .68) 75%,
+    transparent 100%);
+  --ds-task-shade: radial-gradient(ellipse at center,
+    rgb(var(--ds-bg-rgb) / .48) 0%,
+    rgb(var(--ds-bg-rgb) / .30) 52%,
+    rgb(var(--ds-bg-rgb) / .10) 100%);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"]) {
+  --ds-hero-scrim: linear-gradient(90deg,
+    transparent 0%,
+    rgb(var(--ds-panel-rgb) / .72) 25%,
+    rgb(var(--ds-panel-rgb) / .88) 50%,
+    rgb(var(--ds-panel-rgb) / .72) 75%,
+    transparent 100%);
+  --ds-task-shade: radial-gradient(ellipse at center,
+    rgb(var(--ds-bg-rgb) / .58) 0%,
+    rgb(var(--ds-bg-rgb) / .34) 52%,
+    rgb(var(--ds-bg-rgb) / .10) 100%);
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="none"], [data-dream-art-safe-area="none"]) {
+  --ds-safe-side: none;
+  --ds-hero-scrim: linear-gradient(180deg,
+    rgb(var(--ds-bg-rgb) / .34),
+    rgb(var(--ds-bg-rgb) / .20));
+  --ds-task-shade: linear-gradient(180deg,
+    rgb(var(--ds-bg-rgb) / .28),
+    rgb(var(--ds-bg-rgb) / .14));
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]:is([data-dream-art-safe="none"], [data-dream-art-safe-area="none"]) {
+  --ds-hero-scrim: linear-gradient(180deg,
+    rgb(var(--ds-panel-rgb) / .46),
+    rgb(var(--ds-panel-rgb) / .28));
+  --ds-task-shade: linear-gradient(180deg,
+    rgb(var(--ds-bg-rgb) / .34),
+    rgb(var(--ds-bg-rgb) / .16));
+}
+
+html[data-dream-skin="active"] body {
+  background: var(--ds-bg) !important;
+  color: var(--ds-text) !important;
+}
+
+html[data-dream-skin="active"][data-dream-media="video"] body {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-media="video"] #codex-dream-skin-video {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  object-position: var(--ds-art-position, 50% 50%);
+  transform: scale(var(--dream-art-zoom, 1));
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+html[data-dream-skin="active"][data-dream-media="video"] #codex-dream-skin-video[hidden],
+html[data-dream-skin="active"][data-dream-media="video"][data-dream-video-hidden="true"] #codex-dream-skin-video,
+html[data-dream-skin="active"][data-dream-media="video"][data-dream-video-status="error"] #codex-dream-skin-video {
+  display: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-media="video"]:is([data-dream-video-hidden="true"], [data-dream-video-status="error"]) body {
+  background-color: var(--ds-bg) !important;
+  background-image: none !important;
+}
+
+html[data-dream-skin="active"] body::before {
+  content: none;
+}
+
+/* The unified 26.924 page shell reserves a narrow bottom/end gutter around
+   native cards. Wide skins flatten those cards into a continuous canvas, so
+   remove that gutter too; retain titlebar spacing and native window borders.
+   The module prefix is shared across platforms, independent of its hash. */
+html[data-dream-skin="active"][data-dream-art-wide="true"]
+  [class*="_PageSurfaceLayout_"]:has(main[data-app-shell-main-surface="default"]) {
+  --app-shell-page-inline-end-inset: 0px !important;
+  padding-inline-end: 0 !important;
+  padding-block-end: 0 !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background:
+    linear-gradient(180deg,
+      rgb(var(--ds-panel-rgb) / .98),
+      rgb(var(--ds-bg-rgb) / .96)) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-left: 0 !important;
+  border-radius: 0 16px 16px 0 !important;
+  box-shadow: 10px 0 30px rgb(var(--ds-bg-rgb) / .22) !important;
+  color: var(--ds-text) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) nav { background: transparent !important; }
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button,
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) a {
+  color: var(--ds-text) !important;
+  transition: background-color .18s cubic-bezier(.22, 1, .36, 1),
+    border-color .18s cubic-bezier(.22, 1, .36, 1),
+    color .18s cubic-bezier(.22, 1, .36, 1) !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [class*="text-token-foreground"] {
+  color: var(--ds-text) !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [class*="text-token-input-placeholder-foreground"] {
+  color: rgb(var(--ds-muted-rgb) / .92) !important;
+}
+
+/* Preserve native inline color declarations for sidebar indicators without
+   mistaking background-color or custom properties for a foreground color. */
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+  color: rgb(var(--ds-muted-rgb) / .96) !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:hover,
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) a:hover {
+  background: rgb(var(--ds-accent-rgb) / .09) !important;
+  color: var(--ds-text) !important;
+  transform: none !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:hover svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]),
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) a:hover svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+  color: var(--ds-accent) !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button[aria-label^="切换模式"] {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--ds-accent) !important;
+  font-family: inherit !important;
+  font-size: 19px !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button[aria-label^="切换模式"]::after {
+  content: " ·";
+  color: var(--ds-secondary);
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [class~="bg-token-list-hover-background"],
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [aria-current="page"] {
+  background: rgb(var(--ds-accent-rgb) / .12) !important;
+  border: 1px solid rgb(var(--ds-accent-rgb) / .22) !important;
+  box-shadow: 0 4px 16px rgb(var(--ds-bg-rgb) / .12) !important;
+  color: var(--ds-text) !important;
+}
+
+html[data-dream-skin="active"] aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [aria-current="page"] svg:not([style^="color:"]):not([style*=";color:"]):not([style*="; color:"]) {
+  color: var(--ds-accent) !important;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden !important;
+  background: var(--ds-bg) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 16px 0 0 0 !important;
+  box-shadow: -8px 0 28px rgb(var(--ds-bg-rgb) / .18) !important;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--ds-task-fade), var(--ds-task-shade), var(--dream-skin-art);
+  background-repeat: no-repeat;
+  background-position: center, center, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+  opacity: .78;
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  opacity: .72;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  background-position: center, center, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+}
+
+/* Studio's full mode keeps the task artwork at normal strength with only the
+   baseline readability veil. Ambient mode deliberately uses the heavier task
+   fade/shade below, while off removes the artwork entirely. */
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  inset: 0;
+  height: auto;
+  background-image: var(--ds-task-full-veil), var(--dream-skin-art);
+  background-position: center, var(--ds-art-position);
+  background-size: 100% 100%, cover;
+  opacity: 1;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  inset: 0;
+  height: auto;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) body {
+  background-image: var(--dream-skin-art) !important;
+  background-position: var(--ds-art-position) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) body {
+  background-image: var(--dream-skin-art) !important;
+  background-position: var(--ds-art-position) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: linear-gradient(90deg,
+    var(--ds-immersive-sidebar),
+    var(--ds-immersive-edge) 100%) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) {
+  background: linear-gradient(90deg,
+    var(--ds-immersive-edge),
+    var(--ds-immersive-mid) 64%,
+    var(--ds-immersive-far)) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  content: none;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: linear-gradient(90deg,
+    var(--ds-task-immersive-sidebar),
+    var(--ds-task-immersive-edge) 100%) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Native sidebar resize chrome inherits the sidebar background and extends
+   20px into the main surface. Keeping it clear preserves one continuous image. */
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) {
+  background: linear-gradient(90deg,
+    var(--ds-task-immersive-edge),
+    var(--ds-task-immersive-mid) 64%,
+    var(--ds-task-immersive-far)) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  content: none;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: var(--ds-immersive-composer-solid) !important;
+  border: 0 !important;
+  box-shadow:
+    0 10px 30px rgb(var(--ds-bg-rgb) / .20),
+    inset 0 0 0 1px var(--ds-immersive-line),
+    inset 0 1px rgb(var(--ds-text-rgb) / .12) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])[data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: transparent !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"], [data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [class*="_markdown"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  color: var(--ds-text) !important;
+  text-shadow:
+    0 1px 2px rgb(var(--ds-bg-rgb) / .82),
+    0 0 10px rgb(var(--ds-bg-rgb) / .58);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"], [data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"], [data-dream-task-mode="full"], [data-dream-art-task-mode="full"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [class*="_markdown"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  text-shadow:
+    0 1px 2px rgb(var(--ds-panel-rgb) / .92),
+    0 0 10px rgb(var(--ds-panel-rgb) / .72);
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"])
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  inset: 0 0 auto;
+  height: clamp(280px, 46vh, 520px);
+  background-position: center top, center top, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="banner"], [data-dream-art-task-mode="banner"]):is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  inset: 0;
+  height: auto;
+  background-position: center, center, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="off"], [data-dream-art-task-mode="off"])
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before {
+  content: none;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) > :not(header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [role="main"] {
+  background: transparent !important;
+  color: var(--ds-text) !important;
+  text-shadow:
+    0 1px 2px rgb(var(--ds-bg-rgb) / .72),
+    0 0 10px rgb(var(--ds-bg-rgb) / .46);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [role="main"] {
+  text-shadow: none;
+}
+
+/* macOS settings may remove both the shell and the fallback main/home
+   anchors. Supply static artwork on body only in that case; a translucent
+   settings surface alone cannot reveal an image that is no longer painted.
+   Include legacy appearance anchors, leave video on its existing layer, and
+   reuse the shared framing variables rather than inventing settings offsets. */
+html[data-dream-skin="active"]:not([data-dream-media="video"]):not([data-dream-task-mode="off"]):not([data-dream-art-task-mode="off"]):has([data-settings-panel-slug], input[name="appearance-theme"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *), [data-testid="theme-preview"]):not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *), [data-ds-part="main"], [data-ds-part="home"])) body {
+  background-image: var(--ds-task-full-veil), var(--dream-skin-art) !important;
+  background-position: center, var(--ds-art-position) !important;
+  background-size: 100% 100%, var(--dream-art-background-size, cover) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) article {
+  border: 1px solid rgb(var(--ds-muted-rgb) / .12);
+  background: rgb(var(--ds-panel-rgb) / .44);
+  box-shadow: 0 8px 24px rgb(var(--ds-bg-rgb) / .10);
+  backdrop-filter: blur(7px) saturate(105%);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) article {
+  background: rgb(var(--ds-panel-rgb) / .72);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))::after,
+html[data-dream-skin="active"][data-dream-shell="light"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::before {
+  text-shadow: none;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  /* Preserve Codex's native fixed header geometry and side-panel controls. */
+  background: transparent !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Decorative chrome lives on the native shell; no injected positioning host is needed. */
+html[data-dream-skin="active"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::before {
+  content: none;
+  position: absolute;
+  left: 22px;
+  top: 4px;
+  z-index: 2;
+  max-width: min(42%, 360px);
+  overflow: hidden;
+  color: var(--ds-accent);
+  font: 800 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: .03em;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 12px rgb(var(--ds-bg-rgb) / .32);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+html[data-dream-skin="active"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after {
+  content: none;
+  position: absolute;
+  right: 84px;
+  top: 13px;
+  z-index: 2;
+  max-width: 28%;
+  overflow: hidden;
+  color: var(--ds-muted);
+  font: 700 9px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: .08em;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 10px rgb(var(--ds-bg-rgb) / .32);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+html[data-dream-skin="active"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))::after {
+  content: none;
+  position: absolute;
+  right: 28px;
+  bottom: 72px;
+  z-index: 2;
+  pointer-events: none;
+  color: rgb(var(--ds-accent-rgb) / .74);
+  font: italic 14px/1.2 "Segoe Print", "Comic Sans MS", cursive;
+  letter-spacing: 0;
+  text-shadow: 0 0 13px rgb(var(--ds-accent-rgb) / .30);
+  transform: rotate(-3deg);
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::before,
+html[data-dream-skin="active"][data-dream-shell="light"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after {
+  text-shadow: none;
+}
+
+/* Windows keeps this native bar outside main; macOS simply has no match.
+   It must use the same continuous background as the task header. */
+html[data-dream-skin="active"]
+  :is([class~="group/application-menu-top-bar"], [class*="_ApplicationMenuTopBar_"]) {
+  color: var(--ds-text) !important;
+  background: transparent !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-shell="dark"]
+  :is([class~="group/application-menu-top-bar"], [class*="_ApplicationMenuTopBar_"]) :is(button, svg) {
+  color: var(--ds-text) !important;
+  text-shadow: 0 1px 2px rgb(var(--ds-bg-rgb) / .82) !important;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"] {
+  background: transparent !important;
+  scrollbar-color: rgb(var(--ds-accent-rgb) / .38) transparent;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  --thread-content-max-width: min(1180px, calc(100cqw - 44px)) !important;
+  overflow-x: hidden !important;
+}
+
+/* Legacy home layout: only resize the single content wrapper when its old
+   hero-card branch actually contains the home icon. Newer Codex versions
+   put banners and content in sibling wrappers; positional first-child rules
+   otherwise give an empty slot a full-page minimum height and a 440px child,
+   pushing the composer below the viewport. Unknown layouts keep native sizing.
+   Use the same guard for card descendants and responsive rules below; do not
+   rely on a banner class or hide vertical overflow to mask a layout mismatch. */
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) {
+  min-height: 100% !important;
+  padding-top: 15px !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child {
+  flex: 0 0 440px !important;
+  min-height: 440px !important;
+  align-items: flex-start !important;
+  padding-bottom: 0 !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child {
+  position: relative !important;
+  isolation: isolate;
+  width: calc(100% - 44px) !important;
+  max-width: none !important;
+  height: clamp(248px, 31cqw, 376px) !important;
+  min-height: 248px !important;
+  flex: 0 1 auto !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  border: 1px solid rgb(var(--ds-accent-rgb) / .30) !important;
+  border-radius: 22px !important;
+  background-color: var(--ds-panel) !important;
+  background-image: var(--dream-skin-art) !important;
+  background-repeat: no-repeat !important;
+  background-position: var(--ds-art-position) !important;
+  background-size: cover !important;
+  box-shadow: 0 16px 38px rgb(var(--ds-bg-rgb) / .30) !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: 62%;
+  border-radius: 21px 0 0 21px;
+  pointer-events: none;
+  background: var(--ds-hero-scrim);
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child::before {
+  inset: 0 0 0 auto;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child::before {
+  inset: 0 14%;
+  width: auto;
+  border-radius: 0;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="none"], [data-dream-art-safe-area="none"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child::before {
+  inset: 0;
+  width: auto;
+  border-radius: 21px;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 38px;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child {
+  justify-content: flex-end !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child {
+  justify-content: center !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child > div:first-child {
+  width: min(46%, 520px) !important;
+  align-items: flex-start !important;
+  gap: 0 !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="right"], [data-dream-art-safe-area="right"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child > div:first-child {
+  align-items: flex-end !important;
+  text-align: right !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-art-safe="center"], [data-dream-art-safe-area="center"])
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child > div:first-child {
+  width: min(58%, 640px) !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) { display: none !important; }
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  display: block !important;
+  max-width: 100% !important;
+  color: var(--ds-text) !important;
+  font-size: clamp(19px, 1.85vw, 27px) !important;
+  line-height: 1.28 !important;
+  font-weight: 760 !important;
+  text-align: inherit !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::before {
+  content: var(--dream-skin-name, "Codex Dream Skin");
+  display: block;
+  margin-bottom: 9px;
+  color: var(--ds-accent);
+  font: 800 12px/1.3 "Microsoft YaHei UI", sans-serif;
+  letter-spacing: .10em;
+  text-shadow: 0 0 14px rgb(var(--ds-accent-rgb) / .26);
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after {
+  content: var(--dream-skin-tagline, "把喜欢的画面变成可交互的 Codex 工作台。");
+  display: block;
+  margin-top: 13px;
+  color: rgb(var(--ds-text-rgb) / .76);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button {
+  margin: 0 5px;
+  padding: 2px 9px 3px;
+  border: 1px solid rgb(var(--ds-accent-rgb) / .36);
+  border-radius: 999px;
+  background: rgb(var(--ds-accent-rgb) / .10);
+  color: var(--ds-accent) !important;
+  text-decoration-color: rgb(var(--ds-accent-rgb) / .56) !important;
+  text-underline-offset: 5px;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button::before {
+  content: var(--dream-skin-project-prefix, "选择项目 · ");
+  font-size: .46em;
+  font-weight: 700;
+  vertical-align: middle;
+  opacity: .86;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:nth-child(2) {
+  left: 14px !important;
+  right: 14px !important;
+  top: 100% !important;
+  margin-top: 13px !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) { overflow: visible !important; }
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button {
+  position: relative !important;
+  min-height: 118px !important;
+  padding: 14px 13px 12px !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  text-align: center !important;
+  border: 1px solid rgb(var(--ds-muted-rgb) / .18) !important;
+  border-radius: 18px !important;
+  background: rgb(var(--ds-panel-rgb) / .90) !important;
+  color: var(--ds-text) !important;
+  font-weight: 600 !important;
+  line-height: 1.45 !important;
+  box-shadow: 0 8px 22px rgb(var(--ds-bg-rgb) / .18) !important;
+  backdrop-filter: blur(10px) saturate(105%) !important;
+  transform: translateY(0);
+  transition: transform .18s cubic-bezier(.22, 1, .36, 1),
+    box-shadow .18s cubic-bezier(.22, 1, .36, 1),
+    border-color .18s cubic-bezier(.22, 1, .36, 1) !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button :is([class~="text-token-text-primary"], [class~="text-default"]) {
+  color: var(--ds-text) !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgb(var(--ds-accent-rgb) / .42) !important;
+  box-shadow: 0 12px 28px rgb(var(--ds-bg-rgb) / .24) !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button > span:first-child > span:first-child {
+  width: 38px;
+  height: 38px;
+  /* Native spans carry justify-start; grid + place-items cannot override
+     justify-content, so the glyph parks at the circle's left edge. (#176) */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 auto;
+  border: 1px solid rgb(var(--ds-accent-rgb) / .24);
+  border-radius: 50%;
+  color: var(--ds-accent) !important;
+  background: rgb(var(--ds-accent-rgb) / .12);
+  box-shadow: 0 0 0 6px rgb(var(--ds-accent-rgb) / .05);
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button svg {
+  width: 21px !important;
+  height: 21px !important;
+  display: block !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+  color: var(--ds-accent) !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button > span:first-child { justify-content: center !important; }
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button > span:last-child { align-items: center !important; text-align: center !important; }
+
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  overflow: visible !important;
+  border: 1px solid rgb(var(--ds-muted-rgb) / .18) !important;
+  border-radius: 22px !important;
+  background: var(--ds-surface-background) !important;
+  box-shadow: 0 10px 28px rgb(var(--ds-bg-rgb) / .24) !important;
+  backdrop-filter: var(--ds-surface-filter) !important;
+}
+
+/* Manager-owned framing is a shared CSS contract. Position values are
+   normalized by each platform injector and projected here without reading
+   renderer geometry, so the same theme can move between Windows and macOS. */
+html[data-dream-skin="active"][data-dream-art-framing="true"] {
+  --ds-art-position: var(--dream-art-framing-position) !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-framing="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))::before,
+html[data-dream-skin="active"][data-dream-art-framing="true"] [data-ds-part="main"]::before {
+  background-position: center, center, var(--dream-art-framing-position) !important;
+  background-size: 100% 100%, 100% 100%, cover !important;
+  transform: scale(var(--dream-art-zoom, 1));
+  transform-origin: center center;
+}
+
+html[data-dream-skin="active"][data-dream-art-framing="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) {
+  --ds-art-position: var(--dream-art-framing-position) !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-framing="true"]
+  body:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *), [data-ds-part="main"], [data-ds-part="home"]) {
+  background-position: var(--dream-art-framing-position) !important;
+  background-size: var(--dream-art-background-size, cover) !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-framing="true"]:has(
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+) body {
+  background-position: var(--dream-art-framing-position) !important;
+  background-size: var(--dream-art-background-size, cover) !important;
+}
+
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::before { content: none !important; }
+
+/* Codex 26.803+ moves the Home surface paint onto its body child. Keep one
+   public visual surface: the renderer exposes the outer root as
+   data-ds-part="composer", while this internal native layer stays
+   transparent so base and Community Safe CSS paint the same node. */
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)[data-composer-utility-bar-variant="home"]
+  > [class*="_ComposerLayoutBody_"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Keep the public ComposerLayoutRoot as the single thread surface too. The
+   canonical 26.814+ contract maps that Root, so clear only nested paint. */
+html[data-dream-skin="active"] [data-codex-composer-root][data-composer-placement="thread"]
+  :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > [class*="_ComposerLayoutBody_"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* The current Home utility bar sits above the Composer. Keep the surrounding
+   chrome transparent so only the actual input surface carries the glass tint. */
+html[data-dream-skin="active"] [data-codex-composer-root][data-composer-placement="home"]
+  [data-composer-home-utility-bar-position="above"] {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Codex 26.930+ wraps the Home project picker in a composer rail. The rail
+   item carries the native action-bar fill, while the ComposerLayoutRoot below
+   remains the frosted input surface. Clear only this above-composer item so
+   the selected artwork continues through the project row. */
+html[data-dream-skin="active"]
+  [data-composer-rail][data-composer-rail-placement="above"]
+  [data-composer-rail-item][data-composer-placement="home"][data-composer-rail-placement="above"] {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Newer app shells may no longer expose the selector contract above. The
+   renderer assigns these parts only from one coherent main/composer/sidebar
+   structure; keep the minimum background and transparency contract functional
+   before a new exact selector contract is available. */
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [data-ds-part="sidebar"] {
+  background:
+    linear-gradient(180deg,
+      rgb(var(--ds-panel-rgb) / .98),
+      rgb(var(--ds-bg-rgb) / .96)) !important;
+  border: 1px solid var(--ds-line) !important;
+  color: var(--ds-text) !important;
+  box-shadow: 10px 0 30px rgb(var(--ds-bg-rgb) / .22) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [data-ds-part="main"],
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  :not(:has([data-ds-part="main"])) > [data-ds-part="home"] {
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden !important;
+  background: var(--ds-bg) !important;
+  color: var(--ds-text) !important;
+  border: 1px solid var(--ds-line) !important;
+  box-shadow: -8px 0 28px rgb(var(--ds-bg-rgb) / .18) !important;
+}
+
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [data-ds-part="main"]::before,
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  :not(:has([data-ds-part="main"])) > [data-ds-part="home"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--ds-task-fade), var(--ds-task-shade), var(--dream-skin-art);
+  background-repeat: no-repeat;
+  background-position: center, center, var(--ds-art-position);
+  background-size: 100% 100%, 100% 100%, cover;
+  opacity: .78;
+}
+
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [data-ds-part="main"] > *,
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  :not(:has([data-ds-part="main"])) > [data-ds-part="home"] > * {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [data-ds-part="composer"] {
+  position: relative;
+  z-index: 2;
+  overflow: visible !important;
+  border: 1px solid rgb(var(--ds-muted-rgb) / .18) !important;
+  border-radius: 22px !important;
+  background: var(--ds-surface-background) !important;
+  box-shadow: 0 10px 28px rgb(var(--ds-bg-rgb) / .24) !important;
+  backdrop-filter: var(--ds-surface-filter) !important;
+}
+
+html[data-dream-skin="active"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) [data-ds-part="composer"]::before {
+  content: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  body:has([data-ds-part="main"], [data-ds-part="home"]) {
+  background-image: var(--dream-skin-art) !important;
+  background-position: var(--ds-art-position) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  [data-ds-part="sidebar"] {
+  background: linear-gradient(90deg,
+    var(--ds-immersive-sidebar),
+    var(--ds-immersive-edge) 100%) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  [data-ds-part="main"],
+html[data-dream-skin="active"][data-dream-art-wide="true"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  :not(:has([data-ds-part="main"])) > [data-ds-part="home"] {
+  background: linear-gradient(90deg,
+    var(--ds-immersive-edge),
+    var(--ds-immersive-mid) 64%,
+    var(--ds-immersive-far)) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  [data-ds-part="main"]::before,
+html[data-dream-skin="active"][data-dream-art-wide="true"]:not(:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  :not(:has([data-ds-part="main"])) > [data-ds-part="home"]::before {
+  content: none;
+}
+
+/* A wide image can carry the home screen too. The native hero remains live,
+   but the artwork is painted once on the window instead of repeated in a card. */
+html[data-dream-skin="active"][data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) body {
+  background-image: var(--dream-skin-art) !important;
+  background-position: var(--ds-art-position) !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: linear-gradient(90deg,
+    var(--ds-immersive-sidebar),
+    var(--ds-immersive-edge) 100%) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]:has(main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  aside.app-shell-left-panel:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) {
+  background: linear-gradient(90deg,
+    var(--ds-immersive-edge),
+    var(--ds-immersive-mid) 64%,
+    var(--ds-immersive-far)) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: transparent !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  color: var(--ds-text) !important;
+  text-shadow:
+    0 1px 2px rgb(var(--ds-bg-rgb) / .86),
+    0 0 8px rgb(var(--ds-bg-rgb) / .52) !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  > header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) svg {
+  color: rgb(var(--ds-muted-rgb) / .96) !important;
+  filter: drop-shadow(0 1px 2px rgb(var(--ds-bg-rgb) / .72));
+}
+
+/* Codex moves focus to this non-interactive route wrapper after Shift. Its
+   native outline can span the full content pane and an embedded webview. */
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  [data-vscode-context][tabindex="0"]:focus-visible {
+  outline: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child::before {
+  content: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button {
+  background: rgb(var(--ds-panel-rgb) / .56) !important;
+  box-shadow:
+    0 8px 22px rgb(var(--ds-bg-rgb) / .16),
+    inset 0 0 0 1px rgb(var(--ds-muted-rgb) / .20) !important;
+  backdrop-filter: blur(8px) saturate(104%) !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: var(--ds-immersive-composer-solid) !important;
+  border: 0 !important;
+  box-shadow:
+    0 10px 30px rgb(var(--ds-bg-rgb) / .20),
+    inset 0 0 0 1px var(--ds-immersive-line),
+    inset 0 1px rgb(var(--ds-text-rgb) / .12) !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"][data-dream-art-wide="true"]
+  :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  box-shadow:
+    0 10px 28px rgb(var(--ds-bg-rgb) / .14),
+    inset 0 0 0 1px var(--ds-immersive-line),
+    inset 0 1px rgb(var(--ds-panel-rgb) / .72) !important;
+  backdrop-filter: blur(8px) saturate(102%) !important;
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"]
+  :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) p.placeholder::after {
+  color: rgb(var(--ds-muted-rgb) / .78) !important;
+  opacity: 1 !important;
+}
+
+/* Current Codex builds render the home project picker above the composer.
+   Keep this surrounding chrome transparent; the composer below remains the
+   single frosted input surface. */
+html[data-dream-skin="active"] :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  position: relative;
+  z-index: 3;
+  top: 0 !important;
+  width: 100% !important;
+  margin-inline: 0 !important;
+  padding-inline: 18px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has(:is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))
+  :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  border: 0 !important;
+  border-radius: 22px !important;
+  box-shadow:
+    0 10px 28px rgb(var(--ds-bg-rgb) / .24),
+    inset 1px 0 rgb(var(--ds-muted-rgb) / .18),
+    inset -1px 0 rgb(var(--ds-muted-rgb) / .18),
+    inset 0 -1px rgb(var(--ds-muted-rgb) / .18) !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"]
+  [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has(:is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  box-shadow:
+    0 10px 30px rgb(var(--ds-bg-rgb) / .20),
+    inset 1px 0 var(--ds-immersive-line),
+    inset -1px 0 var(--ds-immersive-line),
+    inset 0 -1px var(--ds-immersive-line) !important;
+}
+
+html[data-dream-skin="active"][data-dream-shell="light"][data-dream-art-wide="true"]
+  :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button,
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:not([class~="bg-token-foreground"]) {
+  color: var(--ds-muted) !important;
+}
+
+html[data-dream-skin="active"] :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button svg,
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button svg {
+  color: currentColor !important;
+}
+
+html[data-dream-skin="active"] :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button *,
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:not([class~="bg-token-foreground"]) * {
+  color: currentColor !important;
+}
+
+html[data-dream-skin="active"] :is([class*="_homeUtilityBar_"], [class*="_ComposerHomeUtilityBar_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:hover,
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button:not([class~="bg-token-foreground"]):hover {
+  color: var(--ds-text) !important;
+  background: rgb(var(--ds-accent-rgb) / .10) !important;
+}
+
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) p.placeholder::after {
+  color: rgb(var(--ds-muted-rgb) / .82) !important;
+  opacity: 1 !important;
+}
+
+/* Codex 26.818 places two opaque fades around the sticky thread composer.
+   Match their complete utility signatures inside non-Home main surfaces so
+   unrelated application gradients keep their native paint. */
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  [class~="pointer-events-none"][class~="bottom-0"][class~="h-full"][class~="bg-gradient-to-t"][class~="from-surface"][class~="via-surface"],
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  [class~="pointer-events-none"][class~="-bottom-1"][class~="h-7"][class~="bg-gradient-to-t"][class~="from-surface"][class~="to-transparent"] {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* 26.924 places its fade in a sticky spacer inside the thread scroll area,
+   separate from the composer footer. Scope to that area and decorative node;
+   clear paint only, preserving the editor, controls and native positioning. */
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  .thread-scroll-container:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  [aria-hidden="true"][class~="pointer-events-none"][class~="absolute"][class~="bottom-0"][class~="bg-gradient-to-t"][class~="from-surface"][class~="via-surface"] {
+  background: transparent !important;
+}
+
+/* Newer builds move the composer fade into a short spacer above the footer.
+   It is outside the composer root, so clearing only the root leaves a dark
+   horizontal cap while the input itself is still translucent. */
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  .thread-scroll-container:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  [aria-hidden="true"][class~="pointer-events-none"][class~="absolute"][class~="inset-x-0"][class~="-top-8"][class~="h-8"][class~="bg-gradient-to-t"][class~="from-surface"] {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  .thread-scroll-container:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  [aria-hidden="true"][class~="absolute"][class~="inset-x-0"][class~="-top-8"]:is(
+    [class~="bg-surface"], [class~="backdrop-blur-lg"]
+  ) {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  .thread-scroll-container:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-thread-scroll-footer] {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Native wide blocks escape the prose column with negative inline margins.
+   Keep tables inside the themed message and delegate width overflow to the
+   existing horizontal scroller. */
+html[data-dream-skin="active"] [data-markdown-text-style] [data-markdown-table="true"] {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin-inline: 0 !important;
+}
+
+html[data-dream-skin="active"] [data-markdown-text-style]
+  [data-markdown-table="true"] > [class~="horizontal-scroll-fade-mask"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+/* Codex uses the same response-annotation container for streaming and final
+   assistant replies. It used to receive a frosted card here, which left some
+   replies visibly opaque after the final-message selector changed upstream.
+   Keep the full conversation on the image instead. */
+html[data-dream-skin="active"] .thread-scroll-container
+  [data-response-annotation-conversation][data-response-annotation-target] {
+  box-sizing: border-box;
+  margin-block: 4px 10px !important;
+  padding: 14px 16px !important;
+  border: 1px solid transparent !important;
+  border-radius: 18px !important;
+  background: rgb(var(--ds-panel-rgb) / var(--ds-bubble-opacity, 0)) !important;
+  color: var(--ds-text) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] .thread-scroll-container
+  [data-local-conversation-final-assistant]
+  [data-response-annotation-conversation][data-response-annotation-target] {
+  margin: 0 !important;
+  border-color: transparent !important;
+  background: rgb(var(--ds-panel-rgb) / var(--ds-bubble-opacity, 0)) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* The current user bubble carries a stable attribute rather than the legacy
+   conversation anchor. Support both DOM generations on the same surface. */
+html[data-dream-skin="active"] :is(
+  [data-user-message-bubble="true"],
+  [data-local-conversation-user-anchor][data-ds-part="message"],
+  [data-local-conversation-user-anchor] [data-ds-part="message"]
+) {
+  background: rgb(var(--ds-panel-rgb) / var(--ds-bubble-opacity, 0)) !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Expanded command details are tool-result nodes rather than messages. They
+   should not introduce an opaque card between otherwise transparent messages. */
+html[data-dream-skin="active"] .thread-scroll-container
+  [data-local-conversation-item-target-ids] {
+  box-sizing: border-box;
+  padding: 10px 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
+  background: transparent !important;
+  color: rgb(var(--ds-text-rgb) / .94) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] .thread-scroll-container
+  [data-local-conversation-item-target-ids] :is(p, pre, code, samp, kbd, span) {
+  opacity: 1 !important;
+}
+
+/* Search routes ship an opaque sticky band and input surface. Keep the
+   control legible while allowing the selected image to remain continuous. */
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) div.sticky:has(input[type="text"]) {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) div.sticky:has(input[type="text"])::after {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))) div.no-drag:has(> input[type="text"]) {
+  background: var(--ds-immersive-composer) !important;
+  border: 0 !important;
+  box-shadow:
+    0 8px 22px rgb(var(--ds-bg-rgb) / .16),
+    inset 0 0 0 1px var(--ds-immersive-line) !important;
+  backdrop-filter: none !important;
+}
+
+/* Pull Requests and similar utility routes wrap their content in a native
+   full-size opaque surface. Only clear full-window wrappers, not cards. */
+html[data-dream-skin="active"]:is([data-dream-task-mode="ambient"], [data-dream-art-task-mode="ambient"])[data-dream-art-wide="true"]
+  main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):not(:has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)))
+  [class~="bg-token-main-surface-primary"][class~="h-full"][class~="w-full"] {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  .app-shell-main-content-frame {
+  border-top: 0 !important;
+}
+
+/* Codex 26.924 puts the fade state attribute on the content container, not
+   just the decorative fade. Clear paint only: even a future selector drift
+   must never hide the chat/composer subtree or alter its native layout. */
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  :is(.app-shell-main-content-top-fade, [class*="_MainContentTopFade_"], [data-app-shell-main-content-top-fade]:empty):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) {
+  background: transparent !important;
+}
+
+/* Codex paints a second opaque fade behind the sticky composer. The composer
+   already owns its readable surface, so retaining this layer creates a false
+   bottom panel and makes the control look duplicated. */
+html[data-dream-skin="active"][data-dream-art-wide="true"] main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  .thread-scroll-container .bg-gradient-to-t.from-token-main-surface-primary {
+  background: transparent !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) div:has(> .horizontal-scroll-fade-mask .group\/project-selector:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) {
+  position: relative;
+  padding-top: 28px !important;
+  border: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) div:has(> .horizontal-scroll-fade-mask .group\/project-selector:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))::before {
+  content: var(--dream-skin-project-label, "选择项目");
+  position: absolute;
+  left: 13px;
+  top: 6px;
+  z-index: 2;
+  color: var(--ds-muted);
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/project-selector:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > button {
+  border-color: rgb(var(--ds-accent-rgb) / .22) !important;
+  background: rgb(var(--ds-accent-rgb) / .08) !important;
+  color: var(--ds-text) !important;
+  box-shadow: 0 3px 12px rgb(var(--ds-bg-rgb) / .12) !important;
+}
+
+html[data-dream-skin="active"] .ProseMirror {
+  color: var(--ds-text) !important;
+  caret-color: var(--ds-accent) !important;
+}
+
+html[data-dream-skin="active"] button[class~="bg-token-foreground"] {
+  background: var(--ds-accent) !important;
+  color: var(--ds-on-accent) !important;
+  box-shadow: 0 5px 14px rgb(var(--ds-accent-rgb) / .20) !important;
+}
+
+/* Current send, stop, and voice actions do not consistently retain the old
+   foreground utility. Keep their icons on the computed accent foreground. */
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  :is(button[class~="bg-primary-solid"], button[aria-label="发送"], button[aria-label="停止"], button[aria-label*="语音"], button[aria-label*="对话"], button[aria-label*="send" i], button[aria-label*="stop" i], button[aria-label*="voice" i]) {
+  border-color: rgb(var(--ds-text-rgb) / .46) !important;
+  background: var(--ds-accent) !important;
+  color: var(--ds-on-accent) !important;
+  box-shadow:
+    0 5px 16px rgb(var(--ds-bg-rgb) / .24),
+    inset 0 1px rgb(var(--ds-text-rgb) / .42) !important;
+}
+
+html[data-dream-skin="active"] :is(.composer-surface-chrome, [class*="_ComposerLayoutRoot_"], [data-composer-surface-variant][data-composer-radius-variant]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)
+  :is(button[class~="bg-primary-solid"], button[aria-label="发送"], button[aria-label="停止"], button[aria-label*="语音"], button[aria-label*="对话"], button[aria-label*="send" i], button[aria-label*="stop" i], button[aria-label*="voice" i]) * {
+  color: currentColor !important;
+  opacity: 1 !important;
+}
+
+html[data-dream-skin="active"] article,
+html[data-dream-skin="active"] [data-ds-part="message"] { border-radius: 16px; }
+
+@media (max-width: 1120px) {
+  html[data-dream-skin="active"]
+    main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *):has([role="main"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *))::after { content: none; }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) { --thread-content-max-width: min(940px, calc(100cqw - 30px)) !important; }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child { width: calc(100% - 28px) !important; }
+}
+
+@media (max-width: 900px) {
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child {
+    flex-basis: 408px !important;
+    min-height: 408px !important;
+  }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child {
+    height: 232px !important;
+    min-height: 232px !important;
+  }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child { padding: 0 26px; }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) > div:only-child:has(> div:first-child > div:first-child [data-testid="home-icon"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)) > div:first-child > div:first-child > div:first-child > div:first-child {
+    width: min(58%, 460px) !important;
+  }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) { font-size: 18px !important; }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::before { margin-bottom: 7px; font-size: 10px; }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) [data-feature="game-source"]:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *)::after { margin-top: 9px; font-size: 11px; }
+  html[data-dream-skin="active"] [role="main"]:has([data-testid="home-icon"]):not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) .group\/home-suggestions:not([inert], [inert] *, [hidden], [hidden] *, [style*="display: none"], [style*="display: none"] *, [style*="display:none"], [style*="display:none"] *) button { min-height: 112px !important; font-size: 12px !important; }
+}
+
+@layer dreamskin-accessibility {
+  @media (prefers-reduced-motion: reduce) {
+    html[data-dream-skin="active"] *,
+    html[data-dream-skin="active"] *::before,
+    html[data-dream-skin="active"] *::after {
+      scroll-behavior: auto !important;
+      transition-duration: .01ms !important;
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}

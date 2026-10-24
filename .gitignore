@@ -1,0 +1,56 @@
+# Local build products and fetched runtimes
+/dist/
+/outputs/
+/build/
+/downloads/
+/runtime-downloads/
+/runtime/
+/engine/runtime/
+/node_modules/
+*.exe
+*.dll
+*.pdb
+*.zip
+*.7z
+*.tar
+*.tar.gz
+
+# Installed state, user data and diagnostics
+/.local/
+/CodexDreamSkin/
+/active-theme/
+/themes/
+/profiles/
+/startup/upgrade-backup-*/
+installed.json
+state.json
+guard-state.json
+monitor-state.json
+last-video-diagnostic.json
+*.log
+*.tmp
+*.partial
+*.lock
+
+# Test output and local wallpaper files
+/test-results/
+/tests/fixtures/generated/
+/tests/output/
+*.mp4
+*.webm
+*.mov
+*.mkv
+
+# Credentials and editor metadata
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+/.vs/
+/.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
