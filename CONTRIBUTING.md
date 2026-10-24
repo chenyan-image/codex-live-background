@@ -68,3 +68,5 @@ change/0002-offline-runtime-docs
 为每次正式发布更新 [CHANGELOG](CHANGELOG.md)。发布资源中的版本号、GUI、源码、构建标记和服务兼容清单必须一致。不要将兼容层版本误写为上游引擎版本，也不要将本项目称为 OpenAI 官方插件。
 
 1.4.0：tests/legacy-install.ps1 -ReleaseDirectory <历史ZIP目录>验证真实1.0.x包的识别和迁移、全新安装路径。tests/shortcuts.ps1验证快捷方式备份、修复和用户修改保留；tests/script-request.ps1验证Unicode/JSON参数不作为代码执行。build-msi.ps1 -TestPackage创建独立产品和组件标识、默认跳过真实后台操作；可在独立INSTALLDIR测试MSI文件部署与卸载。正式包不用-TestPackage。
+
+1.5.0：`WallpaperLibraryTests.cs` 验证记录保存、原文件保留、Steam 多库与项目读取；管理器 `--gallery-test <报告路径>` 验证新增画廊选择、过滤、分页、记录与连接状态展示。`MediaPreviewJobTests.cs` 验证取消时预览进程及其子进程退出；`tests/codex-icons.ps1` 验证图标缓存、旧快捷方式修复与恢复。构建后仅重跑与本次变更相关的检查；窗口缩放、滑杆拖影和关闭等已解决功能没有新改动时不重复测试。
