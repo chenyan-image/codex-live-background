@@ -122,13 +122,18 @@ internal static class DreamSkinPortHook {
     using(var mutex=new Mutex(false,"Local\\CodexDreamSkin.PortGuard."+WindowsIdentity.GetCurrent().User.Value)){
       bool acquired=false;try{try{acquired=mutex.WaitOne(0);}catch(AbandonedMutexException){acquired=true;}if(!acquired)return;
         object settings=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("B1AEC16F-2383-4852-B0E9-8F0B1DC66B4D")));
-        var registered=new HashSet<string>();DateTime nextRefresh=DateTime.MinValue;Process monitor=null;
+        var registered=new HashSet<string>();DateTime nextRefresh=DateTime.MinValue,nextMonitor=DateTime.MinValue;Process monitor=null;
         try{
           while(!File.Exists(Path.Combine(Root,"stop-guard"))){
-            if(monitor==null||monitor.HasExited){
-              if(monitor!=null)monitor.Dispose();
-              monitor=StartSkinMonitor();
-              Log("Skin monitor started PID "+monitor.Id);
+            if(monitor!=null&&monitor.HasExited){
+              Log("Skin monitor exited with code "+monitor.ExitCode+"; retrying in 10 seconds");
+              monitor.Dispose();monitor=null;nextMonitor=DateTime.UtcNow.AddSeconds(10);
+            }
+            if(monitor==null&&DateTime.UtcNow>=nextMonitor){
+              try{
+                monitor=StartSkinMonitor();
+                Log("Skin monitor started PID "+monitor.Id);
+              }catch(Exception error){Log("Skin monitor launch: "+error.Message);nextMonitor=DateTime.UtcNow.AddSeconds(10);}
             }
             if(DateTime.UtcNow>=nextRefresh){
               try{

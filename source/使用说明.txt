@@ -1,56 +1,43 @@
-﻿Codex 动态背景 1.0.2（Windows 便携安装包）
+﻿Codex 动态背景 1.1.0
 
-适用：Windows 10/11 x64，当前用户已安装官方 Codex 稳定版（OpenAI.Codex 商店包）。
-不支持独立 ChatGPT Classic、网页端、macOS、Linux、ARM64 或未验证的 Beta 包。
-本工具为非官方定制，已在当前 Codex 26.1007.9446.0 验证；后续客户端改版可能需要更新选择器。
+界面只有两个按钮：
+1. 装载服务：安装或修复后台服务，并开启登录 Windows 后自动装载。
+2. 换壁纸：选择 MP4 / GIF / 图片，程序自动连接 Codex、校验素材并应用。
 
-一、首次启用
-1. 把 ZIP 完整解压到可写目录，不要在压缩包内部直接打开。
-2. 双击 CodexLiveBackground.exe，点击“安装 / 启用”。无需另装 Node.js、Python 或管理员权限。已有兼容 Dream Skin 服务时会验证并复用，保留原背景和登录目录，无需先卸载。
-3. 保存 Codex 中未发送的输入，手动完全退出原 Codex（包括托盘）。工具不会强制关闭聊天。
-4. 点击“打开 Codex”，等待窗口就绪。独立背景配置目录首次使用时可能需要重新登录。
-5. 选择自己的 MP4 或 GIF，点击“应用背景”。应用成功后可关闭管理器。
-6. 以后正常点击任务栏原 Codex 图标打开，后台会恢复保存的背景。登录 Windows 后服务自动启动。
+第一次用，把 ZIP 完整解压后打开 CodexLiveBackground.exe，点一次装载服务。
+之后不需要每次重新装载；可从桌面“Codex 动态背景”打开管理器，直接换壁纸。
+关闭管理器不会停止后台服务。登录后只在后台启动，不会自动弹出管理器窗口。
+Codex 没有运行时，换壁纸会自动打开它；已打开带背景连接的窗口时直接应用。
+首次遇到未开启背景连接的普通 Codex 实例，需要保存输入并手动完全退出一次，再点换壁纸。工具不会强制关闭聊天。
+独立背景配置第一次使用时可能需要重新登录。
 
-二、更换素材
-直接打开管理器，选择文件并应用，不需要重启 Codex。
-支持 MP4（H.264 建议）、GIF、PNG、JPG、WebP。视频静音、循环播放。
-引擎限制：文件不超过 128 MiB，视频不超过 60 秒 / 60 帧，GIF 不超过 300 帧。
-超大视频请先用视频工具压缩；此包不附带 FFmpeg，也不会自动压缩或改动原文件。
-“界面不透明度”越高，聊天区域越容易阅读；更改后点击“应用背景”。
-源素材会复制到当前用户的主题目录，因此原文件移动后不会影响已经保存的背景。
-包内不附带本机 Steam 壁纸、个人视频、聊天记录、登录凭据或账号设置。
+素材支持与限制：
+MP4（建议 H.264 / yuv420p）、GIF、PNG、JPG、WebP，最大128 MiB。
+MP4最大60秒、60 FPS；GIF最大300帧。动态素材静音循环。
+视频同时做文件结构解析和实际Codex解码验证；会先准备当前运行时连接，再验证视频。
+照片与视频沿用现有显示比例规则，本版未修改裁切方式。
+素材会保存副本；原文件移动后不会影响已经保存的背景。
 
-三、暂停与卸载
-“暂停背景”：移除当前皮肤，后续自动恢复保持暂停。
-“恢复背景”：重新应用保存的主题。
-“停用 / 卸载”：移除背景、启动钩子、自动恢复任务和桌面入口，保持当前聊天打开。
-完成后退出工具，可手动删除 %LOCALAPPDATA%\Programs\CodexLiveBackground。
-素材、诊断日志和独立登录资料保留在 %LOCALAPPDATA%\CodexDreamSkin，需彻底清理时先关闭 Codex 并自行备份后删除。
-卸载不会立即取消当前进程已经打开的本地调试端口；手动关闭并正常重新打开 Codex 后恢复普通启动。
-
-四、连接与故障排除
-- 首次启用后尚未连接：请手动完全退出原 Codex，再从管理器打开。仅关闭窗口可能仍有托盘进程。
-- 端口冲突：释放 127.0.0.1:9335，不需要防火墙公网规则；工具只接受同用户官方 Codex 的本地端点。
-- 已有 Dream Skin 服务：1.0.2 会核对任务路径、当前用户及组件哈希后复用，不重复启动或覆盖旧服务。未知版本或同名的其他程序仍会保留原状并显示具体原因。
-- 素材不支持：优先转换为 H.264 / yuv420p MP4，确认大小、时长、帧率符合上面的限制。
-- 重启后没有背景：查看“状态”，再查看下面 startup 目录里的日志。
-- 杀毒软件/企业策略可能限制未签名工具或任务计划程序；请让设备管理员根据策略处理。
+自启动机制：
+当前用户的 CodexDreamSkinPort 登录计划任务 + HKCU Run 后备入口。
+两者共用进程互斥锁，只运行一份后台服务。允许电池运行、失败自动重试。
+装载服务会检查真实监控心跳；旧版写死安装路径的监控会先备份，再升级。
+旧组件备份保留在 %LOCALAPPDATA%\CodexDreamSkin\startup\upgrade-backup-...。
+日志位于同目录 startup.log、monitor-state.json、skin-startup.log。
 
 安装位置：%LOCALAPPDATA%\Programs\CodexLiveBackground
-用户数据：%LOCALAPPDATA%\CodexDreamSkin
-诊断位置：%LOCALAPPDATA%\CodexDreamSkin\startup
-计划任务：CodexDreamSkinPort（当前用户登录运行）
-连接方式：本机 127.0.0.1:9335 CDP，不开放网络端口，不修改 Codex 的应用安装文件。
+素材、背景登录配置：%LOCALAPPDATA%\CodexDreamSkin
+仅连接本机127.0.0.1:9335，不需要防火墙公网放行规则。
+适用Windows10/11 x64官方Codex稳定版；不支持ChatGPT Classic、网页端或未验证的Beta包。
 
-开发与来源
-本包基于 MIT 许可的 Codex Dream Skin Manager / Codex Dream Skin 引擎，包含本次端口启动、可见聊天选择器、禁止自动关闭和自动恢复修复。
-https://github.com/xxloocee/Codex-Dream-Skin-Manager
-https://github.com/Fei-Away/Codex-Dream-Skin
-保留原许可证和第三方声明。素材请由使用者自行提供。
-源码位于 source，构建脚本 source\build.ps1。构建需要已有的 Dream Skin 源码和经过签名验证的 Node.js x64 22+。
-重新构建示例（PowerShell）：
-  .\source\build.ps1 -EngineSource .\engine -NodeExecutable .\engine\runtime\node\node.exe -NodeLicense .\engine\runtime\node\LICENSE -PortSource .\startup -ThirdPartySource .\THIRD_PARTY -OutputDirectory C:\Build\CodexLiveBackground-new
-OutputDirectory 必须是尚不存在的新目录。引擎代码也已包含在 engine 中。
+卸载（高级命令，仅当需要）：
+在Windows PowerShell运行：
+  & "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action Remove
+它会停用背景、移除后台启动和桌面入口。关闭管理器后可手动删除安装目录。
+用户素材和背景登录资料仍保留在CodexDreamSkin目录，删除前请自行备份。
 
-1.0.2 操作等待说明：后台正在启动或恢复皮肤时，管理器会等待操作锁释放，最多 180 秒。请等待当前操作结束，避免重复点击；超时会显示中文原因，且不会强制关闭 Codex。
+源码随包附带：source、engine、startup。构建命令：
+  .\source\build.ps1 -EngineSource .\engine -NodeExecutable .\engine\runtime\node\node.exe -NodeLicense .\engine\runtime\node\LICENSE -PortSource .\startup -ThirdPartySource .\THIRD_PARTY -OutputDirectory C:\Build\yz-Codex-new
+OutputDirectory必须是不存在的新目录。
+基于MIT许可Codex-Dream-Skin-Manager及Codex-Dream-Skin引擎；保留许可证及第三方声明。
+非官方定制，与OpenAI无隶属关系。包内不包含个人壁纸、账号凭据或聊天记录。

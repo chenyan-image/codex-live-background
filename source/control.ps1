@@ -15,6 +15,8 @@ $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $engine = Join-Path $root 'engine'
 . (Join-Path $engine 'scripts\common-windows.ps1')
 . (Join-Path $root 'service-compatibility.ps1')
+. (Join-Path $root 'service-upgrade.ps1')
+. (Join-Path $root 'autostart.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $lines = @(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\manager-actions.ps1') -Action $Operation -SkillRoot $engine @Extra 2>&1)
   $code = $LASTEXITCODE
@@ -23,10 +25,40 @@ function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   return $output | ConvertFrom-Json
 }
 function Assert-Installed {
-  if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json'))) { throw '请先点击“安装 / 启用”。' }
+  if (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json'))) { throw '请先点击“装载服务”。' }
   if (-not (Test-Path -LiteralPath (Join-Path $startup 'DreamSkinPortHook.exe'))) { throw '启动组件缺失，请重新安装。' }
-  $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
-  if (-not $task -or $task.State -ne 'Running') { throw '自动恢复服务没有运行，请点击“安装 / 启用”修复。' }
+  $status=Get-YzBackgroundAutostart -StartupRoot $startup
+  if (-not $status.running) { throw '自动恢复服务没有运行，请点击“装载服务”修复。' }
+}
+function Ensure-YzService {
+  $status=Get-YzBackgroundAutostart -StartupRoot $startup
+  $installed=$null
+  try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
+  if($installed.version -ne '1.1.0' -or -not $status.enabled -or -not $status.running){
+    $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install 2>&1)
+    if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
+  }
+  Assert-Installed
+}
+function Connect-YzCodex {
+  $codex=Get-DreamSkinCodexInstall
+  $identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
+  if($identity){return $identity}
+  $registered=Get-DreamSkinVerifiedCdpIdentityForAnyRegistered -Port 9335
+  if($registered){return $registered.Identity}
+  $running=@(Get-DreamSkinRegisteredCodexInstalls|ForEach-Object{Get-DreamSkinCodexProcesses -Codex $_})
+  if($running.Count -gt 0){throw '当前 Codex 是未开启背景连接的普通启动实例。首次启用请保存输入并手动完全退出一次，再点击“换壁纸”；之后服务会自动准备连接。'}
+  if(-not (Test-DreamSkinPortAvailable -Port 9335)){throw '本机 9335 端口被其他程序占用，暂时无法连接背景。'}
+  $profile=Join-Path $stateRoot 'cdp-profile'
+  $null=New-Item -ItemType Directory -Path $profile -Force
+  $null=Start-DreamSkinCodexDirect -Codex $codex -Arguments @('--remote-debugging-address=127.0.0.1','--remote-debugging-port=9335',('--user-data-dir='+$profile))
+  $deadline=[DateTime]::UtcNow.AddSeconds(45)
+  do{
+    Start-Sleep -Milliseconds 500
+    $identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
+    if($identity){return $identity}
+  }while([DateTime]::UtcNow -lt $deadline)
+  throw '已请求打开 Codex，背景连接尚未就绪。等主窗口完成加载后，再点“换壁纸”。'
 }
 try {
   switch ($Action) {
@@ -44,43 +76,57 @@ try {
       if ([IO.Path]::GetFullPath($root).TrimEnd('\') -ine [IO.Path]::GetFullPath($installRoot).TrimEnd('\')) {
         Copy-DreamBackgroundPackage -SourceRoot $root -DestinationRoot $installRoot
       }
-      if ($plan.Mode -eq 'new') {
-        foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
-          Copy-Item -LiteralPath (Join-Path $installRoot ('startup\' + $name)) -Destination $startup -Force
-        }
-      }
       [IO.File]::WriteAllText((Join-Path $stateRoot 'keep-codex-open'), 'Attach only. Never close a running Codex.')
       [IO.File]::WriteAllText((Join-Path $stateRoot 'startup-animation.disabled'), 'Startup animation disabled.')
-      if ($plan.Mode -eq 'new') {
-        & $ps -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $startup 'register-port.ps1') -Action Install | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw '启动服务注册失败。请在 Windows 任务计划程序中检查当前用户的权限，然后重新安装。' }
-      } elseif ($task.State -ne 'Running') { Start-ScheduledTask -TaskName CodexDreamSkinPort }
+      $upgrade=Update-YzBackgroundService -PackageStartup (Join-Path $installRoot 'startup') -StartupRoot $startup -Mode $plan.Mode
+      $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
-      $installation = [ordered]@{version='1.0.2';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid}
+      $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
+      $installation = [ordered]@{version='1.1.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
-        $link = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk'))
+        $desktop=[Environment]::GetFolderPath('Desktop')
+        $link = $shell.CreateShortcut((Join-Path $desktop 'Codex 动态背景.lnk'))
         $link.TargetPath = Join-Path $installRoot 'CodexLiveBackground.exe'
         $link.WorkingDirectory = $installRoot
         $link.Save()
+        $oldLink=Join-Path $desktop 'yz Codex 动态背景.lnk'
+        if(Test-Path -LiteralPath $oldLink){
+          $old=$shell.CreateShortcut($oldLink)
+          if($old.TargetPath -ieq (Join-Path $installRoot 'CodexLiveBackground.exe')){Remove-Item -LiteralPath $oldLink -Force}
+        }
       } finally { [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null }
-      if ($plan.Mode -eq 'reuse') {
-        Write-Output '安装完成，已复用验证过的旧 Dream Skin 服务，并保留原有背景、素材及登录目录。当前 Codex 未关闭。可直接查看状态或选择素材。'
-      } else {
-        Write-Output ('安装完成，已识别 Codex {0}。首次启用：保存聊天输入，手动完全退出 Codex，再点击“打开 Codex”。以后更换背景无需退出。' -f $codex.Version)
-      }
+      Write-Output '服务已装载，登录 Windows 后会在后台自动运行。后台监控已验证正常；以后直接点“换壁纸”，选中素材即可应用。'
     }
     'Apply' {
-      Assert-Installed
       if (-not $Media -or -not (Test-Path -LiteralPath $Media -PathType Leaf)) { throw '请选择本地视频或 GIF 文件。' }
       if ([IO.Path]::GetExtension($Media).ToLowerInvariant() -notin @('.mp4','.gif','.png','.jpg','.jpeg','.webp')) { throw '仅支持 MP4、GIF、PNG、JPG、WebP。' }
       if ((Get-Item -LiteralPath $Media).Length -gt 128MB) { throw '素材超过 128 MiB。请先压缩到限制以内；本工具不会修改原始素材。' }
-      $codex = Get-DreamSkinCodexInstall
-      $identity = Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
-      if ($null -eq $identity) { throw '尚未连接到 Codex。首次启用请保存输入并手动完全退出 Codex，然后点击“打开 Codex”；端口 9335 必须空闲。' }
-      $result = Invoke-Engine 'ApplyTheme' @('-ImagePath',$Media,'-Name',[IO.Path]::GetFileNameWithoutExtension($Media),'-ThemeId',('custom-' + [guid]::NewGuid().ToString('N')),'-Category','custom','-TaskMode','full','-SurfaceOpacity',$Opacity.ToString([Globalization.CultureInfo]::InvariantCulture))
-      if (-not $result.rendererApplied) { throw '素材已保存，但窗口应用未通过验证。请切回 Codex 主窗口后重试。' }
+      Ensure-YzService
+      $identity=Connect-YzCodex
+      $connection=Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')
+      # The MP4 decoder uses a verified saved browser identity, not merely an
+      # open TCP port. Establish that state before validating the first video.
+      if(-not $connection -or "$($connection.browserId)" -cne "$($identity.BrowserId)" -or $connection.port -ne 9335){
+        $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -ConnectOnly -OperationLockTimeoutMilliseconds 180000 2>&1)
+        if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
+      }
+      $needsConnect=$false
+      try{
+        $result = Invoke-Engine 'ApplyTheme' @('-ImagePath',$Media,'-Name',[IO.Path]::GetFileNameWithoutExtension($Media),'-ThemeId',('custom-' + [guid]::NewGuid().ToString('N')),'-Category','custom','-TaskMode','full','-SurfaceOpacity',$Opacity.ToString([Globalization.CultureInfo]::InvariantCulture))
+        $needsConnect=-not $result.rendererApplied
+      }catch{
+        if($_.Exception.Message -notmatch 'DREAM_SKIN_LIVE_APPLY_FAILED'){throw}
+        $needsConnect=$true
+      }
+      if($needsConnect){
+        $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -OperationLockTimeoutMilliseconds 180000 2>&1)
+        if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
+        $applied=Invoke-Engine 'Resume'
+        if(-not $applied.rendererApplied){throw '素材已保存，当前窗口还在加载。等主窗口就绪后再点“换壁纸”。'}
+      }
+      if(-not $result){$result=Get-Content -LiteralPath (Join-Path $stateRoot 'active-theme\theme.json') -Raw|ConvertFrom-Json}
       Write-Output ('已应用并保存：' + $result.name + '。动态素材静音循环播放，重新打开 Codex 后会自动恢复。')
     }
     'Launch' {
@@ -110,17 +156,22 @@ try {
       if ($saved) { $null = Stop-DreamSkinRecordedInjector -State $saved }
       $shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk'
       Remove-Item -LiteralPath $shortcut -Force -ErrorAction SilentlyContinue
+      Remove-Item -LiteralPath (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk') -Force -ErrorAction SilentlyContinue
+      $runKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+      $run=(Get-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -ErrorAction SilentlyContinue).CodexDreamSkinPort
+      if($run -eq ('"'+(Join-Path $startup 'DreamSkinPortHook.exe')+'" --guard')){Remove-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort}
       Remove-Item -LiteralPath (Join-Path $installRoot 'installed.json') -Force -ErrorAction SilentlyContinue
       Write-Output '背景及自动启动已停用。当前聊天继续保留。关闭本工具后，可手动删除 LocalAppData\Programs\CodexLiveBackground；素材和独立登录目录保留在 LocalAppData\CodexDreamSkin。'
     }
     'Status' {
       $codex = Get-DreamSkinCodexInstall
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
+      $auto=Get-YzBackgroundAutostart -StartupRoot $startup
       $identity = Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
       $themePath = Join-Path $stateRoot 'active-theme\theme.json'
       $themeName = '尚未设置'
       if (Test-Path -LiteralPath $themePath) { $themeName = (Get-Content -LiteralPath $themePath -Raw | ConvertFrom-Json).name }
-      Write-Output ("Codex：{0}`r`n自动恢复服务：{1}`r`n窗口连接：{2}`r`n当前背景：{3}" -f $codex.Version, $(if ($task -and $task.State -eq 'Running') {'运行中'} else {'未启用'}), $(if ($identity) {'已验证 127.0.0.1:9335'} else {'未连接'}), $themeName)
+      Write-Output ("登录自启动：{0}`r`n后台服务：{1}`r`n窗口连接：{2}`r`n当前壁纸：{3}`r`n点「换壁纸」，选文件后自动应用。" -f $(if($auto.enabled){'已开启'}else{'未配置完整，请点装载服务'}), $(if ($auto.running) {'运行中'} else {'未装载'}), $(if ($identity) {'已连接'} else {'等待 Codex 打开'}), $themeName)
     }
   }
 } catch {
