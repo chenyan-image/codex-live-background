@@ -60,8 +60,8 @@ const SKIN_VERSION = "2.0.3";
 // literal `const SKIN_VERSION = "...";` line, so the export stays a separate
 // statement rather than an inline `export const`.
 export { SKIN_VERSION, nextIdentityReconnectDelay };
-const MAX_ART_BYTES = 128 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 128 * 1024 * 1024;
+const MAX_ART_BYTES = 512 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 512 * 1024 * 1024;
 const MAX_SAFE_CSS_BYTES = 256 * 1024;
 const MAX_MEDIA_CACHE_BYTES = 256 * 1024 * 1024;
 const MAX_MEDIA_CACHE_FILES = 16;
@@ -707,6 +707,8 @@ async function pruneMediaCache(mediaCacheRoot, retainedPath) {
   let retainedBytes = 0;
   let retainedFiles = 0;
   for (const snapshot of snapshots) {
+    // The active snapshot may exceed the reusable-cache budget (up to 512 MiB).
+    // It is retained alone; its size excludes every older snapshot below.
     const keep = snapshot.path === retainedPath || (
       retainedFiles < MAX_MEDIA_CACHE_FILES &&
       retainedBytes + snapshot.size <= MAX_MEDIA_CACHE_BYTES

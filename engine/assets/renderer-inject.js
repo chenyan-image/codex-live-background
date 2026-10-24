@@ -216,7 +216,7 @@
     const file = mediaFileInput?.files?.[0];
     if (!file || videoDisposed || videoFailure ||
         window[STATE_KEY]?.installToken !== installToken ||
-        file.size < 1 || file.size > 128 * 1024 * 1024 ||
+        file.size < 1 || file.size > 512 * 1024 * 1024 ||
         !mediaExtensions[artMime]?.test(file.name || "") ||
         file.type && file.type !== artMime && !(artMime === "image/png" && file.type === "image/apng")) return false;
     const previousUrl = artUrl;
@@ -1005,6 +1005,19 @@
     const isComposerDecoration = (node) => {
       if (!node || node.getAttribute?.("role") ||
         node.closest?.('[role="dialog"], [role="menu"], [role="tooltip"]')) return false;
+      // 26.1016 uses CSS-module backgrounds for the spacer and footer surface.
+      // They are aria-hidden siblings of the input, not independent panels.
+      const moduleBackground = node.matches?.(
+        '[aria-hidden="true"][class*="_background_"]' +
+        '[class~="pointer-events-none"][class~="absolute"][class~="inset-x-0"]',
+      );
+      if (moduleBackground && node.closest?.('[data-ds-part="thread"]')) {
+        const fade = node.matches?.('[class*="_fade_"]') &&
+          node.parentElement?.matches?.('[class~="sticky"][class~="bottom-0"][class~="pointer-events-none"]');
+        const surface = node.matches?.('[class*="_surface_"]') &&
+          node.parentElement?.hasAttribute?.('data-thread-scroll-footer');
+        if (fade || surface) return true;
+      }
       if (!node.matches?.(
         '[class~="pointer-events-none"][class~="absolute"][class~="inset-x-0"]' +
         '[class~="-top-8"]',

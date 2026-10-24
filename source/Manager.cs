@@ -11,8 +11,8 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.1.1.0")]
+[assembly: AssemblyFileVersion("1.1.1.0")]
 
 internal sealed class Manager : Form {
     readonly TextBox media = new TextBox();
@@ -24,7 +24,7 @@ internal sealed class Manager : Form {
     [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
 
     Manager(bool checkStatus) {
-        Text = "Codex 动态背景 · 1.1.0";
+        Text = "Codex 动态背景 · 1.1.1";
         Font = new Font("Microsoft YaHei UI", 10F);
         BackColor = Color.FromArgb(245,247,250);
         ClientSize = new Size(780, 490);
@@ -43,7 +43,7 @@ internal sealed class Manager : Form {
         settings.Controls.Add(new Label { Text="界面不透明度", AutoSize=true, Margin=new Padding(0,7,10,0) });
         opacity.Minimum=10; opacity.Maximum=100; opacity.Value=72; opacity.Width=72;
         settings.Controls.Add(opacity);
-        settings.Controls.Add(new Label { Text="%　支持 MP4 / GIF / 图片，最大 128 MiB", AutoSize=true, Margin=new Padding(8,7,0,0) });
+        settings.Controls.Add(new Label { Text="%　MP4 / GIF / 图片 · 最大 512 MiB", AutoSize=true, Margin=new Padding(8,7,0,0) });
         layout.Controls.Add(settings,0,3);
         commands.Dock=DockStyle.Fill;
         commands.Controls.Add(MakeButton("装载服务", delegate { Run("Install"); }));

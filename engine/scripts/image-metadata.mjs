@@ -11,8 +11,8 @@ const MP4_HEVC_CODECS = new Set(["hvc1", "hev1"]);
 export const MAX_IMAGE_DIMENSION = 16384;
 export const MAX_IMAGE_PIXELS = 50_000_000;
 export const MAX_IMAGE_FRAMES = 300;
-export const MAX_VIDEO_DURATION_SECONDS = 60;
-export const MAX_VIDEO_FPS = 60;
+export const MAX_VIDEO_DURATION_SECONDS = 600;
+export const MAX_VIDEO_FPS = 120;
 
 function uint16be(bytes, offset) {
   return bytes[offset] * 256 + bytes[offset + 1];
@@ -616,7 +616,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const animation = readImageAnimation(bytes, path.extname(resolved));
       if (!metadata || !animation || animation.frameCount > MAX_IMAGE_FRAMES) {
         throw new Error(path.extname(resolved).toLowerCase() === ".mp4"
-          ? "MP4 must be non-fragmented H.264/AVC or H.265/HEVC, within 60 seconds, 60 FPS and dimension limits."
+          ? "MP4 must be non-fragmented H.264/AVC or H.265/HEVC, within 10 minutes, 120 FPS and dimension limits."
           : "Media metadata is invalid or exceeds the image/video safety limits");
       }
       console.log(JSON.stringify({ ...metadata, ...animation }));

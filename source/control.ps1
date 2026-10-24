@@ -18,8 +18,14 @@ $engine = Join-Path $root 'engine'
 . (Join-Path $root 'service-upgrade.ps1')
 . (Join-Path $root 'autostart.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
-  $lines = @(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\manager-actions.ps1') -Action $Operation -SkillRoot $engine @Extra 2>&1)
-  $code = $LASTEXITCODE
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $lines = @(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\manager-actions.ps1') -Action $Operation -SkillRoot $engine @Extra 2>&1)
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
   $output = ($lines | ForEach-Object { "$_" }) -join "`r`n"
   if ($code -ne 0) { throw $output }
   return $output | ConvertFrom-Json
@@ -34,7 +40,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.1.0' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne '1.1.1' -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -82,7 +88,7 @@ try {
       $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.1.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.1.1';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -102,7 +108,7 @@ try {
     'Apply' {
       if (-not $Media -or -not (Test-Path -LiteralPath $Media -PathType Leaf)) { throw '请选择本地视频或 GIF 文件。' }
       if ([IO.Path]::GetExtension($Media).ToLowerInvariant() -notin @('.mp4','.gif','.png','.jpg','.jpeg','.webp')) { throw '仅支持 MP4、GIF、PNG、JPG、WebP。' }
-      if ((Get-Item -LiteralPath $Media).Length -gt 128MB) { throw '素材超过 128 MiB。请先压缩到限制以内；本工具不会修改原始素材。' }
+      if ((Get-Item -LiteralPath $Media).Length -gt 512MB) { throw '素材超过 512 MiB。请选择较小文件或先压缩；本工具不会修改原始素材。' }
       Ensure-YzService
       $identity=Connect-YzCodex
       $connection=Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')

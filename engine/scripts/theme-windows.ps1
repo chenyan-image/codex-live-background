@@ -2,8 +2,8 @@
   . (Join-Path $PSScriptRoot 'config-utf8.ps1')
 }
 
-$script:DreamSkinMaxImageBytes = 128 * 1024 * 1024
-$script:DreamSkinMaxVideoBytes = 128 * 1024 * 1024
+$script:DreamSkinMaxImageBytes = 512 * 1024 * 1024
+$script:DreamSkinMaxVideoBytes = 512 * 1024 * 1024
 $script:DreamSkinMaxThemeArchiveBytes = 160 * 1024 * 1024
 $script:DreamSkinMaxThemeArchiveExpandedBytes = 192 * 1024 * 1024
 $script:DreamSkinMaxThemeArchiveEntries = 32
@@ -286,15 +286,28 @@ function Get-DreamSkinValidatedImageMetadata {
   }
   $node = Get-DreamSkinNodeRuntime
   $metadataScript = Join-Path $PSScriptRoot 'image-metadata.mjs'
-  $output = @(& $node.Path $metadataScript '--check' ([System.IO.Path]::GetFullPath($Path)) 2>&1)
-  if ($LASTEXITCODE -ne 0) {
-    throw "Image metadata is invalid or exceeds the 16384px / 50MP safety limit: $Path"
+  $metadataError = if ([System.IO.Path]::GetExtension($Path) -ieq '.mp4') {
+    'MP4 验证失败：仅支持标准非分片 H.264/AVC 或 H.265/HEVC MP4，最长 10 分钟、最高 120 FPS，单边不能超过 16384 像素、总像素不能超过 50MP。'
+  } else {
+    '图片验证失败：文件已损坏，或超过单边 16384 像素、总像素 50MP、动画 300 帧的限制。'
+  }
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    # Native stderr must be captured before translating a non-zero exit code.
+    $ErrorActionPreference = 'Continue'
+    $output = @(& $node.Path $metadataScript '--check' ([System.IO.Path]::GetFullPath($Path)) 2>&1)
+    $metadataExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  if ($metadataExitCode -ne 0) {
+    throw $metadataError
   }
   try { $metadata = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop } catch {
     throw "Image metadata helper returned invalid output: $Path"
   }
   if ($null -eq $metadata -or $null -eq $metadata.width -or $null -eq $metadata.height) {
-    throw "Image metadata is invalid or exceeds the 16384px / 50MP safety limit: $Path"
+    throw $metadataError
   }
 }
 
@@ -315,8 +328,8 @@ function Assert-DreamSkinImageFile {
   if ($length -lt 1) { throw 'Theme image cannot be empty.' }
   $maxBytes = if ($extension -eq '.mp4') { $script:DreamSkinMaxVideoBytes } else { $script:DreamSkinMaxImageBytes }
   if ($length -gt $maxBytes) {
-    if ($extension -eq '.mp4') { throw 'Theme video exceeds the 128 MiB limit.' }
-    throw 'Theme image exceeds the 128 MiB limit.'
+    if ($extension -eq '.mp4') { throw 'Theme video exceeds the 512 MiB limit.' }
+    throw 'Theme image exceeds the 512 MiB limit.'
   }
   if (-not $SkipImageMetadata) {
     Get-DreamSkinValidatedImageMetadata -Path $fullPath
@@ -332,8 +345,15 @@ function Assert-DreamSkinVideoDecodable {
   Assert-DreamSkinImageFile -Path $Path
   $node = Get-DreamSkinNodeRuntime
   $stateFile = (Get-DreamSkinThemePaths -StateRoot $StateRoot).State
-  $output = @(& $node.Path (Join-Path $PSScriptRoot 'validate-video-file.mjs') $Path $stateFile 2>&1)
-  if ($LASTEXITCODE -ne 0) {
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $output = @(& $node.Path (Join-Path $PSScriptRoot 'validate-video-file.mjs') $Path $stateFile 2>&1)
+    $decodeExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  if ($decodeExitCode -ne 0) {
     throw (($output | ForEach-Object { "$_" }) -join "`n")
   }
 }

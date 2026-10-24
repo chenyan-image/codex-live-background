@@ -45,7 +45,7 @@ export function installVideoDecodeProbe(key) {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => finish({ pass: false, reason: "decode-timeout" }), 7000);
       const file = input.files?.[0];
-      if (!file || file.size < 1 || file.size > 128 * 1024 * 1024 ||
+      if (!file || file.size < 1 || file.size > 512 * 1024 * 1024 ||
           !/\.mp4$/i.test(file.name) || file.type && file.type !== "video/mp4") {
         finish({ pass: false, reason: "invalid-file" });
         return;
@@ -94,13 +94,13 @@ export async function probeVideoDecode(session, snapshotPath) {
 export async function validateVideoFile(filePath, statePath, forceVideo = false) {
   if (!forceVideo && path.extname(filePath).toLowerCase() !== ".mp4") return { pass: true, video: false };
   const stat = await fs.lstat(filePath);
-  if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 1 || stat.size > 128 * 1024 * 1024) {
-    throw new Error("MP4 必须是非空普通文件，且不能超过 128 MiB。");
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 1 || stat.size > 512 * 1024 * 1024) {
+    throw new Error("MP4 必须是非空普通文件，且不能超过 512 MiB。");
   }
   const bytes = await fs.readFile(filePath);
   if (bytes.length !== stat.size) throw new Error("视频在校验期间发生变化，请重试。");
   const metadata = readImageMetadata(bytes, ".mp4");
-  if (!metadata) throw new Error("MP4 格式不合规：仅支持非分片 H.264/AVC 或 H.265/HEVC，最长 60 秒、最高 60 FPS，尺寸需符合限制。");
+  if (!metadata) throw new Error("MP4 格式不合规：仅支持非分片 H.264/AVC 或 H.265/HEVC，最长 10 分钟、最高 120 FPS，尺寸需符合限制。");
   let state;
   try { state = JSON.parse(await fs.readFile(statePath, "utf8")); } catch {}
   if (!Number.isInteger(state?.port) || state.port < 1024 || state.port > 65535) {

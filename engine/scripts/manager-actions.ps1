@@ -1023,10 +1023,17 @@ function Get-ManagerImageMetadata {
   $node = Get-DreamSkinNodeRuntime
   $metadataScript = Join-Path $scripts 'image-metadata.mjs'
   $format = [System.IO.Path]::GetExtension($fullPath).TrimStart('.').ToLowerInvariant()
-  $output = @(& $node.Path $metadataScript '--check' $fullPath 2>&1)
-  if ($LASTEXITCODE -ne 0) {
+  $previousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $output = @(& $node.Path $metadataScript '--check' $fullPath 2>&1)
+    $metadataExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  if ($metadataExitCode -ne 0) {
     if ($format -eq 'mp4') {
-      throw 'MP4 验证失败：仅支持标准非分片 H.264/AVC 或 H.265/HEVC MP4，且视频不能超过 60 秒、60 FPS 或 128 MiB。'
+      throw 'MP4 验证失败：仅支持标准非分片 H.264/AVC 或 H.265/HEVC MP4，且视频不能超过 10 分钟、120 FPS、512 MiB、单边 16384 像素或总像素 50MP。'
     }
     throw '背景文件验证失败：文件已损坏，或超过图片/视频安全限制。'
   }

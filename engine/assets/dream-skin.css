@@ -1693,3 +1693,24 @@ html[data-dream-skin="active"] [data-ds-part="message"] { border-radius: 16px; }
     }
   }
 }
+
+/* New composer backgrounds use CSS modules rather than the old -top-8
+   gradient utilities. These aria-hidden nodes decorate only the footer;
+   the real composer retains its configured readable surface. */
+@layer dreamskin-surfaces {
+  html[data-dream-skin="active"] [data-ds-part="thread"]
+    [class~="sticky"][class~="bottom-0"][class~="pointer-events-none"] >
+    [aria-hidden="true"][class*="_background_"][class*="_fade_"][class~="pointer-events-none"][class~="absolute"][class~="inset-x-0"],
+  html[data-dream-skin="active"] [data-ds-part="thread"] [data-thread-scroll-footer] >
+    [aria-hidden="true"][class*="_background_"][class*="_surface_"][class~="pointer-events-none"][class~="absolute"][class~="inset-x-0"] {
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html[data-dream-skin="active"] [data-ds-part="composer"][data-ds-surface="panel"] {
+    box-shadow: none !important;
+    backdrop-filter: blur(calc(10px * var(--ds-surface-opacity, .8))) saturate(1.03) !important;
+  }
+}

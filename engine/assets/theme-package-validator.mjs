@@ -14,8 +14,8 @@ const LIMITS = Object.freeze({
   theme: 65_536,
   simpleTheme: 1_048_576,
   css: 262_144,
-  image: 134_217_728,
-  video: 134_217_728,
+  image: 536_870_912,
+  video: 536_870_912,
   license: 65_536,
   signature: 4_096,
 });
