@@ -1,6 +1,6 @@
 # 可选视频兼容运行时来源
 
-本项目发布 ZIP 不包含 FFmpeg 二进制。只有当前 Codex 无法解码所选视频、需要生成兼容副本时，才下载 BtbN 发布的固定版本 LGPL shared Windows x64 ZIP，并验证固定 SHA-256。
+本项目发布 ZIP 不包含 FFmpeg 二进制。只有源文件需要标准化或当前 Codex 无法解码、需要生成兼容副本时，才下载 BtbN 发布的固定版本 LGPL shared Windows x64 ZIP，并验证固定 SHA-256。
 
 选用 2026-09-30 月末发行。上游公布月末构建保留两年；避免使用仅保留 14 天的每日构建。
 
@@ -27,9 +27,9 @@ SHA-256：`7157177b8a6cb2174c1650ba8c71b363f2c78cba5330f88c4c02cf5b2b880646`
 
 该路径使用目标电脑当前用户的 LOCALAPPDATA。
 
-不需要手动解压，也不要改名。软件仍会验证相同 SHA-256；验证后只提取 runtime-download.json 列出的 ffmpeg.exe、7 个 DLL 和上游 LICENSE.txt 到自己的 runtime 目录，不安装系统编解码器、不修改 PATH。
+不需要手动解压，也不要改名。软件仍会验证相同 SHA-256；验证后只提取 runtime-download.json 列出的 ffmpeg.exe、ffprobe.exe、7 个 DLL 和上游 LICENSE.txt 到自己的 runtime 目录，不安装系统编解码器、不修改 PATH。
 
-上游 ZIP 内目录前缀是 `ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/`。运行文件位于其 bin/ 目录；无需 ffprobe.exe、ffplay.exe、开发用 include/ 或 lib/。8 个运行文件合计 156,713,984 字节（149.45 MiB）。每项原始尺寸见 runtime-download.json。
+上游 ZIP 内目录前缀是 `ffmpeg-n9.0.2-17-g2a571b6068-win64-lgpl-shared-9.0/`。运行文件位于其 bin/ 目录；使用 ffprobe.exe 读取分片、AV1 和较大源文件的信息；无需 ffplay.exe、开发用 include/ 或 lib/。共 9 个运行文件。每项原始尺寸见 runtime-download.json。
 
 此版本启用 libvpx，可生成 WebM VP9。HEVC 解码使用 FFmpeg 自带解码器，不需要 libx265 编码器。BtbN 的 LGPL 构建不启用 GPL-only 的 libx264/libx265。
 

@@ -7,7 +7,7 @@ This Windows customization is derived from the MIT-licensed projects:
 - https://github.com/xxloocee/Codex-Dream-Skin-Manager
 - https://github.com/Fei-Away/Codex-Dream-Skin
 
-Original copyright and license notices are retained in LICENSE and THIRD_PARTY/Codex-Dream-Skin. Windows service integration, the two-button manager, transparency repairs and portable video compatibility are modifications in this project.
+Original copyright and license notices are retained in LICENSE and THIRD_PARTY/Codex-Dream-Skin. Windows service integration, the native manager, transparency repairs and portable video compatibility are modifications in this project.
 
 Personal wallpapers and upstream media that are excluded from the software license are not included. Both JPEG files shipped here are locally generated neutral gradients.
 
@@ -19,6 +19,9 @@ Release ZIPs bundle official signed Node.js 22.22.2 for Windows x64. The source 
 
 ## FFmpeg runtime
 
-The project release ZIP contains the compatibility conversion code and a pinned runtime download configuration, not FFmpeg executable binaries. Only when the actual Codex decoder rejects a video as unsupported, the target computer downloads the fixed BtbN LGPL shared build directly from its publisher, verifies SHA-256, and installs the required runtime files locally. A user may instead supply the unchanged official archive using the documented offline path.
+The project release ZIP contains the compatibility conversion code and a pinned runtime download configuration, not FFmpeg executable binaries. When a source video needs normalization or verified compatibility conversion, the target computer downloads the fixed BtbN LGPL shared build directly from its publisher, verifies SHA-256, and installs the required runtime files locally. A user may instead supply the unchanged official archive using the documented offline path.
 
 Publisher, exact version, checksum, download URL, license texts and upstream source locations are documented in THIRD_PARTY/FFmpeg-Runtime. FFmpeg runs locally and does not receive or upload videos to a service. Its own licensing remains separate from this project's MIT license.
+## Phosphor Icons
+
+Application icon geometry is adapted from Mountains (duotone) in https://github.com/phosphor-icons/core, MIT licensed. The original SVG and license are in source/assets; release ZIPs also include THIRD_PARTY/Phosphor-LICENSE. Colors and the landscape tile treatment are modifications in this project.
