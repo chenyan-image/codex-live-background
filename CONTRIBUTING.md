@@ -4,6 +4,10 @@
 
 编译后的管理器支持 `--ui-test <report.json>` 验证窗口按钮、缩放和不透明度反馈；`--smoke-test <image.png> [width height]` 生成无个人素材的界面截图。这些模式不会装载或卸载真实背景服务。
 
+v1.3.0 新增 `tests/service-removal.ps1`、`tests/upgrade.ps1`、`tests/dark-appearance.ps1`，均在独立测试目录中执行，Windows 注册与进程操作使用测试替身。`node tests/media-preview.mjs` 使用 `DREAM_TEST_FFMPEG` 生成测试图案，验证循环预览、缓存修复、帧数限制与源文件保留。
+
+管理器 `--ui-test` 还验证 80 次尺寸变化与 250 次滑杆拖动；`--lifecycle-test <report.json>` 验证操作中关闭、状态取消和超时；`--preview-test <gif> <report.json>` 验证实际动画帧变化。安装器 `--verify-only <report.json>` 只验证内置包，`--smoke-test <image.png>` 生成截图。**`--install-test <report.json>` 会实际升级本机服务和程序**，仅在明确允许升级的测试电脑上运行，结果写入报告。
+
 ## 分支
 
 - `main` 保存稳定版本。
@@ -35,7 +39,7 @@ change/0002-offline-runtime-docs
 ## 修改约束
 
 - 不强制关闭、重启或结束 Codex 进程来完成背景操作。
-- 保留「装载服务」和「换壁纸」两个按钮，产品名为「Codex 动态背景」。`yz` 只在管理器右下角以小字显示。
+- 保留「装载服务」「换壁纸」「卸载皮肤」「卸载服务」四个入口，产品名为「Codex 动态背景」。`yz` 只在管理器右下角以小字显示。
 - 端点仅限同用户官方 Codex 的本机回环地址；不能通过放宽身份验证来绕过连接问题。
 - 素材必须经过结构和尺寸检查。视频还必须在实际 Codex renderer 中成功解码，不能只检查扩展名或 `canPlayType`。
 - 编码不支持与播放策略、窗口隐藏、播放中断分开处理。只有确认编码不兼容时才转换，转换不截短或改写原文件。
