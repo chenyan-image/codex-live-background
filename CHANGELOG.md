@@ -2,6 +2,14 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.5.2 — 视频校验、全窗口图片与精简文档
+
+- 修复管理器遮挡或 Codex 隐藏时直接拒绝视频的问题：使用实际解码的 ImageBitmap 校验，保留播放策略、编码错误及超时分类；窗口重新显示后恢复播放。
+- 全窗口图片不再受横图、方图、竖图比例分类限制，按比例裁切铺满侧栏、顶部及聊天区域，保留输入框透明度。
+- 左下角区分「连接就绪」与实际壁纸状态，显示视频播放、等待窗口显示、暂停、加载及错误。
+- 精简 README，突出 4K、Wallpaper Engine、壁纸记录和自启动；新增壁纸库截图，详细说明移至 docs/guide.md。
+- 验证隐藏 Codex 中的真实 2560×1440 H.264 解码、图片三种比例的 Chromium 渲染及相关状态回归；不重复管理器窗口缩放等旧测试。
+
 ## v1.5.1 — Wallpaper Engine 连续滚动
 
 - Wallpaper Engine 壁纸改为同一列表向下滚动，移除该页的上一页、下一页和页码。
