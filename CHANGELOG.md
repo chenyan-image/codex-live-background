@@ -2,6 +2,13 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.5.1 — Wallpaper Engine 连续滚动
+
+- Wallpaper Engine 壁纸改为同一列表向下滚动，移除该页的上一页、下一页和页码。
+- 新增深色细滚动条，支持鼠标滚轮、拖动及键盘导航；按需创建屏幕附近的卡片，避免一次加载全部缩略图。
+- 滚动保留选择和右侧预览，搜索与类型筛选回到顶部；本地壁纸、使用记录保持原分页布局。
+- 用 5,000 条隔离示例记录验证连续浏览、末尾选择、筛选与卡片数量上限；依用户要求不重复窗口缩放等旧测试。
+
 ## v1.5.0 — 黑色壁纸库与 Wallpaper Engine 发现
 
 - 重做黑色侧栏与壁纸卡片界面，分离导入、选择预览和应用；新增搜索、静态/动态分类及分页。
