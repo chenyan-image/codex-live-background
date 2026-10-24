@@ -1,6 +1,6 @@
 # Codex 动态背景
 
-> **原项目的 Bug 修复与源码精简版。** 原始软件由 [xxloocee / Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager) 提供；底层皮肤引擎来自 [Fei-Away / Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。本仓库主要修复使用中遇到的 Bug、简化管理器与源文件并补充 Windows 兼容处理，不将原项目及其主要功能标为我们原创。原始版权和许可证均予以保留。
+> **原项目的 Bug 修复与源码精简版。** 原始软件由 [xxloocee / Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager) 提供；底层皮肤引擎来自 [Fei-Away / Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。本仓库主要修复使用中遇到的 Bug、简化管理器与源文件并补充 Windows 兼容处理，不将原项目及其主要功能标为我们原创。
 
 `codex-live-background` 为 Windows 上的官方 Codex 稳定版添加本地图片、GIF 和视频背景，支持静音循环与登录后自动恢复。
 
@@ -19,17 +19,20 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 Windows x64 ZIP，完整解压到可写目录，打开 `CodexLiveBackground.exe`。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.3.0-Setup.exe`**，双击后点「安装 / 更新」即可，无需手动解压。安装器会验证内置文件、检测并迁移旧版、配置服务，最后打开管理器。ZIP 供需要手动部署的用户选用。
 
-管理器采用深色界面，提供三个操作：
+管理器采用深色界面，提供四个操作：
 
 | 按钮 | 作用 |
 | --- | --- |
 | 装载服务 | 安装或修复后台服务，设置当前用户登录 Windows 后自动恢复背景，并创建桌面入口。 |
 | 换壁纸 | 选择本地素材，自动连接 Codex、验证兼容性并应用背景。 |
-| 卸载皮肤 | 卸下背景效果并关闭自启动和后台恢复，保留聊天、素材及登录资料。 |
+| 卸载皮肤 | 卸下当前背景效果，保留服务，之后可直接更换壁纸。 |
+| 卸载服务 | 移除登录启动、Codex 启动挂接、守护、监控、注入器和服务目录，保留管理器、素材与登录资料。 |
 
-首次使用先点一次「装载服务」，之后直接点「换壁纸」。关闭管理器不会停止后台服务，登录后也不会自动弹出管理器窗口。产品名称为「Codex 动态背景」。
+首次使用先点一次「装载服务」，之后直接点「换壁纸」。关闭管理器不会停止后台服务，登录后也不会自动弹出管理器窗口。产品名称为「Codex 动态背景」。拖动滑杆调整聊天框背景的不透明度：数值越低越透明。换壁纸时会同步启用 Codex 深色外观，避免浅色界面覆盖背景。
+
+选中素材后，右侧显示实际预览：图片直接显示，视频和 GIF 显示最长 6 秒的静音循环预览；实际背景保留完整时长。生成预览需要相同的可选 FFmpeg 运行时，预览不可用时仍会继续尝试应用壁纸。
 
 已有背景连接的 Codex 窗口可以直接更换壁纸。若首次启用时 Codex 是普通启动实例，请先保存未发送的输入，手动完全退出 Codex 一次，再点「换壁纸」。工具不会强制关闭或重启聊天。独立背景配置首次使用时可能需要重新登录。
 
@@ -55,7 +58,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ### 首次转换需要的下载
 
-首次需要标准化或兼容转换时，程序从 **BtbN/FFmpeg-Builds** 的固定发行下载约 **74 MiB** 的 LGPL shared Windows x64 运行时 ZIP，核对固定 SHA-256 后仅解压白名单组件（包括 FFprobe）。之后复用本机运行时。项目发布 ZIP 不包含 FFmpeg 二进制，也不会上传视频。
+首次生成动态预览、标准化或兼容转换时，程序从 **BtbN/FFmpeg-Builds** 的固定发行下载约 **74 MiB** 的 LGPL shared Windows x64 运行时 ZIP，核对固定 SHA-256 后仅解压白名单组件（包括 FFprobe）。之后复用本机运行时。项目发布 ZIP 不包含 FFmpeg 二进制，也不会上传视频。
 
 离线电脑可在另一台电脑下载同一个原始 ZIP，将它原封不动放在目标电脑的：
 
@@ -73,23 +76,23 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 | 背景、兼容副本和运行时 | `%LOCALAPPDATA%\CodexDreamSkin` |
 | 后台日志 | `%LOCALAPPDATA%\CodexDreamSkin\startup` |
 | 最近的视频诊断 | `%LOCALAPPDATA%\CodexDreamSkin\last-video-diagnostic.json` |
-| 登录启动入口 | `CodexDreamSkinPort` 计划任务及同名 HKCU Run 后备项 |
+| 登录启动入口 | `CodexDreamSkinPort` 计划任务、同名 HKCU Run 后备项，以及 Windows 启动文件夹中的 `Codex 动态背景服务.lnk` |
 
-两个登录入口共用互斥锁，只运行一份后台服务。「装载服务」会检查真实监控心跳，并备份、升级可识别的旧组件。连接仅使用本机 `127.0.0.1:9335`，无需开放公网防火墙规则。
+三个登录入口共用用户互斥锁，只运行一份后台服务；Codex 包启动入口也会检查并补启守护服务。管理器不需要常驻，也不会随 Codex 弹出。「装载服务」会检查真实监控心跳，安装器会自动迁移已识别的旧版。连接仅使用本机 `127.0.0.1:9335`，无需开放公网防火墙规则。
 
 视频诊断用于区分播放策略、格式与解码问题，仅保存在本机，不读取聊天内容，也不会自动发送。提交 Issue 前请检查并删除不愿公开的文件名、路径和其他个人信息。
 
 ## 升级与卸载
 
-升级时关闭旧管理器，把新版 ZIP 解压到新文件夹，打开新版并点一次「装载服务」。兼容升级会保留已有壁纸和背景配置。
+直接运行新版 Setup.exe。安装器会检测当前用户的 `CodexLiveBackground` 和 `CodexDreamSkinManager` 标准安装目录，关闭旧管理器及已验证的背景组件，将旧程序移至 `CodexDreamSkin\upgrade-backups`，再安装新版。不关闭 Codex，不删除壁纸、背景配置和登录资料。失败时尝试恢复旧程序文件，旧版备份保留供恢复。不会扫描或删除用户任意文件夹。
 
-需要卸载皮肤时，点击管理器中的「卸载皮肤」，确认后会关闭背景自启动并恢复原界面。也可以在 Windows PowerShell 中运行：
+「卸载皮肤」只卸下当前效果，保留服务。需要彻底移除背景服务时，点击「卸载服务」。也可以在 Windows PowerShell 中运行：
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action Remove
+& "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action RemoveService
 ```
 
-卸载会停用背景并移除后台启动，保留管理器入口，方便以后重新装载。关闭管理器后可手动删除程序目录。用户素材、日志和独立背景登录资料仍保留在 `CodexDreamSkin` 用户目录；需要删除时请先自行备份。如果当前窗口断开连接，管理器会明确报告未确认卸下的状态，不会误报全部完成。
+卸载服务会停用背景、删除服务启动文件并移除后台启动，保留管理器入口，方便以后重新装载。关闭管理器后可手动删除程序目录。用户素材、日志和独立背景登录资料仍保留在 `CodexDreamSkin` 用户目录；需要删除时请先自行备份。如果当前窗口断开连接，管理器会明确报告未确认卸下的状态，不会误报全部完成。
 
 ## 从源码构建
 
@@ -117,6 +120,14 @@ $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
 ```
 
 输出目录必须是尚不存在的新目录。构建会生成中性渐变示例图，不打包个人壁纸、账号凭据、聊天记录或机器配置。
+
+将输出目录中的文件压缩为根目录含 `manifest.json` 的 ZIP 后，可构建单个安装 EXE：
+
+```powershell
+.\source\build-setup.ps1 -PackageZip .\dist\Codex-Background.zip `
+  -OutputFile .\dist\Codex-Background-Setup.exe `
+  -IconFile .\dist\Codex-Background-local-win-x64\CodexBackground.ico
+```
 
 ## 验证源码
 

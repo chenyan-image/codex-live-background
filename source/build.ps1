@@ -43,10 +43,10 @@ Copy-Item -LiteralPath $NodeExecutable -Destination (Join-Path $nodeRoot 'node.e
 Copy-Item -LiteralPath $NodeLicense -Destination (Join-Path $nodeRoot 'LICENSE')
 $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $nodeRoot 'node.exe')
 if ($signature.Status -ne 'Valid') { throw ('Bundled Node.js signature is invalid: ' + $signature.Status) }
-foreach ($file in @('control.ps1','autostart.ps1','skin-removal.ps1','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
+foreach ($file in @('control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
-foreach ($file in @('Manager.cs','IconAssets.cs','control.ps1','autostart.ps1','skin-removal.ps1','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
+foreach ($file in @('Manager.cs','IconAssets.cs','Setup.cs','build-setup.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets') -Destination (Join-Path $sourceOut 'assets') -Recurse
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
@@ -65,7 +65,7 @@ $iconProcess=Start-Process -FilePath $iconBuilder -ArgumentList ('"'+$iconPath+'
 if($iconProcess.ExitCode -ne 0){throw 'Icon generation failed.'}
 Copy-Item -LiteralPath $iconPath -Destination (Join-Path $out 'CodexBackground.ico')
 Remove-Item -LiteralPath $iconBuilder -Force
-& $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" "/out:$out\CodexLiveBackground.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll (Join-Path $PSScriptRoot 'Manager.cs') (Join-Path $PSScriptRoot 'IconAssets.cs')
+& $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" "/out:$out\CodexLiveBackground.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll (Join-Path $PSScriptRoot 'Manager.cs') (Join-Path $PSScriptRoot 'IconAssets.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
 & $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ "/out:$port\DreamSkinPortHook.exe" (Join-Path $port 'DreamSkinPortHook.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
@@ -110,12 +110,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.2.0';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.3.0';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.2.0';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.3.0';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

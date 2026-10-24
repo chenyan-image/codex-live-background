@@ -1,12 +1,15 @@
-﻿Codex 动态背景 1.2.0
+﻿Codex 动态背景 1.3.0
 
-三个操作：
+四个操作：
 1. 换壁纸：选择 MP4 / WebM / GIF / 图片，自动连接、检查并应用。
 2. 装载服务：安装或修复背景服务，开启登录 Windows 后自动恢复背景。
-3. 卸载皮肤：卸下背景效果并关闭自启动，保留聊天、素材和登录资料。
+3. 卸载皮肤：卸下当前背景，保留服务，之后可直接换壁纸。
+4. 卸载服务：移除自启动、Codex启动挂接、守护、监控、注入器和服务文件。
 
 首次使用先装载服务，以后直接换壁纸。关闭管理器不会停止背景服务。
-服务登录 Windows 后在后台运行，不自动弹出管理器窗口。
+服务登录Windows后自动运行，Codex启动入口也会补启守护，无需每次打开管理器。
+不会自动弹出管理器。换壁纸会同步启用Codex深色外观，避免浅色界面发雾。
+不透明度越低，聊天框背景越透明。右侧预览所选图片或最长6秒的动态循环。
 软件不会强制关闭或重启正在使用的 Codex。
 首次普通启动的 Codex 没有背景连接时，保存输入并手动完全退出一次，再换壁纸。
 
@@ -22,7 +25,7 @@
 单边最高16384，总像素最高50MP；GIF/PNG/JPG/WebP最大512MiB，动画最多300帧。
 低性能电脑不保证能流畅播放所有4K视频；转换进度会显示在管理器中。
 
-首次标准化或兼容转换：
+首次动态预览、标准化或兼容转换：
 从 BtbN/FFmpeg-Builds 官方固定发行下载约74MiB的LGPL shared运行时。
 软件核对固定SHA-256，只解压白名单文件，包括FFmpeg与FFprobe，之后复用。
 视频全部本地处理，不上传；发布ZIP不包含FFmpeg二进制。
@@ -32,18 +35,20 @@
 固定链接、校验值、许可及源码位置见 THIRD_PARTY\FFmpeg-Runtime\README.md。
 
 升级：
-关闭旧管理器，将新版ZIP完整解压到新文件夹，打开CodexLiveBackground.exe。
-点击装载服务完成升级，无需移除旧设置；当前背景和Codex聊天会保留。
+直接双击新版Codex-Background-1.3.0-Setup.exe，点击安装/更新，无需手动解压。
+自动检测标准安装目录中的旧版，关闭旧管理器、迁移旧程序并启用新版服务。
+旧程序备份保存在CodexDreamSkin\upgrade-backups；失败时尝试恢复旧程序文件。
+ZIP也可完整解压后打开管理器并装载服务。聊天、壁纸和登录资料保留。
 程序安装在 %LOCALAPPDATA%\Programs\CodexLiveBackground。
 当前用户的背景、兼容副本和资料在 %LOCALAPPDATA%\CodexDreamSkin。
 诊断文件是该目录下的last-video-diagnostic.json；后台日志在startup目录。
 不需要沿用作者的路径或用户名；只支持Windows10/11 x64官方Codex稳定版。
 
 卸载皮肤：
-点击卸载皮肤并确认，停用背景、自启动和后台恢复，保留管理器入口以便重新启用。
+卸载皮肤只卸下效果，保留服务。点击卸载服务彻底移除背景自启动及服务文件。
 若窗口断开连接，会明确提示当前皮肤未确认卸下，可以稍后重试。
 也可在Windows PowerShell运行：
-  & "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action Remove
+  & "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action RemoveService
 关闭管理器后可手动删除程序目录。素材、日志及独立登录资料默认保留。
 
 源码及构建见README.md与source\build.ps1；使用不存在的新输出目录。
