@@ -56,7 +56,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw '启动服务注册失败。请在 Windows 任务计划程序中检查当前用户的权限，然后重新安装。' }
       } elseif ($task.State -ne 'Running') { Start-ScheduledTask -TaskName CodexDreamSkinPort }
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
-      $installation = [ordered]@{version='1.0.1';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid}
+      $installation = [ordered]@{version='1.0.2';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {

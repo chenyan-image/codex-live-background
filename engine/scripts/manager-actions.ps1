@@ -33,7 +33,9 @@ param(
   # The manager will reconcile/start the session after committing this theme.
   [switch]$DeferLiveApply,
   # Lock contention should fail promptly, independently of the operation budget.
-  [ValidateRange(1, 30)][int]$LockTimeoutSeconds = 5
+  [ValidateRange(1, 30)][int]$LockTimeoutSeconds = 5,
+  # Wait for startup/recovery to finish before acquiring the theme write lock.
+  [ValidateRange(0, 180)][int]$OperationLockTimeoutSeconds = 180
 )
 
 $ErrorActionPreference = 'Stop'
@@ -459,7 +461,11 @@ function Invoke-ManagerWriteLock {
   $acquired = $false
   try {
     if (-not $recoveryLockHeld) {
-      $operationLock = Enter-DreamSkinOperationLock
+      try {
+        $operationLock = Enter-DreamSkinOperationLock -TimeoutMilliseconds ($OperationLockTimeoutSeconds * 1000)
+      } catch {
+        throw "后台背景恢复尚未结束，已等待 $OperationLockTimeoutSeconds 秒。本次操作未执行，请稍后重试。"
+      }
     }
     try {
       $acquired = $mutex.WaitOne([TimeSpan]::FromSeconds($LockTimeoutSeconds))
