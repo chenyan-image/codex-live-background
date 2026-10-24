@@ -3,6 +3,9 @@
  $desktopFolder=[Environment]::GetFolderPath('Desktop')
  if(-not $Directories){$quick=Join-Path $env:APPDATA 'Microsoft\Internet Explorer\Quick Launch';$Directories=@((Join-Path $quick 'User Pinned\TaskBar'),$quick,[Environment]::GetFolderPath('Programs'),$desktopFolder)}
  $hook=Join-Path $StateRoot 'startup\DreamSkinPortHook.exe'
+ $officialIcon=$null
+ if(Get-Command Get-DreamBackgroundCodexIcon -ErrorAction SilentlyContinue){try{$officialIcon=Get-DreamBackgroundCodexIcon -Codex $Codex -StateRoot $StateRoot}catch{[Console]::Out.WriteLine('Codex 图标缓存暂不可用：'+$_.Exception.Message)}}
+ $iconLocation=if($officialIcon){$officialIcon+',0'}else{$Codex.Executable+',0'}
  $backup=Join-Path $StateRoot 'shortcut-backups';$record=Join-Path $backup 'entries.json'
  $null=New-Item -ItemType Directory -Path $backup -Force
  $saved=@();if(Test-Path -LiteralPath $record){$data=[IO.File]::ReadAllText($record)|ConvertFrom-Json;$saved=@($data.entries|ForEach-Object{[pscustomobject]@{path=$_.path;backup=$_.backup;modifiedSha256=$_.modifiedSha256}})}
@@ -16,6 +19,12 @@
    if($item.PSIsContainer){if($current.recurse -and $current.depth -lt 4){$pending.Enqueue([pscustomobject]@{path=$item.FullName;depth=($current.depth+1);recurse=$true})};continue}
    if($item.Extension -ine '.lnk'){continue}
    $link=$shell.CreateShortcut($item.FullName)
+   if((Test-DreamSkinPathEqual -Left $link.TargetPath -Right $hook) -and $link.Arguments -ceq '--launch'){
+    $tracked=$saved|Where-Object{$_.path -ieq $item.FullName -and $_.modifiedSha256 -ceq (Get-FileHash -LiteralPath $item.FullName).Hash}|Select-Object -First 1
+    $generated=($item.Name -eq 'Codex（动态背景）.lnk' -and $link.IconLocation -in @(($Codex.Executable+',0'),($hook+',0'),''))
+    if(($tracked -or $generated) -and $link.IconLocation -cne $iconLocation){$link.IconLocation=$iconLocation;$link.Save();if($tracked){$tracked.modifiedSha256=(Get-FileHash -LiteralPath $item.FullName).Hash;[IO.File]::WriteAllText($record,(@{schemaVersion=1;entries=@($saved)}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))};$changed++}
+    continue
+   }
    $direct=Test-DreamSkinPathEqual -Left $link.TargetPath -Right $Codex.Executable
    $packaged=([IO.Path]::GetFileName($link.TargetPath) -ieq 'explorer.exe' -and $link.Arguments.Trim('"') -ieq ('shell:AppsFolder\'+$Codex.AppUserModelId))
    if(-not $direct -and -not $packaged){continue}
@@ -23,14 +32,14 @@
    if($direct -and $link.Arguments -and $link.Arguments -notmatch '^\s*--remote-debugging-(port|address)='){continue}
    $copy=Join-Path $backup ([guid]::NewGuid().ToString('N')+'.lnk');Copy-Item -LiteralPath $item.FullName -Destination $copy -ErrorAction Stop
    $link.TargetPath=$hook;$link.Arguments='--launch';$link.WorkingDirectory=Split-Path -Parent $hook
-   if(-not $link.IconLocation){$link.IconLocation=$Codex.Executable+',0'};$link.Save()
+   $link.IconLocation=$iconLocation;$link.Save()
    $saved+=@(@{path=$item.FullName;backup=$copy;modifiedSha256=(Get-FileHash -LiteralPath $item.FullName).Hash})
    [IO.File]::WriteAllText($record,(@{schemaVersion=1;entries=@($saved)}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false));$changed++
   }}
   # A normal shortcut can be pinned by Windows without editing Taskband registry data.
   $desktop=if($Directories.Count -eq 1){$Directories[0]}else{[Environment]::GetFolderPath('Desktop')}
   $entry=Join-Path $desktop 'Codex（动态背景）.lnk'
-  if(-not (Test-Path -LiteralPath $entry)){$link=$shell.CreateShortcut($entry);$link.TargetPath=$hook;$link.Arguments='--launch';$link.WorkingDirectory=Split-Path -Parent $hook;$link.IconLocation=$Codex.Executable+',0';$link.Description='启动官方 Codex 并恢复动态背景';$link.Save()}
+  if(-not (Test-Path -LiteralPath $entry)){$link=$shell.CreateShortcut($entry);$link.TargetPath=$hook;$link.Arguments='--launch';$link.WorkingDirectory=Split-Path -Parent $hook;$link.IconLocation=$iconLocation;$link.Description='启动官方 Codex 并恢复动态背景';$link.Save()}
  }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
  return [pscustomobject]@{repaired=$changed;shortcut=$entry}
 }
