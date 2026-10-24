@@ -1,4 +1,4 @@
-﻿Codex 动态背景 1.3.0
+﻿Codex 动态背景 1.4.0
 
 四个操作：
 1. 换壁纸：选择 MP4 / WebM / GIF / 图片，自动连接、检查并应用。
@@ -35,7 +35,7 @@
 固定链接、校验值、许可及源码位置见 THIRD_PARTY\FFmpeg-Runtime\README.md。
 
 升级：
-直接双击新版Codex-Background-1.3.0-Setup.exe，点击安装/更新，无需手动解压。
+直接双击新版Codex-Background-1.4.0-win-x64.msi，使用Windows Installer安装，无需手动解压。
 自动检测标准安装目录中的旧版，关闭旧管理器、迁移旧程序并启用新版服务。
 旧程序备份保存在CodexDreamSkin\upgrade-backups；失败时尝试恢复旧程序文件。
 ZIP也可完整解压后打开管理器并装载服务。聊天、壁纸和登录资料保留。
@@ -57,3 +57,9 @@ ZIP也可完整解压后打开管理器并装载服务。聊天、壁纸和登�
 本版本是Bug修复与管理器精简衍生版，许可和第三方声明见LICENSE及THIRD_PARTY。
 应用图标改编自Phosphor Icons Mountains（MIT）。
 非官方定制工具，与OpenAI无隶属关系。包内不含用户壁纸、账号凭据或聊天记录。
+
+1.4.0：支持按历史校验值识别1.0.x，未检测到旧版则全新安装。
+预览失败会逐级降低分辨率/帧率，最后尝试静态缩略图，不改动实际壁纸画质。
+任务栏直接启动入口会在备份后修复；也可固定桌面的 Codex（动态背景）。
+发行程序目前未签名，无法保证Windows或杀毒软件不提示；请提供具体威胁名称供核查。
+详见README.md和docs/windows-trust.md。

@@ -10,6 +10,13 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
 using System.Collections.Generic;
+using System.Reflection;
+
+[assembly: AssemblyTitle("Codex Background Startup")]
+[assembly: AssemblyProduct("Codex 动态背景")]
+[assembly: AssemblyCompany("codex-live-background contributors")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.1")]
 
 [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IDreamSkinPackageDebug {
@@ -102,14 +109,14 @@ internal static class DreamSkinPortHook {
   }
   static Process StartSkinMonitor(){
     string powershell=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
-    var start=new ProcessStartInfo(powershell,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "+Quote(Path.Combine(Root,"monitor-skin.ps1")));
+    var start=new ProcessStartInfo(powershell,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(Root,"monitor-skin.ps1")));
     start.UseShellExecute=false;start.CreateNoWindow=true;start.WindowStyle=ProcessWindowStyle.Hidden;
     return Process.Start(start);
   }
   static string InstalledPackage(){
-    string script="$ErrorActionPreference='Stop';$env:PSModulePath=Join-Path $PSHOME 'Modules';$p=Get-AppxPackage -Name OpenAI.Codex;if($p -and $p.SignatureKind -eq 'Store' -and $p.Status -eq 'Ok' -and -not $p.IsDevelopmentMode -and $p.Publisher -eq 'CN=50BDFD77-8903-4850-9FFE-6E8522F64D5B'){[Console]::Write($p.PackageFullName)}";
+    string script=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\CodexLiveBackground\engine\scripts\query-codex-package.ps1");
     string powershell=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
-    var start=new ProcessStartInfo(powershell,"-NoLogo -NoProfile -NonInteractive -EncodedCommand "+Convert.ToBase64String(Encoding.Unicode.GetBytes(script)));
+    var start=new ProcessStartInfo(powershell,"-NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "+Quote(script));
     start.UseShellExecute=false;start.CreateNoWindow=true;start.RedirectStandardOutput=true;start.RedirectStandardError=true;
     using(var probe=Process.Start(start)){
       if(!probe.WaitForExit(15000)){probe.Kill();throw new Exception("Package refresh timed out");}
@@ -166,6 +173,17 @@ internal static class DreamSkinPortHook {
   static void Main(string[] args){
     if(args.Length==1&&args[0]=="--guard"){Guard();return;}
     if(args.Length==1&&args[0]=="--ensure"){EnsureGuard();return;}
+    if(args.Length==1&&args[0]=="--launch"){
+      try{if(File.Exists(Path.Combine(Root,"stop-guard")))throw new Exception("背景服务正在更新，请稍后重试。");EnsureGuard();string executable=PackageExecutable(InstalledPackage());if(FocusSkinMain(0,executable))return;
+        using(var mutex=new Mutex(false,"Local\\CodexDreamSkin.PortStartup."+WindowsIdentity.GetCurrent().User.Value)){
+          bool owns=false;try{try{owns=mutex.WaitOne(0);}catch(AbandonedMutexException){owns=true;}if(!owns)return;
+            var listener=new TcpListener(IPAddress.Loopback,9335);try{listener.Start();}finally{listener.Stop();}
+            string profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexDreamSkin\cdp-profile");Directory.CreateDirectory(profile);
+            var info=new ProcessStartInfo(executable,"--remote-debugging-address=127.0.0.1 --remote-debugging-port=9335 --user-data-dir="+Quote(profile)){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(executable)};info.EnvironmentVariables["CODEX_ELECTRON_USER_DATA_PATH"]=profile;using(var app=Process.Start(info)){if(app==null)throw new Exception("Codex could not start");}
+          }finally{if(owns)mutex.ReleaseMutex();}
+        }
+      }catch(Exception error){Log("Shortcut launch failed: "+error.Message);Environment.ExitCode=1;}return;
+    }
     int pid=0;uint tid=0;for(int i=0;i+1<args.Length;i++){if(args[i]=="-p")Int32.TryParse(args[++i],out pid);else if(args[i]=="-tid")UInt32.TryParse(args[++i],out tid);}
     if(pid<1||tid<1)return;
     IntPtr thread=OpenThread(0x802,false,tid),process=IntPtr.Zero;bool valid=thread!=IntPtr.Zero&&GetProcessIdOfThread(thread)==pid,retired=false;

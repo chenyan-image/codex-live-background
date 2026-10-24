@@ -66,3 +66,5 @@ change/0002-offline-runtime-docs
 在 `develop` 完成验证和版本更新，将确定的版本合入 `main`，创建带说明的 `vX.Y.Z` 标签。发布说明描述问题、最终行为、验证结果和现有限制，并附对应 ZIP 与 SHA-256。
 
 为每次正式发布更新 [CHANGELOG](CHANGELOG.md)。发布资源中的版本号、GUI、源码、构建标记和服务兼容清单必须一致。不要将兼容层版本误写为上游引擎版本，也不要将本项目称为 OpenAI 官方插件。
+
+1.4.0：tests/legacy-install.ps1 -ReleaseDirectory <历史ZIP目录>验证真实1.0.x包的识别和迁移、全新安装路径。tests/shortcuts.ps1验证快捷方式备份、修复和用户修改保留；tests/script-request.ps1验证Unicode/JSON参数不作为代码执行。build-msi.ps1 -TestPackage创建独立产品和组件标识、默认跳过真实后台操作；可在独立INSTALLDIR测试MSI文件部署与卸载。正式包不用-TestPackage。

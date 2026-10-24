@@ -3,6 +3,7 @@ param(
   [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','RemoveSkin','RemoveService','PrepareUpgrade','RollbackUpgrade','Status','Check')][string]$Action = 'Status',
   [string]$Media,
   [int]$ManagerPid=0,
+  [switch]$AllowDisconnected,
   [ValidateRange(0.1,1.0)][double]$Opacity = 0.72
 )
 $ErrorActionPreference = 'Stop'
@@ -21,11 +22,12 @@ $engine = Join-Path $root 'engine'
 . (Join-Path $root 'skin-removal.ps1')
 . (Join-Path $root 'service-removal.ps1')
 . (Join-Path $root 'upgrade.ps1')
+. (Join-Path $root 'shortcuts.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $previousErrorActionPreference = $ErrorActionPreference
   try {
     $ErrorActionPreference = 'Continue'
-    $lines = @(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\manager-actions.ps1') -Action $Operation -SkillRoot $engine @Extra 2>&1)
+    $lines = @(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $engine 'scripts\manager-actions.ps1') -Action $Operation -SkillRoot $engine @Extra 2>&1)
     $code = $LASTEXITCODE
   } finally {
     $ErrorActionPreference = $previousErrorActionPreference
@@ -44,8 +46,8 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.3.0' -or -not $status.enabled -or -not $status.running){
-    $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
+  if($installed.version -ne '1.4.0' -or -not $status.enabled -or -not $status.running){
+    $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
   Assert-Installed
@@ -73,6 +75,7 @@ function Connect-YzCodex {
 function Prepare-YzVideo([string]$Path,[switch]$Preview) {
   if([IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.mp4','.webm','.gif') -or (-not $Preview -and [IO.Path]::GetExtension($Path).ToLowerInvariant() -eq '.gif')){return [pscustomobject]@{path=$Path;converted=$false}}
   $node=Get-DreamSkinNodeRuntime
+  $null=New-Item -ItemType Directory -Path $stateRoot -Force
   $requestPath=Join-Path $stateRoot ('video-request-'+[guid]::NewGuid().ToString('N')+'.json')
   [IO.File]::WriteAllText($requestPath,(@{media=[IO.Path]::GetFullPath($Path);stateRoot=$stateRoot}|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
   try{
@@ -118,8 +121,8 @@ try {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       $prepared=$false
-      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.3.0' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
-      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.3.0')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
+      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.4.0' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
+      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.4.0')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
       $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
@@ -130,9 +133,10 @@ try {
       [IO.File]::WriteAllText((Join-Path $stateRoot 'startup-animation.disabled'), 'Startup animation disabled.')
       $upgrade=Update-YzBackgroundService -PackageStartup (Join-Path $installRoot 'startup') -StartupRoot $startup -Mode $plan.Mode
       $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
+      $shortcuts=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $stateRoot
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.3.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.4.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -158,14 +162,14 @@ try {
       $mediaLimit=if([IO.Path]::GetExtension($Media).ToLowerInvariant() -in @('.mp4','.webm')){2GB}else{512MB}
       if ((Get-Item -LiteralPath $Media).Length -gt $mediaLimit) { throw '视频源文件最大 2 GiB，图片最大 512 MiB；请选择较小文件或先压缩。' }
       $preview=$null
-      try{$preview=Prepare-YzVideo -Path $Media -Preview;[Console]::Out.WriteLine('DREAM_PREVIEW:'+$preview.path)}catch{Write-Output '预览暂不可用，将继续应用壁纸。'}
+      try{$preview=Prepare-YzVideo -Path $Media -Preview;[Console]::Out.WriteLine('DREAM_PREVIEW:'+$preview.path)}catch{Write-Output ('预览不可用：'+$_.Exception.Message+' 实际壁纸将继续验证。')}
       Ensure-YzService
       $identity=Connect-YzCodex
       $connection=Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')
       # The MP4 decoder uses a verified saved browser identity, not merely an
       # open TCP port. Establish that state before validating the first video.
       if(-not $connection -or "$($connection.browserId)" -cne "$($identity.BrowserId)" -or $connection.port -ne 9335){
-        $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -ConnectOnly -OperationLockTimeoutMilliseconds 180000 2>&1)
+        $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -ConnectOnly -OperationLockTimeoutMilliseconds 180000 2>&1)
         if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
       }
       $prepared=Prepare-YzVideo -Path $Media
@@ -179,7 +183,7 @@ try {
         $needsConnect=$true
       }
       if($needsConnect){
-        $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -OperationLockTimeoutMilliseconds 180000 2>&1)
+        $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -OperationLockTimeoutMilliseconds 180000 2>&1)
         if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
         $applied=Invoke-Engine 'Resume'
         if(-not $applied.rendererApplied){throw '素材已保存，当前窗口还在加载。等主窗口就绪后再点“换壁纸”。'}
@@ -209,7 +213,7 @@ try {
     'Pause' { Assert-Installed; $null = Invoke-Engine 'Pause'; Write-Output '背景已暂停，窗口已恢复原貌。' }
     'Resume' { Assert-Installed; $result = Invoke-Engine 'Resume'; if (-not $result.rendererApplied) { throw '已取消暂停，等待 Codex 连接；也可打开 Codex 后再点恢复。' }; Write-Output '已恢复保存的背景。' }
     'RemoveSkin' { Remove-DreamBackgroundSkin -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
-    {$_ -in @('Remove','RemoveService')} { Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
+    {$_ -in @('Remove','RemoveService')} { Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -AllowDisconnected:$AllowDisconnected }
     'Status' {
       $codex = Get-DreamSkinCodexInstall
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue

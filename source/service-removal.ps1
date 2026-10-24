@@ -90,7 +90,7 @@ function Get-DreamBackgroundStartupLink {
   }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
 }
 function Remove-DreamBackgroundService {
-  param([string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[switch]$ForUpgrade,[ValidateRange(0,30)][int]$GraceSeconds=12)
+  param([string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[switch]$ForUpgrade,[switch]$AllowDisconnected,[ValidateRange(0,30)][int]$GraceSeconds=12)
   $startupRoot=Join-Path ([IO.Path]::GetFullPath($StateRoot)) 'startup'
   Assert-DreamBackgroundTree -Path $startupRoot -Parent $StateRoot
   $task=Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
@@ -108,6 +108,7 @@ function Remove-DreamBackgroundService {
   }
   $operationLock=Enter-DreamSkinOperationLock -TimeoutMilliseconds 180000
   try{
+  if(-not $ForUpgrade -and (Get-Command Restore-DreamBackgroundShortcuts -ErrorAction SilentlyContinue)){Restore-DreamBackgroundShortcuts -StateRoot $StateRoot}
   if($task){$null=Disable-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction Stop;Unregister-ScheduledTask -TaskName CodexDreamSkinPort -Confirm:$false -ErrorAction Stop}
   if($run){Remove-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -ErrorAction Stop}
   if($startupLink){Remove-Item -LiteralPath $startupLink -Force -ErrorAction Stop}
@@ -133,7 +134,7 @@ function Remove-DreamBackgroundService {
   if(Test-Path -LiteralPath $startupRoot){Remove-Item -LiteralPath $startupRoot -Recurse -Force -ErrorAction Stop}
   if(-not $ForUpgrade -and -not $liveFailure){Remove-Item -LiteralPath (Join-Path $StateRoot 'state.json') -Force -ErrorAction SilentlyContinue}
   Remove-Item -LiteralPath (Join-Path $InstallRoot 'installed.json') -Force -ErrorAction SilentlyContinue
-  if($liveFailure){throw ('后台服务、自启动和服务文件已移除；当前窗口未确认卸下皮肤。聊天与素材保留。原因：'+$liveFailure)}
+  if($liveFailure){$message='后台服务、自启动和服务文件已移除；当前窗口未确认卸下皮肤。聊天与素材保留。原因：'+$liveFailure;if($AllowDisconnected){Write-Output $message;return};throw $message}
   if($ForUpgrade){Write-Output '旧后台服务已退出，正在迁移到新版。'}else{Write-Output '背景服务已彻底卸载：自启动、启动挂接、守护、监控和服务目录已清除。管理器、壁纸及登录资料保留；可随时重新装载服务。'}
   }finally{Exit-DreamSkinOperationLock -Mutex $operationLock}
 }
