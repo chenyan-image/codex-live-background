@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.4.0.0")]
-[assembly: AssemblyFileVersion("1.4.0.1")]
+[assembly: AssemblyVersion("1.5.0.0")]
+[assembly: AssemblyFileVersion("1.5.0.1")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -27,7 +27,7 @@ internal sealed class Surface : Panel {
     public Surface(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);BackColor=Color.FromArgb(23,31,35);Padding=new Padding(20);}
     protected override void OnPaint(PaintEventArgs e){e.Graphics.Clear(BackColor);base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using(var p=IconAssets.Round(new RectangleF(.5F,.5F,Width-1,Height-1),14))using(var pen=new Pen(Color.FromArgb(47,59,62)))e.Graphics.DrawPath(pen,p);}
 }
-internal sealed class ActionButton : Button {
+internal class ActionButton : Button {
     bool hover; public bool Primary; public bool Destructive;
     public ActionButton(){SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;Cursor=Cursors.Hand;Size=new Size(170,44);Margin=new Padding(0,0,12,0);}
     protected override void OnMouseEnter(EventArgs e){hover=true;Invalidate();base.OnMouseEnter(e);}
@@ -75,6 +75,8 @@ internal sealed class OpacitySlider : Control {
 }
 internal sealed class WallpaperPreview : Control {
     Image picture;MemoryStream imageBytes;readonly EventHandler animation;int request;
+    public bool Animate=true;
+    public bool HasPicture {get{return picture!=null;}}
     public WallpaperPreview(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);animation=delegate{if(IsHandleCreated&&!IsDisposed)try{BeginInvoke((MethodInvoker)delegate{Invalidate();});}catch(InvalidOperationException){}};}
     void ClearImage(){if(picture!=null){ImageAnimator.StopAnimate(picture,animation);picture.Dispose();picture=null;}if(imageBytes!=null){imageBytes.Dispose();imageBytes=null;}}
     public void SetMedia(string file){
@@ -83,6 +85,7 @@ internal sealed class WallpaperPreview : Control {
         IntPtr ready=Handle;
         // Decode and resize off the UI thread so a large image cannot block Close/resize.
         ThreadPool.QueueUserWorkItem(delegate{
+            if(IsDisposed||generation!=request)return;
             Image loaded=null;MemoryStream bytes=null;
             try{if(File.Exists(file)){
                 if(Path.GetExtension(file).Equals(".gif",StringComparison.OrdinalIgnoreCase)&&new FileInfo(file).Length<=16*1024*1024){bytes=new MemoryStream(File.ReadAllBytes(file));loaded=Image.FromStream(bytes);if(loaded.Width>1024||loaded.Height>1024){loaded.Dispose();loaded=null;bytes.Dispose();bytes=null;}}
@@ -91,7 +94,7 @@ internal sealed class WallpaperPreview : Control {
             Image result=loaded;MemoryStream buffer=bytes;bool queued=false;
             try{if(!IsDisposed&&IsHandleCreated){BeginInvoke((MethodInvoker)delegate{
                 if(IsDisposed||generation!=request){if(result!=null)result.Dispose();if(buffer!=null)buffer.Dispose();return;}
-                ClearImage();picture=result;imageBytes=buffer;if(picture!=null&&ImageAnimator.CanAnimate(picture))ImageAnimator.Animate(picture,animation);Invalidate();
+                ClearImage();picture=result;imageBytes=buffer;if(Animate&&picture!=null&&ImageAnimator.CanAnimate(picture))ImageAnimator.Animate(picture,animation);Invalidate();
             });queued=true;}}catch(InvalidOperationException){}
             if(!queued){if(result!=null)result.Dispose();if(buffer!=null)buffer.Dispose();}
         });
@@ -115,7 +118,7 @@ internal sealed class WallpaperPreview : Control {
 }
 internal static class Extensions {public static bool ContainsExtension(this string[] extensions,string file){return Array.IndexOf(extensions,Path.GetExtension(file).ToLowerInvariant())>=0;}}
 
-internal sealed class Manager : Form {
+internal sealed partial class Manager : Form {
     readonly TextBox media=new TextBox();
     readonly TextBox log=new TextBox();
     readonly OpacitySlider opacity=new OpacitySlider();
@@ -131,44 +134,16 @@ internal sealed class Manager : Form {
     [DllImport("user32.dll")] static extern bool ReleaseCapture();
     [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr window);
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="SendMessageW")] static extern IntPtr SetCueText(IntPtr hwnd,int msg,IntPtr wParam,string text);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd,int attribute,ref int value,int size);
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
-    Manager(bool checkStatus){
-        DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);
-        Text="Codex 动态背景 · 1.4.0";Font=new Font("Microsoft YaHei UI",10F);ForeColor=Ink;BackColor=Color.FromArgb(14,21,25);
-        AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;FormBorderStyle=FormBorderStyle.None;Padding=new Padding(1);ClientSize=new Size(860,694);MinimumSize=new Size(820,675);StartPosition=FormStartPosition.CenterScreen;
-        try{Icon=new Icon(Path.Combine(root,"CodexBackground.ico"),32,32);}catch{try{Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);}catch{}}
-        var layout=new BufferedTable{Dock=DockStyle.Fill,Padding=new Padding(28,20,28,12),ColumnCount=1,RowCount=8};
-        foreach(int h in new[]{72,35,185,78,62,25})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,33));Controls.Add(layout);
-        var header=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=3,RowCount=1,Margin=Padding.Empty};header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,62));header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,150));
-        header.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        header.Controls.Add(new PictureBox{Image=IconAssets.Create(48),SizeMode=PictureBoxSizeMode.CenterImage,Dock=DockStyle.Fill,Margin=new Padding(0,0,14,0)},0,0);
-        var brand=new BufferedTable{Dock=DockStyle.Fill,RowCount=2,ColumnCount=1,Margin=Padding.Empty};brand.RowStyles.Add(new RowStyle(SizeType.Absolute,43));brand.Controls.Add(Caption("Codex 动态背景",21,Ink),0,0);brand.Controls.Add(Caption("让每一次打开，都有喜欢的风景。",9,Muted),0,1);header.Controls.Add(brand,1,0);
-        brand.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        status.Text="●  准备就绪";status.Font=new Font(Font.FontFamily,9);status.ForeColor=Mint;status.TextAlign=ContentAlignment.MiddleRight;status.Dock=DockStyle.Fill;header.Controls.Add(status,2,0);layout.Controls.Add(header,0,0);
-        layout.Controls.Add(Caption("你的背景  /  WALLPAPER",9,Muted),0,1);
-        var card=new Surface{Dock=DockStyle.Fill,Margin=Padding.Empty};var cardLayout=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,66));cardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,34));card.Controls.Add(cardLayout);
-        var info=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Margin=new Padding(0,0,22,0)};foreach(int h in new[]{25,43,45})info.RowStyles.Add(new RowStyle(SizeType.Absolute,h));info.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        info.Controls.Add(Caption("本地素材 · 静音循环",9,Mint),0,0);wallpaperName.Text="选择一张，换个心情";wallpaperName.Font=new Font(Font.FontFamily,17,FontStyle.Bold);wallpaperName.AutoEllipsis=true;wallpaperName.Dock=DockStyle.Fill;wallpaperName.TextAlign=ContentAlignment.MiddleLeft;info.Controls.Add(wallpaperName,0,1);
-        media.ReadOnly=true;media.BorderStyle=BorderStyle.None;media.Multiline=true;media.BackColor=card.BackColor;media.ForeColor=Muted;media.Font=new Font(Font.FontFamily,8.5F);media.Dock=DockStyle.Fill;media.Text="点击「换壁纸」选择视频、GIF 或图片";info.Controls.Add(media,0,2);info.Controls.Add(Caption("4K 原画质优先  ·  不兼容时自动适配",9,Muted),0,3);cardLayout.Controls.Add(info,0,0);preview.Dock=DockStyle.Fill;preview.Margin=Padding.Empty;cardLayout.Controls.Add(preview,1,0);layout.Controls.Add(card,0,2);
-        var settings=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=3,RowCount=2,Margin=new Padding(0,12,0,8)};settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,123));settings.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));settings.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,58));settings.RowStyles.Add(new RowStyle(SizeType.Absolute,32));
-        settings.Controls.Add(Caption("聊天框不透明度",10,Ink),0,0);opacity.Minimum=10;opacity.Maximum=100;opacity.Value=72;opacity.AutoSize=false;opacity.Dock=DockStyle.Fill;opacity.Margin=Padding.Empty;opacity.BackColor=BackColor;opacity.ValueChanged+=delegate{percentage.Text=opacity.Value+"%";};settings.Controls.Add(opacity,1,0);percentage.Text="72%";percentage.ForeColor=Mint;percentage.Dock=DockStyle.Fill;percentage.TextAlign=ContentAlignment.MiddleRight;settings.Controls.Add(percentage,2,0);var hint=Caption("数值越低，聊天框背景越透明。视频最大 2 GiB，图片最大 512 MiB。",8.5F,Muted);settings.Controls.Add(hint,0,1);settings.SetColumnSpan(hint,3);layout.Controls.Add(settings,0,3);
-        commands.Dock=DockStyle.Fill;commands.Margin=new Padding(0,7,0,7);commands.WrapContents=false;
-        commands.Controls.Add(MakeButton("换壁纸",true,false,delegate{ChooseAndApply();}));commands.Controls.Add(MakeButton("装载服务",false,false,delegate{Run("Install");}));commands.Controls.Add(MakeButton("卸载皮肤",false,false,delegate{ConfirmRemoval();}));commands.Controls.Add(MakeButton("卸载服务",false,true,delegate{ConfirmServiceRemoval();}));layout.Controls.Add(commands,0,4);
-        layout.Controls.Add(Caption("运行记录",9,Muted),0,5);
-        var logCard=new Surface{Dock=DockStyle.Fill,Padding=new Padding(14,9,14,9),Margin=Padding.Empty};log.Multiline=true;log.ReadOnly=true;log.BorderStyle=BorderStyle.None;log.ScrollBars=ScrollBars.None;log.Dock=DockStyle.Fill;log.Font=new Font(Font.FontFamily,9);log.ForeColor=Color.FromArgb(179,201,198);log.BackColor=logCard.BackColor;log.Text="准备就绪。首次使用先装载服务，再换壁纸。";log.TextChanged+=delegate{if(log.IsHandleCreated)log.ScrollBars=(log.GetLineFromCharIndex(log.TextLength)+1)*log.Font.Height>log.ClientSize.Height?ScrollBars.Vertical:ScrollBars.None;};logCard.Controls.Add(log);progress.Dock=DockStyle.Bottom;progress.Height=2;progress.Visible=false;progress.Style=ProgressBarStyle.Marquee;logCard.Controls.Add(progress);layout.Controls.Add(logCard,0,6);
-        var footer=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,28));footer.Controls.Add(Caption("v1.4.0  ·  本地处理  ·  关闭管理器后，背景服务继续运行",8,Muted),0,0);var signature=Caption("yz",8,Color.FromArgb(104,126,129));signature.TextAlign=ContentAlignment.MiddleRight;footer.Controls.Add(signature,1,0);layout.Controls.Add(footer,0,7);
-        AddTitleBar();
-        if(checkStatus){LoadSavedTheme();Shown+=delegate{Run("Status");};}
-        FormClosing+=delegate(object sender,FormClosingEventArgs e){cancelStatus=true;lock(statusLock){try{if(statusProcess!=null&&!statusProcess.HasExited)statusProcess.Kill();}catch(InvalidOperationException){}}if(busy){closeRequested=true;e.Cancel=true;Hide();}};
-    }
+    Manager(bool checkStatus){ BuildGallery(checkStatus); }
     protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;return value;}}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
     protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}}
     void ToggleMaximize(){MaximizedBounds=Screen.FromHandle(Handle).WorkingArea;WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;}
     void AddTitleBar(){
-        var bar=new Panel{Dock=DockStyle.Top,Height=38,BackColor=Color.FromArgb(14,21,25)};
+        var bar=new Panel{Dock=DockStyle.Top,Height=38,BackColor=Color.FromArgb(12,14,17)};
         var controls=new BufferedFlow{Dock=DockStyle.Right,Width=138,FlowDirection=FlowDirection.LeftToRight,WrapContents=false,Margin=Padding.Empty};
         foreach(string symbol in new[]{"—","□","×"}){
             var b=new Button{Text=symbol,Size=new Size(46,36),Margin=Padding.Empty,FlatStyle=FlatStyle.Flat,TabStop=false,ForeColor=Muted,BackColor=bar.BackColor,Font=new Font("Segoe UI",12),AccessibleName=symbol=="—"?"最小化":symbol=="□"?"最大化或还原":"关闭"};
@@ -181,7 +156,7 @@ internal sealed class Manager : Form {
         var content=Controls[0];Controls.Remove(content);
         var shell=new BufferedTable{Dock=DockStyle.Fill,RowCount=2,ColumnCount=1,Margin=Padding.Empty,Padding=Padding.Empty};shell.RowStyles.Add(new RowStyle(SizeType.Absolute,38));shell.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         bar.Dock=DockStyle.Fill;bar.Margin=Padding.Empty;shell.Controls.Add(bar,0,0);shell.Controls.Add(content,0,1);Controls.Add(shell);
-        Shown+=delegate{ActiveControl=commands.Controls[0];};
+        Shown+=delegate{ActiveControl=importButton;};
     }
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);using(var pen=new Pen(Color.FromArgb(49,65,69)))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);}
     protected override void WndProc(ref Message m){
@@ -250,11 +225,12 @@ internal sealed class Manager : Form {
         }
     }
     void Run(string action){
-        if(busy)return;bool statusOnly=action=="Status";int generation=++operationGeneration;cancelStatus=false;
-        if(!statusOnly){busy=true;runningAction=action;commands.Enabled=false;opacity.Enabled=false;progress.Visible=true;}
-        status.ForeColor=Mint;status.Text=statusOnly?"●  正在检查":"●  正在处理";
-        string chosen=media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":action=="RemoveService"?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
+        if(busy)return;bool statusOnly=action=="Status"||action=="Connection";if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
+        if(statusOnly)checkingStatus=true;
+        if(!statusOnly){CancelPreview();busy=true;runningAction=action;SetBusyControls(true);progress.Visible=true;previewHint.Text=action=="Apply"?"正在应用壁纸，视频不兼容时会自动适配…":"正在处理服务设置…";}
+        WallpaperEntry applyingEntry=selected;
+        string chosen=selected!=null?selected.Path:media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if(action!="Connection")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":action=="RemoveService"?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
         ThreadPool.QueueUserWorkItem(delegate{
             string result;bool success=false;
             try{
@@ -266,23 +242,23 @@ internal sealed class Manager : Form {
                     if(statusOnly)lock(statusLock)statusProcess=p;
                     var stdout=new StringBuilder();var stderr=new StringBuilder();
                     using(var outputDone=new ManualResetEvent(false))using(var errorDone=new ManualResetEvent(false)){
-                    p.OutputDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{outputDone.Set();}catch(ObjectDisposedException){}return;}if(e.Data.StartsWith("DREAM_PREVIEW:")){string file=e.Data.Substring(14);Ui(delegate{preview.SetMedia(file);});return;}lock(stdout)stdout.AppendLine(e.Data);Ui(delegate{if(busy&&!closeRequested){if(log.TextLength>24000)log.Text=log.Text.Substring(log.TextLength-12000);log.AppendText(Environment.NewLine+e.Data);}});};
+                    p.OutputDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{outputDone.Set();}catch(ObjectDisposedException){}return;}if(e.Data.StartsWith("DREAM_STATUS:")){string json=e.Data.Substring(13);Ui(delegate{if(generation==operationGeneration)UpdateConnection(json);});return;}if(e.Data.StartsWith("DREAM_PREVIEW:")){string file=e.Data.Substring(14);Ui(delegate{if(generation==operationGeneration)preview.SetMedia(file);});return;}lock(stdout)stdout.AppendLine(e.Data);Ui(delegate{if(generation==operationGeneration&&busy&&!closeRequested){if(log.TextLength>24000)log.Text=log.Text.Substring(log.TextLength-12000);log.AppendText(Environment.NewLine+e.Data);}});};
                     p.ErrorDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{errorDone.Set();}catch(ObjectDisposedException){}return;}lock(stderr)stderr.AppendLine(e.Data);};
                     p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,statusOnly?30000:action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
                     lock(stdout)lock(stderr)result=(stdout.ToString()+Environment.NewLine+stderr.ToString()).Trim();
                     }
                     if(result.Length==0)result=success?"操作完成。":"操作失败，请查看使用说明。";
                 }
-            }catch(Exception error){result=ExplainLaunchError(error);}finally{if(statusOnly)lock(statusLock)statusProcess=null;}
+            }catch(Exception error){result=ExplainLaunchError(error);}finally{if(statusOnly){checkingStatus=false;lock(statusLock)statusProcess=null;}}
             if(IsDisposed)return;
             Ui(delegate{
                 if(generation!=operationGeneration)return;
-                log.Text=(success?"✓ ":"操作未完成：")+result;busy=false;commands.Enabled=true;opacity.Enabled=true;progress.Visible=false;
+                if(action!="Connection")log.Text=(success?"✓ ":"操作未完成：")+result;busy=false;SetBusyControls(false);progress.Visible=false;
                 if(closeRequested){Close();return;}
-                status.ForeColor=success?Mint:Color.FromArgb(242,163,158);
-                status.Text=!success?"●  需要处理":action=="RemoveService"?"○  服务已卸载":action=="RemoveSkin"?"○  皮肤已卸下":action=="Status"&&result.Contains("未装载")?"○  等待装载":"●  已就绪";
-                if(success&&action=="Apply")LoadSavedTheme();
-                if(success&&(action=="RemoveSkin"||action=="RemoveService")){wallpaperName.Text=action=="RemoveService"?"服务已彻底卸载":"皮肤已卸下";media.Text=action=="RemoveService"?"自启动及后台服务已清除，壁纸和登录资料已保留":"背景服务保留，点击换壁纸即可重新应用";preview.SetMedia("");}
+                if(!success){if(statusOnly){status.Text="○  检测暂不可用";status.ForeColor=Muted;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
+                if(success&&action=="Apply")AppliedToHistory(applyingEntry);
+                if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=action=="RemoveService"?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
+                if(success&&!statusOnly)Run("Connection");
             });
         });
     }
@@ -314,7 +290,7 @@ internal sealed class Manager : Form {
         File.WriteAllText(reportPath,"{\"pass\":true,\"animated\":true,\"distinctFrames\":"+hashes.Count+"}");return 0;
     }
     int TestChrome(string reportPath){
-        Show();Application.DoEvents();var minimize=FindButton(this,"最小化");var maximize=FindButton(this,"最大化或还原");var close=FindButton(this,"关闭");
+        Show();for(int i=0;i<30;i++){Thread.Sleep(30);Application.DoEvents();}var minimize=FindButton(this,"最小化");var maximize=FindButton(this,"最大化或还原");var close=FindButton(this,"关闭");
         if(minimize==null||maximize==null||close==null)throw new Exception("Window controls missing");
         minimize.PerformClick();Application.DoEvents();if(WindowState!=FormWindowState.Minimized)throw new Exception("Minimize failed");WindowState=FormWindowState.Normal;
         maximize.PerformClick();Application.DoEvents();if(WindowState!=FormWindowState.Maximized)throw new Exception("Maximize failed");maximize.PerformClick();Application.DoEvents();if(WindowState!=FormWindowState.Normal)throw new Exception("Restore failed");
@@ -346,16 +322,17 @@ internal sealed class Manager : Form {
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
         if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
-        bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test";
-        bool test=smoke||uiTest||previewTest||lifecycle;Mutex instance=null;bool owns=false;
+        bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test";
+        bool test=smoke||uiTest||previewTest||lifecycle||galleryTest;Mutex instance=null;bool owns=false;
         try{
         if(!test){instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
             if(!owns){try{using(var activate=EventWaitHandle.OpenExisting("Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))activate.Set();}catch(WaitHandleCannotBeOpenedException){}return 0;}}
         using(var form=new Manager(!test)){
+            if(galleryTest)return form.TestGallery(args[1]);
             if(lifecycle)return form.TestLifecycle(args[1]);
             if(previewTest)return form.TestPreview(args[1],args[2]);
             if(uiTest)return form.TestChrome(args[1]);
-            if(smoke){if(args.Length==4)form.ClientSize=new Size(int.Parse(args[2]),int.Parse(args[3]));form.Show();Application.DoEvents();using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(args[1]);}return form.commands.Controls.Count==4?0:1;}
+            if(smoke){if(args.Length==4)form.ClientSize=new Size(int.Parse(args[2]),int.Parse(args[3]));form.Show();for(int i=0;i<50;i++){Thread.Sleep(30);Application.DoEvents();}using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(args[1]);}return form.commands.Controls.Count==4?0:1;}
             using(var activate=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))using(var timer=new System.Windows.Forms.Timer{Interval=250}){
                 timer.Tick+=delegate{if(activate.WaitOne(0)){form.closeRequested=false;form.Show();if(form.WindowState==FormWindowState.Minimized)form.WindowState=FormWindowState.Normal;SetForegroundWindow(form.Handle);}};timer.Start();Application.Run(form);
             }

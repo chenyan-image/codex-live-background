@@ -8,7 +8,7 @@ import {readImageMetadata,readImageAnimation} from './image-metadata.mjs';
 
 const profiles=[{width:384,height:216,fps:12,seconds:6,timeout:45000},{width:256,height:144,fps:8,seconds:4,timeout:30000},{width:192,height:108,fps:6,seconds:3,timeout:20000},{width:192,height:108,fps:0,seconds:1,timeout:15000}];
 export async function renderPreview(executable,source,output,profile){
- const extension=path.extname(source).toLowerCase(),demuxer=extension==='.mp4'?'mov':extension==='.gif'?'gif':'matroska';
+ const extension=path.extname(source).toLowerCase(),demuxer=extension==='.mp4'?'mov':extension==='.gif'?'gif':extension==='.webp'?'webp_pipe':'matroska';
  const args=['-nostdin','-hide_banner','-loglevel','error','-y','-protocol_whitelist','file,pipe','-threads','2','-f',demuxer,'-i',source,'-t',String(profile.seconds),'-an','-sn','-dn'];
  const scale=`scale=${profile.width}:${profile.height}:force_original_aspect_ratio=decrease:flags=bilinear`;
  if(profile.fps)args.push('-filter_complex_threads','2','-filter_complex',`[0:v]fps=${profile.fps},${scale},split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer`,'-frames:v',String(profile.fps*profile.seconds),'-loop','0','-fs',String(16*1024*1024),'-f','gif',output);
@@ -31,15 +31,15 @@ async function inspect(file,extension){
 }
 export async function prepareMediaPreview(input,stateRoot,{ensureRuntime=ensureFFmpegRuntime,onProgress=()=>{},convert=renderPreview}={}){
  const source=path.resolve(input),extension=path.extname(source).toLowerCase();
- if(!['.mp4','.webm','.gif'].includes(extension))return {path:source,animated:false};
+ if(!['.mp4','.webm','.gif','.webp'].includes(extension))return {path:source,animated:false};
  const stat=await fs.lstat(source);
- if(!stat.isFile()||stat.isSymbolicLink()||stat.size<1||stat.size>(extension==='.gif'?512:2048)*1024*1024)throw new Error('预览源文件无效或过大。');
+ if(!stat.isFile()||stat.isSymbolicLink()||stat.size<1||stat.size>(['.gif','.webp'].includes(extension)?512:2048)*1024*1024)throw new Error('预览源文件无效或过大。');
  const directory=path.join(stateRoot,'previews');await fs.mkdir(directory,{recursive:true});
  const key=createHash('sha256').update(source+'\0'+stat.size+'\0'+stat.mtimeMs+'\0preview-fallback-v2').digest('hex');
  for(const ext of ['.gif','.png']){const file=path.join(directory,key+ext);try{const details=await inspect(file,ext);if(details)return {path:file,...details,cacheUsed:true};}catch{}}
- const errors=[],diagnostic=async(stage,error)=>fs.writeFile(path.join(stateRoot,'last-preview-diagnostic.json'),JSON.stringify({version:'1.4.0',time:new Date().toISOString(),stage,sourceExtension:extension,errors,error},null,2));
+ const errors=[],diagnostic=async(stage,error)=>fs.writeFile(path.join(stateRoot,'last-preview-diagnostic.json'),JSON.stringify({version:'1.5.0',time:new Date().toISOString(),stage,sourceExtension:extension,errors,error},null,2));
  let executable;try{executable=await ensureRuntime(stateRoot,{onProgress});}catch(error){await diagnostic('runtime',error.message);throw new Error('预览组件无法准备：'+error.message);}
- for(const [index,profile] of profiles.entries()){
+ for(const [index,profile] of (extension==='.webp'?[profiles.at(-1)]:profiles).entries()){
   const ext=profile.fps?'.gif':'.png',destination=path.join(directory,key+ext),temporary=path.join(directory,key+'.'+randomUUID()+'.part'+ext);
   onProgress((index?'预览降级重试：':'正在生成动态预览：')+profile.width+' × '+profile.height+(profile.fps?'，'+profile.fps+' FPS':'，静态缩略图'));
   try{
