@@ -5,6 +5,7 @@ param(
   [Parameter(Mandatory=$true)][string]$NodeLicense,
   [Parameter(Mandatory=$true)][string]$PortSource,
   [Parameter(Mandatory=$true)][string]$ThirdPartySource,
+  [Parameter(Mandatory=$true)][string]$BundledMediaSource,
   [Parameter(Mandatory=$true)][string]$OutputDirectory
 )
 $ErrorActionPreference = 'Stop'
@@ -13,6 +14,7 @@ $out = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $out) { throw 'OutputDirectory must be new; build does not delete existing files.' }
 New-Item -ItemType Directory -Path $out | Out-Null
 $engine = Join-Path $out 'engine'
+$repoRoot = Split-Path -Parent $EngineSource
 New-Item -ItemType Directory -Path $engine | Out-Null
 foreach ($folder in @('scripts','assets')) {
   $destination = Join-Path $engine $folder
@@ -46,7 +48,7 @@ if ($signature.Status -ne 'Valid') { throw ('Bundled Node.js signature is invali
 foreach ($file in @('control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
-foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','BuiltinWallpapers.cs','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
+foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','BuiltinWallpapers.cs','bundled-wallpapers.json','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets') -Destination (Join-Path $sourceOut 'assets') -Recurse
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
@@ -74,6 +76,19 @@ if($LASTEXITCODE -ne 0){throw 'Wallpaper artwork compilation failed.'}
 $art=Start-Process -FilePath $wallpaperBuilder -ArgumentList ('"'+(Join-Path $out 'wallpapers')+'"') -WindowStyle Hidden -Wait -PassThru
 if($art.ExitCode -ne 0){throw 'Wallpaper artwork generation failed.'}
 Remove-Item -LiteralPath $wallpaperBuilder -Force
+$bundledCatalog=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'bundled-wallpapers.json'))|ConvertFrom-Json
+$bundledOut=Join-Path $out 'wallpapers\bundled'
+$null=New-Item -ItemType Directory -Path $bundledOut -Force
+foreach($file in $bundledCatalog.files){
+ if([IO.Path]::GetFileName($file.path) -cne $file.path -or $file.path -match '[\\/:]'){throw 'Invalid bundled asset name.'}
+ $asset=Join-Path $BundledMediaSource $file.path
+ if(-not(Test-Path -LiteralPath $asset -PathType Leaf)){throw ('Bundled asset missing: '+$file.path+'. Supply -BundledMediaSource with wallpapers\bundled from the release ZIP or installed application.')}
+ $info=Get-Item -LiteralPath $asset
+ if(($info.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $info.Length -ne $file.bytes -or (Get-FileHash -LiteralPath $asset).Hash -cne $file.sha256){throw ('Bundled asset failed hash verification: '+$file.path)}
+ Copy-Item -LiteralPath $asset -Destination (Join-Path $bundledOut $file.path)
+}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'bundled-wallpapers.json') -Destination (Join-Path $bundledOut 'catalog.json')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\bundled-wallpapers.md') -Destination (Join-Path $bundledOut 'SOURCES.md')
 & $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$port\DreamSkinPortHook.exe" (Join-Path $port 'DreamSkinPortHook.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
 $repoRoot = Split-Path -Parent $EngineSource
@@ -83,7 +98,7 @@ foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
 }
 if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\manager.png')){
   $null=New-Item -ItemType Directory -Path (Join-Path $out 'docs') -Force
-  foreach($name in @('manager.png','wallpaper-engine.png','icon.png','windows-trust.md','guide.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
+  foreach($name in @('manager.png','wallpaper-engine.png','icon.png','windows-trust.md','guide.md','bundled-wallpapers.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
 }
 $thirdParty = Join-Path $out 'THIRD_PARTY'
 New-Item -ItemType Directory -Path $thirdParty | Out-Null
@@ -103,7 +118,7 @@ This distribution adds a Windows launcher, startup-port guard, no-close behavior
 visible-thread selector repairs, and theme recovery to the MIT-licensed engine.
 Source: https://github.com/xxloocee/Codex-Dream-Skin-Manager
 Upstream: https://github.com/Fei-Away/Codex-Dream-Skin (MIT)
-Original user wallpapers and original bundled preset media are excluded.
+Only the three user-requested Workshop items listed in wallpapers/bundled/SOURCES.md are included. Other user wallpapers and original engine preset media are excluded.
 Two engine JPEG placeholders are locally generated neutral gradients. Six additional original wallpaper illustrations are generated by BuiltinWallpapers.cs. Official Codex icons are read from the local installed app and are not redistributed.
 The OpenAI application, trademarks and accounts are not included.
 '@ | Set-Content -LiteralPath (Join-Path $thirdParty 'MODIFICATIONS.txt') -Encoding UTF8
@@ -117,12 +132,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.5.2';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.5.3';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.5.2';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.5.3';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out
