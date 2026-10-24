@@ -459,18 +459,7 @@ function Install-DreamSkinRuntimeEngine {
       }
     }
 
-    # Unblock only verified managed copies so shortcuts can honor RemoteSigned instead of bypassing policy.
-    foreach ($runtimeScript in Get-ChildItem -LiteralPath (Join-Path $stagingRoot 'scripts') `
-      -Filter '*.ps1' -Recurse -File -Force -ErrorAction Stop) {
-      Unblock-File -LiteralPath $runtimeScript.FullName -ErrorAction Stop
-    }
-    if (Test-Path -LiteralPath (Join-Path $stagingRoot 'runtime') -PathType Container) {
-      foreach ($runtimeFile in Get-ChildItem -LiteralPath (Join-Path $stagingRoot 'runtime') `
-        -Recurse -File -Force -ErrorAction Stop) {
-        Unblock-File -LiteralPath $runtimeFile.FullName -ErrorAction Stop
-      }
-    }
-
+    # Managed files retain their existing zone and signature policy.
     $hasBackup = $false
     if (Test-Path -LiteralPath $engine.Root) {
       Assert-DreamSkinRuntimeTree -Path $engine.Root
@@ -617,8 +606,7 @@ function Invoke-DreamSkinPowerShellScript {
     [string[]]$ArgumentList = @(),
     [string[]]$SwitchParameters = @('-DeferLiveApply', '-SkipThemes')
   )
-  # Windows PowerShell's native -File forwarding strips embedded JSON quotes.
-  # Encode a PowerShell invocation with literal values instead of native argv.
+  # Keep JSON and Unicode argument values in data, never executable text.
   $parameters = @{}
   $parameterName = ''
   $expectParameter = $true
@@ -637,32 +625,12 @@ function Invoke-DreamSkinPowerShellScript {
     }
   }
   if (-not $expectParameter) { throw 'PowerShell script parameter is missing its value.' }
-  $payloadJson = @{ ScriptPath = $ScriptPath; Parameters = $parameters } | ConvertTo-Json -Depth 4 -Compress
-  $payload = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($payloadJson))
-  # Only Base64 enters executable text. All Unicode quotes and shell-like
-  # contents remain data when the child reconstructs and splats parameters.
-  $command = @'
-$ErrorActionPreference = 'Stop'
-$utf8 = [Text.UTF8Encoding]::new($false)
-[Console]::OutputEncoding = $utf8
-$OutputEncoding = $utf8
-try {
-  $request = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PAYLOAD__')) | ConvertFrom-Json
-  $parameters = @{}
-  foreach ($property in $request.Parameters.PSObject.Properties) {
-    $parameters[$property.Name] = $property.Value
-  }
-  & ($request.ScriptPath) @parameters
-  if (-not $?) { exit 1 }
-} catch {
-  [Console]::Error.WriteLine($_.Exception.Message)
-  exit 1
-}
-'@
-  $command = $command.Replace('__PAYLOAD__', $payload)
-  $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
-  return Invoke-DreamSkinNative -FilePath 'powershell.exe' -ArgumentList @(
-    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded)
+  $directory=Join-Path $env:LOCALAPPDATA 'CodexDreamSkin\requests'
+  $null=New-Item -ItemType Directory -Path $directory -Force
+  $request=Join-Path $directory ([guid]::NewGuid().ToString('N')+'.json')
+  [IO.File]::WriteAllText($request,(@{ScriptPath=[IO.Path]::GetFullPath($ScriptPath);Parameters=$parameters}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  try{return Invoke-DreamSkinNative -FilePath (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','RemoteSigned','-File',(Join-Path $PSScriptRoot 'invoke-script-request.ps1'),'-RequestPath',$request)}
+  finally{Remove-Item -LiteralPath $request -Force -ErrorAction SilentlyContinue}
 }
 
 function ConvertFrom-DreamSkinUtf8Base64 {

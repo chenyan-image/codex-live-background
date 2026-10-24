@@ -17,26 +17,16 @@
     $null=Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings
   }
   $null=Enable-ScheduledTask -TaskName $taskName
-  # The native helper holds a per-user mutex, so both login entries still run
-  # exactly one guard. The Run entry also covers delayed Task Scheduler startup.
+  # Keep one documented login task; retire only this application's redundant entries.
   $runKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-  $command='"'+$hook+'" --guard'
-  if(-not (Test-Path -LiteralPath $runKey)){$null=New-Item -Path $runKey -Force}
-  $null=New-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -Value $command -PropertyType String -Force
-  $startupLink=Join-Path ([Environment]::GetFolderPath('Startup')) 'Codex 动态背景服务.lnk'
-  $shell=New-Object -ComObject WScript.Shell
-  try{
-    if(Test-Path -LiteralPath $startupLink){$old=$shell.CreateShortcut($startupLink);if(-not (Test-DreamSkinPathEqual -Left $old.TargetPath -Right $hook)){throw '同名启动快捷方式属于其他程序。'}}
-    $link=$shell.CreateShortcut($startupLink);$link.TargetPath=$hook;$link.Arguments='--guard';$link.WorkingDirectory=$StartupRoot;$link.WindowStyle=7;$link.Description='Codex 背景守护与自动恢复';$link.Save()
-  }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
-  $startupApproval='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
-  if(Test-Path -LiteralPath $startupApproval){Remove-ItemProperty -LiteralPath $startupApproval -Name 'Codex 动态背景服务.lnk' -ErrorAction SilentlyContinue}
-  $approved='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
-  if(Test-Path -LiteralPath $approved){Remove-ItemProperty -LiteralPath $approved -Name CodexDreamSkinPort -ErrorAction SilentlyContinue}
+  $expected='"'+$hook+'" --guard'
+  $run=(Get-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -ErrorAction SilentlyContinue).CodexDreamSkinPort
+  if($run -ceq $expected){Remove-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -ErrorAction Stop}
+  if(Get-Command Get-DreamBackgroundStartupLink -ErrorAction SilentlyContinue){$link=Get-DreamBackgroundStartupLink -StartupRoot $StartupRoot;if($link){Remove-Item -LiteralPath $link -Force -ErrorAction Stop}}
   $current=Get-ScheduledTask -TaskName $taskName
   if($current.State -ne 'Running'){Start-ScheduledTask -TaskName $taskName}
   $guard=Wait-DreamBackgroundService -StartupRoot $StartupRoot -Seconds 30
-  return [pscustomobject]@{enabled=$true;task=$taskName;loginTrigger=$true;runFallback=$true;startupFolder=$true;codexLaunchRecovery=$true;guardPid=$guard.pid}
+  return [pscustomobject]@{enabled=$true;task=$taskName;loginTrigger=$true;runFallback=$false;startupFolder=$false;codexLaunchRecovery=$true;guardPid=$guard.pid}
 }
 
 function Get-YzBackgroundAutostart {
@@ -59,5 +49,5 @@ function Get-YzBackgroundAutostart {
       [CodexDreamSkin.NativeInspection]::CurrentUser([int]$guard.pid) -and
       (Test-DreamSkinPathEqual -Left ([CodexDreamSkin.NativeInspection]::ProcessPath([int]$guard.pid)) -Right (Join-Path $StartupRoot 'DreamSkinPortHook.exe')))
   }catch{}
-  return [pscustomobject]@{enabled=[bool]($task -and $task.Settings.Enabled -and $login -and $fallback);loginTrigger=$login;runFallback=$fallback;running=$running}
+  return [pscustomobject]@{enabled=[bool]($task -and $task.Settings.Enabled -and $login);loginTrigger=$login;runFallback=$fallback;running=$running}
 }

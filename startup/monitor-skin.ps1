@@ -61,7 +61,7 @@ try {
         continue
       }
       Save-Monitor 'applying' $identity.BrowserId 'Connecting the saved theme to the current verified session.'
-      $output = @(& $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $scripts 'start-dream-skin.ps1') -Port 9335 -OperationLockTimeoutMilliseconds 30000 2>&1)
+      $output = @(& $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $scripts 'start-dream-skin.ps1') -Port 9335 -OperationLockTimeoutMilliseconds 30000 2>&1)
       $exitCode = $LASTEXITCODE
       [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'skin-startup.log'), ($output -join "`r`n"), [Text.UTF8Encoding]::new($false))
       if ($exitCode -ne 0) { throw "Skin application returned $exitCode; it will be retried without closing Codex." }

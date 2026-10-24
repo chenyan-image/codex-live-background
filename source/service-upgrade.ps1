@@ -1,7 +1,7 @@
 ﻿function Invoke-YzBackgroundRegistration {
   param([string]$StartupRoot, [ValidateSet('Install','Remove')][string]$Action)
   $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-  $lines = @(& $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $StartupRoot 'register-port.ps1') -Action $Action 2>&1)
+  $lines = @(& $powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $StartupRoot 'register-port.ps1') -Action $Action 2>&1)
   if ($LASTEXITCODE -ne 0) { throw ("后台服务注册操作失败 ($Action)：" + ($lines -join "`r`n")) }
 }
 

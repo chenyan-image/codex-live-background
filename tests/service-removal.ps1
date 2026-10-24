@@ -54,6 +54,8 @@ $script:task=$null;$script:disconnected=$true
 try{$null=Remove-DreamBackgroundService @call;throw 'Disconnect misreported'}catch{Assert ($_.Exception.Message -match '未确认卸下') 'Disconnect misreported'}
 Assert (-not (Test-Path -LiteralPath (Join-Path $state 'startup'))) 'Disconnected service files remain'
 Assert (Test-Path -LiteralPath (Join-Path $state 'state.json')) 'Retry session lost'
+Seed;$result=Remove-DreamBackgroundService @call -AllowDisconnected
+Assert ($result -match '未确认卸下' -and -not (Test-Path -LiteralPath (Join-Path $state 'startup'))) 'Package uninstall did not complete safe service cleanup'
 $script:disconnected=$false
 Seed;$null=Remove-DreamBackgroundService @call -ForUpgrade
 Assert (Test-Path -LiteralPath (Join-Path $state 'state.json')) 'Upgrade discarded live session identity'
@@ -67,4 +69,4 @@ Assert (([IO.File]::ReadAllText((Join-Path $outside 'keep.txt'))) -eq 'keep') 'O
 try{Assert-DreamBackgroundTree -Path (Join-Path $junction 'missing\target') -Parent $state;throw 'Ancestor junction accepted'}catch{Assert ($_.Exception.Message -match '链接或联接') 'Ancestor junction not checked'}
 [IO.Directory]::Delete($junction)
 try{Assert-DreamBackgroundTree -Path $outside -Parent $state;throw 'Escaping path accepted'}catch{Assert ($_.Exception.Message -match '超出') 'Escaping path not rejected'}
-[pscustomobject]@{pass=$true;cases=9;fullRemoval=$true;repeatable=$true;foreignEntriesPreserved=$true;disconnectReported=$true;upgradeRetainsSession=$true;junctionRejected=$true;outsideUntouched=$true}|ConvertTo-Json -Compress
+[pscustomobject]@{pass=$true;cases=10;fullRemoval=$true;repeatable=$true;foreignEntriesPreserved=$true;disconnectReported=$true;packageUninstallDisconnected=$true;upgradeRetainsSession=$true;junctionRejected=$true;outsideUntouched=$true}|ConvertTo-Json -Compress

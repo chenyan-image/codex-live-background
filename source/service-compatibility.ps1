@@ -50,7 +50,7 @@ function Wait-DreamBackgroundService {
 
 function Copy-DreamBackgroundPackage {
   param([string]$SourceRoot,[string]$DestinationRoot)
-  foreach ($name in @('CodexLiveBackground.exe','CodexBackground.ico','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','service-upgrade.ps1','service-compatibility.ps1','service-compatibility.json','engine','startup','LICENSE','THIRD_PARTY_NOTICES.md','THIRD_PARTY','使用说明.txt')) {
+  foreach ($name in @('CodexLiveBackground.exe','CodexBackground.ico','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','service-compatibility.json','engine','startup','LICENSE','THIRD_PARTY_NOTICES.md','THIRD_PARTY','使用说明.txt')) {
     $source = Join-Path $SourceRoot $name
     $files = if (Test-Path -LiteralPath $source -PathType Container) { @(Get-ChildItem -LiteralPath $source -Recurse -File) } else { @(Get-Item -LiteralPath $source) }
     foreach ($file in $files) {
