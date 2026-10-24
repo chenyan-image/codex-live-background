@@ -13,8 +13,9 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyCompany("codex-live-background contributors")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.1")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -134,7 +135,7 @@ internal sealed class Manager : Form {
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
     Manager(bool checkStatus){
         DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);
-        Text="Codex 动态背景 · 1.3.0";Font=new Font("Microsoft YaHei UI",10F);ForeColor=Ink;BackColor=Color.FromArgb(14,21,25);
+        Text="Codex 动态背景 · 1.4.0";Font=new Font("Microsoft YaHei UI",10F);ForeColor=Ink;BackColor=Color.FromArgb(14,21,25);
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;FormBorderStyle=FormBorderStyle.None;Padding=new Padding(1);ClientSize=new Size(860,694);MinimumSize=new Size(820,675);StartPosition=FormStartPosition.CenterScreen;
         try{Icon=new Icon(Path.Combine(root,"CodexBackground.ico"),32,32);}catch{try{Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);}catch{}}
         var layout=new BufferedTable{Dock=DockStyle.Fill,Padding=new Padding(28,20,28,12),ColumnCount=1,RowCount=8};
@@ -157,7 +158,7 @@ internal sealed class Manager : Form {
         commands.Controls.Add(MakeButton("换壁纸",true,false,delegate{ChooseAndApply();}));commands.Controls.Add(MakeButton("装载服务",false,false,delegate{Run("Install");}));commands.Controls.Add(MakeButton("卸载皮肤",false,false,delegate{ConfirmRemoval();}));commands.Controls.Add(MakeButton("卸载服务",false,true,delegate{ConfirmServiceRemoval();}));layout.Controls.Add(commands,0,4);
         layout.Controls.Add(Caption("运行记录",9,Muted),0,5);
         var logCard=new Surface{Dock=DockStyle.Fill,Padding=new Padding(14,9,14,9),Margin=Padding.Empty};log.Multiline=true;log.ReadOnly=true;log.BorderStyle=BorderStyle.None;log.ScrollBars=ScrollBars.None;log.Dock=DockStyle.Fill;log.Font=new Font(Font.FontFamily,9);log.ForeColor=Color.FromArgb(179,201,198);log.BackColor=logCard.BackColor;log.Text="准备就绪。首次使用先装载服务，再换壁纸。";log.TextChanged+=delegate{if(log.IsHandleCreated)log.ScrollBars=(log.GetLineFromCharIndex(log.TextLength)+1)*log.Font.Height>log.ClientSize.Height?ScrollBars.Vertical:ScrollBars.None;};logCard.Controls.Add(log);progress.Dock=DockStyle.Bottom;progress.Height=2;progress.Visible=false;progress.Style=ProgressBarStyle.Marquee;logCard.Controls.Add(progress);layout.Controls.Add(logCard,0,6);
-        var footer=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,28));footer.Controls.Add(Caption("v1.3.0  ·  本地处理  ·  关闭管理器后，背景服务继续运行",8,Muted),0,0);var signature=Caption("yz",8,Color.FromArgb(104,126,129));signature.TextAlign=ContentAlignment.MiddleRight;footer.Controls.Add(signature,1,0);layout.Controls.Add(footer,0,7);
+        var footer=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,28));footer.Controls.Add(Caption("v1.4.0  ·  本地处理  ·  关闭管理器后，背景服务继续运行",8,Muted),0,0);var signature=Caption("yz",8,Color.FromArgb(104,126,129));signature.TextAlign=ContentAlignment.MiddleRight;footer.Controls.Add(signature,1,0);layout.Controls.Add(footer,0,7);
         AddTitleBar();
         if(checkStatus){LoadSavedTheme();Shown+=delegate{Run("Status");};}
         FormClosing+=delegate(object sender,FormClosingEventArgs e){cancelStatus=true;lock(statusLock){try{if(statusProcess!=null&&!statusProcess.HasExited)statusProcess.Kill();}catch(InvalidOperationException){}}if(busy){closeRequested=true;e.Cancel=true;Hide();}};
@@ -225,6 +226,20 @@ internal sealed class Manager : Form {
     }
     void ConfirmServiceRemoval(){if(busy)return;if(MessageBox.Show(this,"彻底卸载背景服务？\r\n\r\n将移除自启动、Codex 启动挂接、后台守护、监控和服务文件。管理器、壁纸与登录资料保留，Codex 聊天不会关闭。","卸载服务",MessageBoxButtons.OKCancel,MessageBoxIcon.Warning,MessageBoxDefaultButton.Button2)==DialogResult.OK)Run("RemoveService");}
     static string Quote(string value){var b=new StringBuilder("\"");int slashes=0;foreach(char c in value){if(c=='\\'){slashes++;continue;}if(c=='"')b.Append('\\',slashes*2+1).Append(c);else b.Append('\\',slashes).Append(c);slashes=0;}return b.Append('\\',slashes*2).Append('"').ToString();}
+    static int ServiceCommand(string action){
+        try{
+            string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\CodexLiveBackground");
+            string ps=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
+            var info=new ProcessStartInfo(ps,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id+(action=="RemoveService"?" -AllowDisconnected":"")){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
+            using(var child=Process.Start(info)){var output=child.StandardOutput.ReadToEndAsync();var errors=child.StandardError.ReadToEndAsync();WaitForCommand(child,300000,delegate{return false;});string state=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(state);File.WriteAllText(Path.Combine(state,"installer-service.log"),output.Result+Environment.NewLine+errors.Result);return child.ExitCode;}
+        }catch(Exception error){try{string directory=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"installer-service.log"),error.ToString());}catch{}return 1;}
+    }
+    static string ExplainLaunchError(Exception error){
+        var native=error as System.ComponentModel.Win32Exception;
+        if(native!=null&&(native.NativeErrorCode==225||native.NativeErrorCode==226))return "Windows 安全软件已阻止或隔离组件。请记录威胁名称并提交开发者核查；程序未修改防护设置。";
+        if(native!=null&&(native.NativeErrorCode==577||native.NativeErrorCode==1260))return "Windows 应用控制阻止了当前组件，需要系统认可的发布者签名或管理员允许的发行版本。程序不会绕过此策略。";
+        return error.Message;
+    }
     static void WaitForCommand(Process process,int milliseconds,Func<bool> cancelled){
         var watch=Stopwatch.StartNew();
         while(!process.WaitForExit(100)){
@@ -244,7 +259,7 @@ internal sealed class Manager : Form {
             string result;bool success=false;
             try{
                 string ps=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
-                string args="-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id;
+                string args="-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id;
                 if(action=="Apply")args+=" -Media "+Quote(chosen)+" -Opacity "+alpha;
                 var start=new ProcessStartInfo(ps,args){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
                 using(var p=Process.Start(start)){
@@ -258,7 +273,7 @@ internal sealed class Manager : Form {
                     }
                     if(result.Length==0)result=success?"操作完成。":"操作失败，请查看使用说明。";
                 }
-            }catch(Exception error){result=error.Message;}finally{if(statusOnly)lock(statusLock)statusProcess=null;}
+            }catch(Exception error){result=ExplainLaunchError(error);}finally{if(statusOnly)lock(statusLock)statusProcess=null;}
             if(IsDisposed)return;
             Ui(delegate{
                 if(generation!=operationGeneration)return;
@@ -276,12 +291,12 @@ internal sealed class Manager : Form {
         if(Visible||IsDisposed||!closeRequested)throw new Exception("Busy window did not close immediately");
         busy=false;closeRequested=false;Show();runningAction="Status";busy=true;Close();if(!cancelStatus||Visible)throw new Exception("Status cancellation failed");
         string ps=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
-        string encoded=Convert.ToBase64String(Encoding.Unicode.GetBytes("Start-Sleep -Seconds 30"));
+        string waitingApp=Application.ExecutablePath;
         bool timedOut=false,cancelled=false;var watch=Stopwatch.StartNew();
-        using(var child=Process.Start(new ProcessStartInfo(ps,"-NoProfile -NonInteractive -EncodedCommand "+encoded){UseShellExecute=false,CreateNoWindow=true})){
+        using(var child=Process.Start(new ProcessStartInfo(waitingApp,"--wait-test"){UseShellExecute=false,CreateNoWindow=true})){
             try{WaitForCommand(child,600,delegate{return false;});}catch(Exception){timedOut=child.HasExited;}
         }
-        using(var child=Process.Start(new ProcessStartInfo(ps,"-NoProfile -NonInteractive -EncodedCommand "+encoded){UseShellExecute=false,CreateNoWindow=true})){
+        using(var child=Process.Start(new ProcessStartInfo(waitingApp,"--wait-test"){UseShellExecute=false,CreateNoWindow=true})){
             try{WaitForCommand(child,30000,delegate{return true;});}catch(Exception){cancelled=child.HasExited;}
         }
         if(!timedOut||!cancelled||watch.ElapsedMilliseconds>7000)throw new Exception("Command watchdog failed");
@@ -307,14 +322,15 @@ internal sealed class Manager : Form {
         opacity.Focus();Application.DoEvents();
         Func<int,IntPtr> position=delegate(int x){return (IntPtr)((opacity.Height/2<<16)|(x&0xffff));};
         int middle=opacity.Width/2;SendMessage(opacity.Handle,0x201,(IntPtr)1,position(middle));SendMessage(opacity.Handle,0x202,IntPtr.Zero,position(middle));Application.DoEvents();
+        ActiveControl=commands.Controls[0];Application.DoEvents();
         using(var first=new Bitmap(opacity.Width,opacity.Height))using(var last=new Bitmap(opacity.Width,opacity.Height)){
             opacity.DrawToBitmap(first,opacity.ClientRectangle);
             SendMessage(opacity.Handle,0x201,(IntPtr)1,position(12));
             for(int i=0;i<250;i++)SendMessage(opacity.Handle,0x200,(IntPtr)1,position(12+(opacity.Width-24)*((i*37)%101)/100));
-            SendMessage(opacity.Handle,0x200,(IntPtr)1,position(middle));SendMessage(opacity.Handle,0x202,IntPtr.Zero,position(middle));opacity.Refresh();Application.DoEvents();opacity.DrawToBitmap(last,opacity.ClientRectangle);
+            SendMessage(opacity.Handle,0x200,(IntPtr)1,position(middle));SendMessage(opacity.Handle,0x202,IntPtr.Zero,position(middle));ActiveControl=commands.Controls[0];opacity.Refresh();Application.DoEvents();opacity.DrawToBitmap(last,opacity.ClientRectangle);
             for(int y=0;y<first.Height;y++)for(int x=0;x<first.Width;x++)if(first.GetPixel(x,y)!=last.GetPixel(x,y))throw new Exception("Slider redraw residue detected");
         }
-        SendMessage(opacity.Handle,0x100,(IntPtr)Keys.Home,IntPtr.Zero);if(opacity.Value!=opacity.Minimum)throw new Exception("Slider Home key failed");SendMessage(opacity.Handle,0x100,(IntPtr)Keys.End,IntPtr.Zero);if(opacity.Value!=opacity.Maximum)throw new Exception("Slider End key failed");
+        opacity.Focus();SendMessage(opacity.Handle,0x100,(IntPtr)Keys.Home,IntPtr.Zero);if(opacity.Value!=opacity.Minimum)throw new Exception("Slider Home key failed");SendMessage(opacity.Handle,0x100,(IntPtr)Keys.End,IntPtr.Zero);if(opacity.Value!=opacity.Maximum)throw new Exception("Slider End key failed");
         int edge=SendMessage(Handle,0x84,IntPtr.Zero,(IntPtr)((PointToScreen(new Point(1,1)).Y<<16)|(PointToScreen(new Point(1,1)).X&0xffff))).ToInt32();if(edge!=13)throw new Exception("Resize hit test failed");
         if(FormBorderStyle!=FormBorderStyle.None||commands.Controls.Count!=4)throw new Exception("Unexpected chrome or command count");
         Size original=ClientSize;opacity.Value=72;ActiveControl=commands.Controls[0];Application.DoEvents();
@@ -327,6 +343,8 @@ internal sealed class Manager : Form {
         File.WriteAllText(reportPath,"{\"pass\":true,\"minimize\":true,\"maximize\":true,\"restore\":true,\"resize\":true,\"resizeCycles\":80,\"resizeNoTrails\":true,\"opacityFeedback\":true,\"sliderDragEvents\":250,\"sliderNoTrails\":true,\"sliderKeyboard\":true,\"commands\":4}");close.PerformClick();if(!IsDisposed)throw new Exception("Close failed");return 0;
     }
     [STAThread]static int Main(string[] args){
+        if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
+        if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test";
         bool test=smoke||uiTest||previewTest||lifecycle;Mutex instance=null;bool owns=false;

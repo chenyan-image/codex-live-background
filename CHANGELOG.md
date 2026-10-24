@@ -2,6 +2,15 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.4.0 — 旧版安装、预览回退与 Windows 启动兼容
+
+- 主发行包改为 Windows 原生单文件 MSI，记录正常的安装/卸载信息，区分新装与旧版迁移；采用系统文件回滚。
+- 用历史发布 SHA-256 识别元数据不完整的 1.0.0、1.0.1、1.0.2，保留未知目录和用户素材。
+- 预览依次尝试 384×216 / 12 FPS、256×144 / 8 FPS、192×108 / 6 FPS，再尝试静态缩略图；不降低实际壁纸画质。
+- 修复可识别的任务栏直接启动快捷方式，备份原入口并创建可固定到任务栏的官方 Codex 背景启动入口。
+- 以文件和 JSON 参数替代编码命令，子脚本改用 RemoteSigned，不重置 StartupApproved；仅保留一个可见登录计划任务和 Codex 激活恢复。
+- 为正式 CA 代码签名及签名强制验证提供构建流程；当前无发布者证书，公开包仍未签名，不能保证 SmartScreen 或杀毒软件不提示。
+
 ## v1.3.0 — 自动升级、动态预览与启动恢复
 
 - 新增单个 Setup.exe 安装器：校验内置包、检测标准目录中的旧版、迁移旧组件、保留备份并支持失败后的文件恢复，无需手动解压。

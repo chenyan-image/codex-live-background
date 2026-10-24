@@ -19,7 +19,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.3.0-Setup.exe`**，双击后点「安装 / 更新」即可，无需手动解压。安装器会验证内置文件、检测并迁移旧版、配置服务，最后打开管理器。ZIP 供需要手动部署的用户选用。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.4.0-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
 
 管理器采用深色界面，提供四个操作：
 
@@ -32,7 +32,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 首次使用先点一次「装载服务」，之后直接点「换壁纸」。关闭管理器不会停止后台服务，登录后也不会自动弹出管理器窗口。产品名称为「Codex 动态背景」。拖动滑杆调整聊天框背景的不透明度：数值越低越透明。换壁纸时会同步启用 Codex 深色外观，避免浅色界面覆盖背景。
 
-选中素材后，右侧显示实际预览：图片直接显示，视频和 GIF 显示最长 6 秒的静音循环预览；实际背景保留完整时长。生成预览需要相同的可选 FFmpeg 运行时，预览不可用时仍会继续尝试应用壁纸。
+选中素材后，右侧显示实际预览：图片直接显示，视频和 GIF 优先显示 384×216 / 12 FPS 预览，失败时依次降低至 256×144 / 8 FPS、192×108 / 6 FPS，再尝试静态缩略图；最长 6 秒，实际背景保留完整时长。生成预览需要相同的可选 FFmpeg 运行时，预览不可用时仍会继续尝试应用壁纸。
 
 已有背景连接的 Codex 窗口可以直接更换壁纸。若首次启用时 Codex 是普通启动实例，请先保存未发送的输入，手动完全退出 Codex 一次，再点「换壁纸」。工具不会强制关闭或重启聊天。独立背景配置首次使用时可能需要重新登录。
 
@@ -76,15 +76,15 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 | 背景、兼容副本和运行时 | `%LOCALAPPDATA%\CodexDreamSkin` |
 | 后台日志 | `%LOCALAPPDATA%\CodexDreamSkin\startup` |
 | 最近的视频诊断 | `%LOCALAPPDATA%\CodexDreamSkin\last-video-diagnostic.json` |
-| 登录启动入口 | `CodexDreamSkinPort` 计划任务、同名 HKCU Run 后备项，以及 Windows 启动文件夹中的 `Codex 动态背景服务.lnk` |
+| 登录启动入口 | `CodexDreamSkinPort` 当前用户登录计划任务 |
 
-三个登录入口共用用户互斥锁，只运行一份后台服务；Codex 包启动入口也会检查并补启守护服务。管理器不需要常驻，也不会随 Codex 弹出。「装载服务」会检查真实监控心跳，安装器会自动迁移已识别的旧版。连接仅使用本机 `127.0.0.1:9335`，无需开放公网防火墙规则。
+仅保留一个可在任务计划程序中查看的当前用户登录任务；Codex 包启动入口会检查并补启守护服务。管理器不需要常驻，也不会随 Codex 弹出。「装载服务」会检查真实监控心跳，安装器会自动迁移已识别的旧版。连接仅使用本机 `127.0.0.1:9335`，无需开放公网防火墙规则。
 
 视频诊断用于区分播放策略、格式与解码问题，仅保存在本机，不读取聊天内容，也不会自动发送。提交 Issue 前请检查并删除不愿公开的文件名、路径和其他个人信息。
 
 ## 升级与卸载
 
-直接运行新版 Setup.exe。安装器会检测当前用户的 `CodexLiveBackground` 和 `CodexDreamSkinManager` 标准安装目录，关闭旧管理器及已验证的背景组件，将旧程序移至 `CodexDreamSkin\upgrade-backups`，再安装新版。不关闭 Codex，不删除壁纸、背景配置和登录资料。失败时尝试恢复旧程序文件，旧版备份保留供恢复。不会扫描或删除用户任意文件夹。
+直接运行新版 MSI。安装器会检测当前用户的 `CodexLiveBackground` 和 `CodexDreamSkinManager` 标准安装目录（包含通过历史发布校验值确认的 1.0.x），关闭旧管理器及已验证的背景组件，由 Windows Installer 更新程序文件；手动 ZIP 升级及旧版管理器目录迁移保留在 `CodexDreamSkin\upgrade-backups`。不关闭 Codex，不删除壁纸、背景配置和登录资料。失败时尝试恢复旧程序文件，旧版备份保留供恢复。不会扫描或删除用户任意文件夹。
 
 「卸载皮肤」只卸下当前效果，保留服务。需要彻底移除背景服务时，点击「卸载服务」。也可以在 Windows PowerShell 中运行：
 
@@ -121,13 +121,14 @@ $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
 
 输出目录必须是尚不存在的新目录。构建会生成中性渐变示例图，不打包个人壁纸、账号凭据、聊天记录或机器配置。
 
-将输出目录中的文件压缩为根目录含 `manifest.json` 的 ZIP 后，可构建单个安装 EXE：
+使用 Windows 自带的 Windows Installer COM 接口与 makecab 构建单文件 MSI，无需下载第三方编译器：
 
 ```powershell
-.\source\build-setup.ps1 -PackageZip .\dist\Codex-Background.zip `
-  -OutputFile .\dist\Codex-Background-Setup.exe `
-  -IconFile .\dist\Codex-Background-local-win-x64\CodexBackground.ico
+.\source\build-msi.ps1 -PackageRoot .\dist\Codex-Background-local-win-x64 `
+  -OutputFile .\dist\Codex-Background-1.4.0-win-x64.msi
 ```
+
+v1.3.0 自制 EXE 安装器的源码仅供历史参考，新版本优先发布标准 MSI。代码签名流程见 [Windows 发布与签名](docs/windows-trust.md)。
 
 ## 验证源码
 

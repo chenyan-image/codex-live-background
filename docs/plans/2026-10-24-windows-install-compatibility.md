@@ -1,0 +1,12 @@
+# Windows installation and launch compatibility
+
+Goal: v1.4.0 improves transparent installation and preview recovery while retaining wallpaper, chat sessions and startup behavior.
+
+1. Replace the bespoke executable-with-embedded-ZIP installer with a Windows Installer MSI built by the installed Windows Installer COM API and makecab. Install for the current user, add a normal uninstall record, verify staged files, migrate recognized old versions and use Windows Installer file rollback. Preserve a fresh-install path with no prior directory. No downloaded build tool is executed. Optional EXE source from v1.3.0 is historical, not the primary release artifact.
+2. Recognize authentic 1.0.0/1.0.1/1.0.2 managers by release hashes even when version/product metadata is missing. Test old releases, incomplete owned installs and a clean computer separately. Preserve unknown directories rather than overwrite them.
+3. Replace encoded script commands with explicit script files plus JSON request data, use RemoteSigned for child PowerShell, and stop resetting StartupApproved settings. Keep one visible per-user login task and Codex activation recovery. Add signing support that requires a real trusted code-signing certificate; never import self-signed roots or change antivirus settings.
+4. Try progressively smaller/lower-frame-rate previews, then a static thumbnail. Record specific runtime/decoder failures and keep the wallpaper unchanged. Verify real FFmpeg outputs, fallback, caching and cleanup.
+5. Support taskbar app activation and direct executable shortcuts through a verified native launch mode. Back up and repair only shortcuts targeting the official Codex executable; retain icon and other launch arguments. Provide an explicit Codex shortcut for new taskbar pins. Never close the current Codex session or edit undocumented Taskband data.
+6. Build and verify the installer, upgrade this machine without restarting Codex, test preview recovery and both launch paths, record signing limitations and publish code/tags/assets. Actual antivirus false-positive review and publisher verification remain external decisions, never claim they passed without results.
+
+Windows reports requested: exact warning/detection name. Local Defender history could not be read because the Defender provider is unavailable; all v1.3.0 project executables are unsigned and no current-user signing certificate was found.
