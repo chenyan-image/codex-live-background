@@ -659,7 +659,7 @@
       ? ART.taskMode : profile?.taskMode || "ambient";
     const bubbleOpacity = typeof ART.bubbleOpacity === "number"
       ? clamp(ART.bubbleOpacity, 0, 1) : 0;
-    const wide = artMediaType === "video" || profile?.wide ||
+    const wide = taskMode === "full" || artMediaType === "video" || profile?.wide ||
       profile?.aspect === "wide" || profile?.aspect === "ultrawide";
     const aspect = profile?.aspect || "unknown";
     const focusXValue = `${(clamp(focusX, 0, 1) * 100).toFixed(2)}%`;

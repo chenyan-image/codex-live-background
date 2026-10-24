@@ -1714,3 +1714,36 @@ html[data-dream-skin="active"] [data-ds-part="message"] { border-radius: 16px; }
     backdrop-filter: blur(calc(10px * var(--ds-surface-opacity, .8))) saturate(1.03) !important;
   }
 }
+
+/* The manager explicitly requests a window wallpaper. Its extent must not
+   depend on whether image analysis labels the source wide, square or portrait.
+   Paint once beneath the shell; keep independent input/menu surfaces readable. */
+@layer dreamskin-surfaces {
+  html[data-dream-skin="active"][data-dream-task-mode="full"][data-dream-media="image"] body {
+    background-image: var(--dream-skin-art) !important;
+    background-size: cover !important;
+    background-position: var(--ds-art-position, 50% 50%) !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+  }
+
+  html[data-dream-skin="active"][data-dream-task-mode="full"][data-dream-art-wide="true"] :is(
+    [data-ds-part="sidebar"], [data-ds-part="main"], [data-ds-part="home"],
+    [data-ds-part="header"], [data-ds-surface="shell"],
+    [class~="group/application-menu-top-bar"], [class*="_ApplicationMenuTopBar_"]
+  ) {
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html[data-dream-skin="active"][data-dream-task-mode="full"][data-dream-art-wide="true"]
+    :is([data-ds-part="main"], [data-ds-part="home"])::before {
+    content: none !important;
+  }
+
+  html[data-dream-skin="active"][data-dream-task-mode="full"][data-dream-art-wide="true"]
+    [data-ds-part="sidebar"]::after {
+    background: transparent !important;
+  }
+}

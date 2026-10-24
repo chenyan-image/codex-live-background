@@ -21,7 +21,7 @@ internal sealed partial class Manager {
     readonly TypeFilter filters=new TypeFilter();readonly System.Windows.Forms.Timer connectionTimer=new System.Windows.Forms.Timer{Interval=20000};
     MediaPreviewJob previewJob;readonly List<WallpaperTile> tiles=new List<WallpaperTile>();
     void BuildGallery(bool checkStatus){
-        Text="Codex 动态背景 · 1.5.1";Font=new Font("Microsoft YaHei UI",9.5F);ForeColor=Ink;BackColor=Color.FromArgb(12,14,17);
+        Text="Codex 动态背景 · 1.5.2";Font=new Font("Microsoft YaHei UI",9.5F);ForeColor=Ink;BackColor=Color.FromArgb(12,14,17);
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;FormBorderStyle=FormBorderStyle.None;Padding=new Padding(1);ClientSize=new Size(1310,816);MinimumSize=new Size(1090,720);StartPosition=FormStartPosition.CenterScreen;
         DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);
         try{Icon=new Icon(Path.Combine(root,"CodexBackground.ico"),32,32);}catch{}
@@ -35,7 +35,7 @@ internal sealed partial class Manager {
         var nav=new BufferedFlow{Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,Margin=Padding.Empty};
         string[] ids={"local","steam","history","settings"},names={"本地壁纸","Wallpaper Engine","使用记录","服务与设置"},glyphs={"library","steam","recent","settings"};
         for(int i=0;i<ids.Length;i++){string id=ids[i];var button=new NavigationButton{Text=names[i],Glyph=glyphs[i],Tag=id,Width=176,Selected=i==0,AccessibleName=names[i]};button.Click+=delegate{Navigate(id);};navigation.Add(button);nav.Controls.Add(button);}sidebar.Controls.Add(nav,0,2);
-        var connection=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12,8,8,4),Cursor=Cursors.Hand};status.Text=checkStatus?"○  正在检测 Codex":"○  尚未检测";status.Font=new Font(Font.FontFamily,9F,FontStyle.Bold);status.ForeColor=Muted;status.Dock=DockStyle.Top;status.Height=25;connectionDetail.Text="点击重新检测连接";connectionDetail.ForeColor=Muted;connectionDetail.Font=new Font(Font.FontFamily,8F);connectionDetail.Dock=DockStyle.Fill;connection.Controls.Add(connectionDetail);connection.Controls.Add(status);EventHandler recheck=delegate{Run("Connection");};connection.Click+=recheck;status.Click+=recheck;connectionDetail.Click+=recheck;sidebar.Controls.Add(connection,0,4);sidebar.Controls.Add(Caption("1.5.1  ·  LOCAL FIRST",7.5F,Color.FromArgb(81,96,106)),0,5);
+        var connection=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12,8,8,4),Cursor=Cursors.Hand};status.Text=checkStatus?"○  正在检测 Codex":"○  尚未检测";status.Font=new Font(Font.FontFamily,9F,FontStyle.Bold);status.ForeColor=Muted;status.Dock=DockStyle.Top;status.Height=25;connectionDetail.Text="点击重新检测连接";connectionDetail.ForeColor=Muted;connectionDetail.Font=new Font(Font.FontFamily,8F);connectionDetail.Dock=DockStyle.Fill;connection.Controls.Add(connectionDetail);connection.Controls.Add(status);EventHandler recheck=delegate{Run("Connection");};connection.Click+=recheck;status.Click+=recheck;connectionDetail.Click+=recheck;sidebar.Controls.Add(connection,0,4);sidebar.Controls.Add(Caption("1.5.2  ·  LOCAL FIRST",7.5F,Color.FromArgb(81,96,106)),0,5);
         var main=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(29,17,28,8),Margin=Padding.Empty};main.RowStyles.Add(new RowStyle(SizeType.Absolute,87));main.RowStyles.Add(new RowStyle(SizeType.Percent,100));main.RowStyles.Add(new RowStyle(SizeType.Absolute,48));main.RowStyles.Add(new RowStyle(SizeType.Absolute,20));shell.Controls.Add(main,1,0);
         var heading=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=2,Margin=Padding.Empty};heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));heading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,150));heading.RowStyles.Add(new RowStyle(SizeType.Absolute,41));heading.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         pageTitle.Text="我的壁纸";pageTitle.Font=new Font(Font.FontFamily,23F,FontStyle.Bold);pageTitle.Dock=DockStyle.Fill;heading.Controls.Add(pageTitle,0,0);pageSubtitle.Text="把喜欢的风景，留在每一次对话里。";pageSubtitle.Font=new Font(Font.FontFamily,8.5F);pageSubtitle.ForeColor=Muted;pageSubtitle.Dock=DockStyle.Fill;heading.Controls.Add(pageSubtitle,0,1);
@@ -133,8 +133,15 @@ internal sealed partial class Manager {
         ThreadPool.QueueUserWorkItem(delegate{SteamScanResult result=null;string error=null;try{result=SteamWallpapers.Scan(SteamWallpapers.DiscoverRoots(extra),()=>IsDisposed||generation!=scanGeneration);}catch(Exception ex){error=ex.Message;}Ui(delegate{scanning=false;scanButton.Enabled=true;if(generation!=scanGeneration)return;if(result==null){previewHint.Text="扫描失败："+error;return;}steamEntries=result.Entries;if(page=="steam")RenderGallery();previewHint.Text=result.WorkshopRoots.Count==0?"未找到 Wallpaper Engine 壁纸库，可点击定位 Steam 目录。":"发现 "+result.Entries.Count+" 张壁纸"+(result.Unsupported>0?"；场景项目仅提供预览图，不能播放 scene.pkg。":"。")+(result.Truncated?" 已达到扫描上限。":"");});});
     }
     void UpdateConnection(string json){
-        try{var data=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);object value;bool connected=data.TryGetValue("connected",out value)&&Convert.ToBoolean(value),installed=data.TryGetValue("installed",out value)&&Convert.ToBoolean(value),service=data.TryGetValue("serviceRunning",out value)&&Convert.ToBoolean(value);string version=data.TryGetValue("version",out value)?Convert.ToString(value):"";status.Text=connected?"●  Codex 已连接":installed?"○  等待 Codex 连接":"○  未检测到 Codex";status.ForeColor=connected?Mint:Muted;connectionDetail.Text=(installed?"Codex "+version:"请安装官方稳定版")+Environment.NewLine+(service?"背景服务运行中":"背景服务未装载");}catch{status.Text="○  连接检测失败";status.ForeColor=Muted;}
+        try{
+            var data=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);object value;
+            bool connected=data.TryGetValue("connected",out value)&&Convert.ToBoolean(value),installed=data.TryGetValue("installed",out value)&&Convert.ToBoolean(value),service=data.TryGetValue("serviceRunning",out value)&&Convert.ToBoolean(value);
+            string version=data.TryGetValue("version",out value)?Convert.ToString(value):"",background=data.TryGetValue("background",out value)?Convert.ToString(value):"unknown";
+            status.Text=connected?"●  Codex 连接就绪":installed?"○  等待 Codex 连接":"○  未检测到 Codex";status.ForeColor=connected?Mint:Muted;
+            connectionDetail.Text=(installed?"Codex "+version:"请安装官方稳定版")+Environment.NewLine+(service?"背景服务运行中":"背景服务未装载")+(connected?Environment.NewLine+BackgroundStatusText(background):"");
+        }catch{status.Text="○  连接检测失败";status.ForeColor=Muted;}
     }
+    static string BackgroundStatusText(string state){switch(state){case "playing":return "视频播放中";case "image-ready":return "图片背景已就绪";case "waiting-visible":return "视频等待窗口显示";case "not-applied":return "尚未应用壁纸";case "loading":return "壁纸加载中";case "paused":return "视频当前暂停";case "reduced-motion":return "减少动态效果：视频暂停";case "blocked":return "视频播放被阻止";case "error":return "壁纸出错，请重新应用";case "stalled":return "视频暂未推进，请重试";default:return "壁纸状态暂不可用";}}
     void SetBusyControls(bool value){commands.Enabled=!value;opacity.Enabled=!value;importButton.Enabled=!value;applyButton.Enabled=!value&&selected!=null&&selected.Available;removeEntry.Enabled=!value&&selected!=null&&library.Snapshot().Any(x=>x.Id==selected.Id);}
     int TestSteamScroll(string report){
         Show();for(int i=0;i<12;i++){Thread.Sleep(25);Application.DoEvents();}
@@ -169,8 +176,8 @@ internal sealed partial class Manager {
         search.Text="";steamGallery.ScrollTo(steamGallery.MaximumOffset);filters.SelectedIndex=2;
         if(VisibleEntries().Count!=2500||steamGallery.ScrollOffset!=0)throw new Exception("Static filter did not reset scroll");
         filters.SelectedIndex=1;if(VisibleEntries().Count!=2500)throw new Exception("Dynamic filter failed");filters.SelectedIndex=0;
-        var large=steamEntries;steamEntries=large.Take(53).ToList();RenderGallery();Application.DoEvents();
-        steamGallery.ScrollTo(steamGallery.RowHeight/2);SelectEntry(steamEntries[3]);
+        var large=steamEntries;steamEntries=large.Take(53).ToList();for(int i=0;i<steamEntries.Count;i++){steamEntries[i].Name=builtinEntries[i%6].Name+" · "+(i+1).ToString("D2");steamEntries[i].Kind="image";steamEntries[i].Note="Wallpaper Engine · 示例壁纸";}RenderGallery();Application.DoEvents();
+        steamGallery.ScrollTo(0);SelectEntry(steamEntries[3]);
         for(int i=0;i<20;i++){Thread.Sleep(25);Application.DoEvents();}
         using(var image=new Bitmap(Width,Height)){DrawToBitmap(image,new Rectangle(0,0,Width,Height));image.Save(Path.ChangeExtension(report,".png"));}
         // More local entries than one page, with unique references.
