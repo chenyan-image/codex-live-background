@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "releases": [
+    {
+      "sha256": "F70DB4AB1CFBC904EDC7E5521515724D08B01C31EB3173F570A4763BD873E280",
+      "version": "1.0.0",
+      "filename": "CodexLiveBackground.exe",
+      "bytes": 13312
+    },
+    {
+      "sha256": "4F98D6C3ECB0AABD0B3AC66658B95601C9848EA27C88DAB1668DFDFDE31EDBC9",
+      "version": "1.0.1",
+      "filename": "CodexLiveBackground.exe",
+      "bytes": 13312
+    },
+    {
+      "sha256": "ECA5404B52B946A5FEE514533AA5FE0248EA952EE9D417F5B991822D3FE64FCD",
+      "version": "1.0.2",
+      "filename": "CodexLiveBackground.exe",
+      "bytes": 13312
+    }
+  ]
+}

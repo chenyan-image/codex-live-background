@@ -6,8 +6,11 @@
     $exe=if(Test-Path -LiteralPath (Join-Path $candidate 'CodexLiveBackground.exe')){Join-Path $candidate 'CodexLiveBackground.exe'}elseif(Test-Path -LiteralPath (Join-Path $candidate 'CodexDreamSkinManager.exe')){Join-Path $candidate 'CodexDreamSkinManager.exe'}else{$null}
     if(-not $exe){if((Get-ChildItem -LiteralPath $candidate -Force|Measure-Object).Count -gt 0){throw '发现不完整的旧安装目录，无法确认归属。请保留该目录供修复。'};continue}
     $version=(Get-Item -LiteralPath $exe).VersionInfo
-    if($version.ProductName -notmatch '^(Codex 动态背景|Codex Dream Skin Manager|CodexDreamSkinManager|CodexLiveBackground)$'){throw '旧程序身份无法确认，未覆盖现有目录。'}
-    [pscustomobject]@{Root=[IO.Path]::GetFullPath($candidate);Executable=[IO.Path]::GetFullPath($exe);Version=$version.FileVersion}
+    $legacy=$null;$catalog=Join-Path $PSScriptRoot 'legacy-managers.json'
+    if(Test-Path -LiteralPath $catalog){$hash=(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash;$legacy=([IO.File]::ReadAllText($catalog)|ConvertFrom-Json).releases|Where-Object{$_.sha256 -ceq $hash -and $_.filename -ieq [IO.Path]::GetFileName($exe)}|Select-Object -First 1}
+    if(-not $legacy -and $version.ProductName -notmatch '^(Codex 动态背景|Codex Dream Skin Manager|CodexDreamSkinManager|CodexLiveBackground)$'){throw '旧程序身份无法确认，未覆盖现有目录。'}
+    $detectedVersion=if($legacy){$legacy.version}else{$version.FileVersion}
+    [pscustomobject]@{Root=[IO.Path]::GetFullPath($candidate);Executable=[IO.Path]::GetFullPath($exe);Version=$detectedVersion}
   }
 }
 function Stop-DreamBackgroundManagers {
@@ -29,7 +32,7 @@ function Stop-DreamBackgroundManagers {
 function Prepare-DreamBackgroundUpgrade {
   param([string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[int]$ManagerPid)
   $installs=@(Get-DreamBackgroundLegacyInstalls -InstallRoot $InstallRoot)
-  foreach($install in $installs){if([IO.Path]::GetFileName($install.Executable) -eq 'CodexLiveBackground.exe' -and [version]$install.Version -gt [version]'1.3.0.0'){throw '检测到更高版本，请使用最新安装程序，避免旧包覆盖新版本。'}}
+  foreach($install in $installs){if([IO.Path]::GetFileName($install.Executable) -eq 'CodexLiveBackground.exe' -and [version]$install.Version -gt [version]'1.4.0.1'){throw '检测到更高版本，请使用最新安装程序，避免旧包覆盖新版本。'}}
   Stop-DreamBackgroundManagers -Installs $installs -ManagerPid $ManagerPid
   $startupRoot=Join-Path $StateRoot 'startup'
   $hasService=(Test-Path -LiteralPath $startupRoot) -or (Test-Path -LiteralPath (Join-Path $StateRoot 'state.json')) -or (Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue)
@@ -38,7 +41,7 @@ function Prepare-DreamBackgroundUpgrade {
   $backupRoot=Join-Path $StateRoot ('upgrade-backups\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N'))
   $null=New-Item -ItemType Directory -Path $StateRoot -Force
   $record=Join-Path $StateRoot 'last-upgrade.json'
-  [IO.File]::WriteAllText($record,(@{version='1.3.0';packageRoot=$PackageRoot;backups=@();complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($record,(@{version='1.4.0';packageRoot=$PackageRoot;backups=@();complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   Initialize-DreamSkinNativeInspection
   foreach($process in @(Get-CimInstance Win32_Process -Filter "Name='node.exe'")){
     if(-not [CodexDreamSkin.NativeInspection]::CurrentUser([int]$process.ProcessId)){continue}
@@ -63,10 +66,10 @@ function Prepare-DreamBackgroundUpgrade {
     [Console]::Out.WriteLine('检测到旧版 '+$install.Version+'，正在备份并迁移…')
     Move-Item -LiteralPath $install.Root -Destination $destination -ErrorAction Stop
     $backups+=@([pscustomobject]@{source=$install.Root;backup=$destination})
-    [IO.File]::WriteAllText($record,(@{version='1.3.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($record,(@{version='1.4.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   }
   $null=New-Item -ItemType Directory -Path $StateRoot -Force
-  [IO.File]::WriteAllText((Join-Path $StateRoot 'last-upgrade.json'),(@{version='1.3.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $StateRoot 'last-upgrade.json'),(@{version='1.4.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   Write-Output '旧版本检查完成。个人壁纸和登录资料已保留。'
 }
 function Restore-DreamBackgroundUpgrade {
