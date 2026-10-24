@@ -23,12 +23,20 @@
   $command='"'+$hook+'" --guard'
   if(-not (Test-Path -LiteralPath $runKey)){$null=New-Item -Path $runKey -Force}
   $null=New-ItemProperty -LiteralPath $runKey -Name CodexDreamSkinPort -Value $command -PropertyType String -Force
+  $startupLink=Join-Path ([Environment]::GetFolderPath('Startup')) 'Codex 动态背景服务.lnk'
+  $shell=New-Object -ComObject WScript.Shell
+  try{
+    if(Test-Path -LiteralPath $startupLink){$old=$shell.CreateShortcut($startupLink);if(-not (Test-DreamSkinPathEqual -Left $old.TargetPath -Right $hook)){throw '同名启动快捷方式属于其他程序。'}}
+    $link=$shell.CreateShortcut($startupLink);$link.TargetPath=$hook;$link.Arguments='--guard';$link.WorkingDirectory=$StartupRoot;$link.WindowStyle=7;$link.Description='Codex 背景守护与自动恢复';$link.Save()
+  }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
+  $startupApproval='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
+  if(Test-Path -LiteralPath $startupApproval){Remove-ItemProperty -LiteralPath $startupApproval -Name 'Codex 动态背景服务.lnk' -ErrorAction SilentlyContinue}
   $approved='HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
   if(Test-Path -LiteralPath $approved){Remove-ItemProperty -LiteralPath $approved -Name CodexDreamSkinPort -ErrorAction SilentlyContinue}
   $current=Get-ScheduledTask -TaskName $taskName
   if($current.State -ne 'Running'){Start-ScheduledTask -TaskName $taskName}
   $guard=Wait-DreamBackgroundService -StartupRoot $StartupRoot -Seconds 30
-  return [pscustomobject]@{enabled=$true;task=$taskName;loginTrigger=$true;runFallback=$true;guardPid=$guard.pid}
+  return [pscustomobject]@{enabled=$true;task=$taskName;loginTrigger=$true;runFallback=$true;startupFolder=$true;codexLaunchRecovery=$true;guardPid=$guard.pid}
 }
 
 function Get-YzBackgroundAutostart {

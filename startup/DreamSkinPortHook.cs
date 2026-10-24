@@ -157,8 +157,15 @@ internal static class DreamSkinPortHook {
       }catch(Exception error){Log("Startup guard failed: "+error.Message);}finally{if(acquired)mutex.ReleaseMutex();}
     }
   }
+  static void EnsureGuard(){
+    if(File.Exists(Path.Combine(Root,"stop-guard")))return;
+    try{using(var existing=Mutex.OpenExisting("Local\\CodexDreamSkin.PortGuard."+WindowsIdentity.GetCurrent().User.Value))return;}catch(WaitHandleCannotBeOpenedException){}
+    var info=new ProcessStartInfo(Path.Combine(Root,"DreamSkinPortHook.exe"),"--guard"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,WorkingDirectory=Root};
+    using(var child=Process.Start(info)){if(child==null)throw new Exception("Background guard could not start");}
+  }
   static void Main(string[] args){
     if(args.Length==1&&args[0]=="--guard"){Guard();return;}
+    if(args.Length==1&&args[0]=="--ensure"){EnsureGuard();return;}
     int pid=0;uint tid=0;for(int i=0;i+1<args.Length;i++){if(args[i]=="-p")Int32.TryParse(args[++i],out pid);else if(args[i]=="-tid")UInt32.TryParse(args[++i],out tid);}
     if(pid<1||tid<1)return;
     IntPtr thread=OpenThread(0x802,false,tid),process=IntPtr.Zero;bool valid=thread!=IntPtr.Zero&&GetProcessIdOfThread(thread)==pid,retired=false;
@@ -166,6 +173,7 @@ internal static class DreamSkinPortHook {
       if(!valid)throw new Exception("Activation thread mismatch");
       process=OpenProcess(0x1011,false,pid);if(process==IntPtr.Zero)throw new Win32Exception();
       string executable=Verify(process),command=CommandLine(process);
+      EnsureGuard();
       if(command.IndexOf("--type=",StringComparison.OrdinalIgnoreCase)>=0||command.IndexOf("--remote-debugging-",StringComparison.OrdinalIgnoreCase)>=0)return;
       if(FocusSkinMain(pid,executable)){retired=TerminateProcess(process,0);Log("Existing skin window activated; new activation "+pid);return;}
       using(var mutex=new Mutex(false,"Local\\CodexDreamSkin.PortStartup."+WindowsIdentity.GetCurrent().User.Value)){

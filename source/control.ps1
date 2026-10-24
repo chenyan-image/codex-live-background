@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
-  [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','Status','Check')][string]$Action = 'Status',
+  [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','RemoveSkin','RemoveService','PrepareUpgrade','RollbackUpgrade','Status','Check')][string]$Action = 'Status',
   [string]$Media,
+  [int]$ManagerPid=0,
   [ValidateRange(0.1,1.0)][double]$Opacity = 0.72
 )
 $ErrorActionPreference = 'Stop'
@@ -18,6 +19,8 @@ $engine = Join-Path $root 'engine'
 . (Join-Path $root 'service-upgrade.ps1')
 . (Join-Path $root 'autostart.ps1')
 . (Join-Path $root 'skin-removal.ps1')
+. (Join-Path $root 'service-removal.ps1')
+. (Join-Path $root 'upgrade.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $previousErrorActionPreference = $ErrorActionPreference
   try {
@@ -41,8 +44,8 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.2.0' -or -not $status.enabled -or -not $status.running){
-    $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install 2>&1)
+  if($installed.version -ne '1.3.0' -or -not $status.enabled -or -not $status.running){
+    $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
   Assert-Installed
@@ -67,15 +70,16 @@ function Connect-YzCodex {
   }while([DateTime]::UtcNow -lt $deadline)
   throw '已请求打开 Codex，背景连接尚未就绪。等主窗口完成加载后，再点“换壁纸”。'
 }
-function Prepare-YzVideo([string]$Path) {
-  if([IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.mp4','.webm')){return [pscustomobject]@{path=$Path;converted=$false}}
+function Prepare-YzVideo([string]$Path,[switch]$Preview) {
+  if([IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.mp4','.webm','.gif') -or (-not $Preview -and [IO.Path]::GetExtension($Path).ToLowerInvariant() -eq '.gif')){return [pscustomobject]@{path=$Path;converted=$false}}
   $node=Get-DreamSkinNodeRuntime
   $requestPath=Join-Path $stateRoot ('video-request-'+[guid]::NewGuid().ToString('N')+'.json')
   [IO.File]::WriteAllText($requestPath,(@{media=[IO.Path]::GetFullPath($Path);stateRoot=$stateRoot}|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
   try{
     $info=[Diagnostics.ProcessStartInfo]::new()
     $info.FileName=$node.Path
-    $info.Arguments='"'+(Join-Path $engine 'scripts\prepare-video.mjs')+'" "'+$requestPath+'"'
+    $helper=if($Preview){'scripts\preview-media.mjs'}else{'scripts\prepare-video.mjs'}
+    $info.Arguments='"'+(Join-Path $engine $helper)+'" "'+$requestPath+'"'
     $info.UseShellExecute=$false;$info.CreateNoWindow=$true
     $info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
     $info.StandardOutputEncoding=[Text.UTF8Encoding]::new($false);$info.StandardErrorEncoding=[Text.UTF8Encoding]::new($false)
@@ -95,16 +99,27 @@ function Prepare-YzVideo([string]$Path) {
     }finally{$process.Dispose()}
   }finally{Remove-Item -LiteralPath $requestPath -Force -ErrorAction SilentlyContinue}
 }
+$upgradeMutex=$null;$upgradeOwned=$false
 try {
+  if($Action -in @('Install','PrepareUpgrade','RollbackUpgrade','Remove','RemoveService')){
+    $upgradeMutex=[Threading.Mutex]::new($false,('Local\CodexLiveBackground.Upgrade.'+[Security.Principal.WindowsIdentity]::GetCurrent().User.Value))
+    try{$upgradeOwned=$upgradeMutex.WaitOne(30000)}catch [Threading.AbandonedMutexException]{$upgradeOwned=$true}
+    if(-not $upgradeOwned){throw '另一个安装或服务操作正在进行，请等待原操作完成后重试。'}
+  }
   switch ($Action) {
     'Check' {
       $node = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       Write-Output ("环境检查通过：Codex {0}，Node {1}；安装目录将自动使用当前用户路径。" -f $codex.Version, $node.Version)
     }
+    'RollbackUpgrade' { Restore-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
+    'PrepareUpgrade' { Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid }
     'Install' {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
+      $prepared=$false
+      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.3.0' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
+      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.3.0')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
       $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
@@ -117,7 +132,7 @@ try {
       $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.2.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.3.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -133,13 +148,17 @@ try {
           if($old.TargetPath -ieq (Join-Path $installRoot 'CodexLiveBackground.exe')){Remove-Item -LiteralPath $oldLink -Force}
         }
       } finally { [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null }
-      Write-Output '服务已装载，登录 Windows 后会在后台自动运行。后台监控已验证正常；以后直接点“换壁纸”，选中素材即可应用。'
+      $upgradeRecord=Join-Path $stateRoot 'last-upgrade.json'
+      if(Test-Path -LiteralPath $upgradeRecord){$savedUpgrade=[IO.File]::ReadAllText($upgradeRecord)|ConvertFrom-Json;$savedUpgrade.complete=$true;[IO.File]::WriteAllText($upgradeRecord,($savedUpgrade|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))}
+      Write-Output '服务已装载：登录 Windows 时自动运行，Codex 启动时也会检查并恢复服务。后台监控已验证正常，无需再次打开管理器；以后直接点“换壁纸”即可。'
     }
     'Apply' {
       if (-not $Media -or -not (Test-Path -LiteralPath $Media -PathType Leaf)) { throw '请选择本地视频或图片文件。' }
       if ([IO.Path]::GetExtension($Media).ToLowerInvariant() -notin @('.mp4','.webm','.gif','.png','.jpg','.jpeg','.webp')) { throw '仅支持 MP4、WebM、GIF、PNG、JPG、WebP。' }
       $mediaLimit=if([IO.Path]::GetExtension($Media).ToLowerInvariant() -in @('.mp4','.webm')){2GB}else{512MB}
       if ((Get-Item -LiteralPath $Media).Length -gt $mediaLimit) { throw '视频源文件最大 2 GiB，图片最大 512 MiB；请选择较小文件或先压缩。' }
+      $preview=$null
+      try{$preview=Prepare-YzVideo -Path $Media -Preview;[Console]::Out.WriteLine('DREAM_PREVIEW:'+$preview.path)}catch{Write-Output '预览暂不可用，将继续应用壁纸。'}
       Ensure-YzService
       $identity=Connect-YzCodex
       $connection=Read-DreamSkinState -Path (Join-Path $stateRoot 'state.json')
@@ -153,7 +172,7 @@ try {
       $applyMedia=$prepared.path
       $needsConnect=$false
       try{
-        $result = Invoke-Engine 'ApplyTheme' @('-ImagePath',$applyMedia,'-Name',[IO.Path]::GetFileNameWithoutExtension($Media),'-ThemeId',('custom-' + [guid]::NewGuid().ToString('N')),'-Category','custom','-TaskMode','full','-SurfaceOpacity',$Opacity.ToString([Globalization.CultureInfo]::InvariantCulture))
+        $result = Invoke-Engine 'ApplyTheme' @('-ImagePath',$applyMedia,'-Name',[IO.Path]::GetFileNameWithoutExtension($Media),'-ThemeId',('custom-' + [guid]::NewGuid().ToString('N')),'-Category','custom','-TaskMode','full','-Appearance','dark','-SurfaceOpacity',$Opacity.ToString([Globalization.CultureInfo]::InvariantCulture))
         $needsConnect=-not $result.rendererApplied
       }catch{
         if($_.Exception.Message -notmatch 'DREAM_SKIN_LIVE_APPLY_FAILED'){throw}
@@ -166,6 +185,9 @@ try {
         if(-not $applied.rendererApplied){throw '素材已保存，当前窗口还在加载。等主窗口就绪后再点“换壁纸”。'}
       }
       if(-not $result){$result=Get-Content -LiteralPath (Join-Path $stateRoot 'active-theme\theme.json') -Raw|ConvertFrom-Json}
+      if($preview){$theme=[IO.File]::ReadAllText((Join-Path $stateRoot 'active-theme\theme.json'))|ConvertFrom-Json;[IO.File]::WriteAllText((Join-Path $stateRoot 'manager-preview.json'),(@{themeId=$theme.id;path=$preview.path}|ConvertTo-Json),[Text.UTF8Encoding]::new($false))}
+      $config=Join-Path $env:USERPROFILE '.codex\config.toml'
+      if(Test-Path -LiteralPath $config){try{. (Join-Path $engine 'scripts\config-utf8.ps1');$null=Install-DreamSkinBaseTheme -ConfigPath $config -BackupPath (Join-Path $stateRoot 'config.before-dream-skin.toml') -AppearanceTheme dark}catch{Write-Output '当前壁纸已应用深色外观；桌面偏好设置暂未同步。'}}
       if($prepared.converted){Write-Output ('已使用 VP9 兼容副本：'+$prepared.width+' × '+$prepared.height+'，原视频保持不变。')}
       Write-Output ('已应用并保存：' + $result.name + '。动态素材静音循环播放，重新打开 Codex 后会自动恢复。')
     }
@@ -186,7 +208,8 @@ try {
     }
     'Pause' { Assert-Installed; $null = Invoke-Engine 'Pause'; Write-Output '背景已暂停，窗口已恢复原貌。' }
     'Resume' { Assert-Installed; $result = Invoke-Engine 'Resume'; if (-not $result.rendererApplied) { throw '已取消暂停，等待 Codex 连接；也可打开 Codex 后再点恢复。' }; Write-Output '已恢复保存的背景。' }
-    'Remove' { Remove-DreamBackgroundSkin -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
+    'RemoveSkin' { Remove-DreamBackgroundSkin -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
+    {$_ -in @('Remove','RemoveService')} { Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
     'Status' {
       $codex = Get-DreamSkinCodexInstall
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
@@ -201,4 +224,6 @@ try {
 } catch {
   [Console]::Error.WriteLine($_.Exception.Message)
   exit 1
+} finally {
+  if($upgradeMutex){if($upgradeOwned){$upgradeMutex.ReleaseMutex()};$upgradeMutex.Dispose()}
 }
