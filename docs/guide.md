@@ -19,7 +19,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.4-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.5-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
 
 管理器采用黑色壁纸库界面，按侧栏浏览：
 
@@ -138,7 +138,7 @@ $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
 
 ```powershell
 .\source\build-msi.ps1 -PackageRoot .\dist\Codex-Background-local-win-x64 `
-  -OutputFile .\dist\Codex-Background-1.5.4-win-x64.msi
+  -OutputFile .\dist\Codex-Background-1.5.5-win-x64.msi
 ```
 
 v1.3.0 自制 EXE 安装器的源码仅供历史参考，新版本优先发布标准 MSI。代码签名流程见 [Windows 发布与签名](windows-trust.md)。

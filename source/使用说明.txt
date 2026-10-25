@@ -1,4 +1,4 @@
-﻿Codex 动态背景 1.5.4
+﻿Codex 动态背景 1.5.5
 
 使用方法：
 1. 本地壁纸：点击右上角导入视频、GIF或图片，或选择六张内置原创背景。
@@ -46,7 +46,7 @@
 固定链接、校验值、许可及源码位置见 THIRD_PARTY\FFmpeg-Runtime\README.md。
 
 升级：
-直接双击新版Codex-Background-1.5.4-win-x64.msi，使用Windows Installer安装，无需手动解压。
+直接双击新版Codex-Background-1.5.5-win-x64.msi，使用Windows Installer安装，无需手动解压。
 自动检测标准安装目录中的旧版，关闭旧管理器、迁移旧程序并启用新版服务。
 旧程序备份保存在CodexDreamSkin\upgrade-backups；失败时尝试恢复旧程序文件。
 ZIP也可完整解压后打开管理器并装载服务。聊天、壁纸和登录资料保留。
