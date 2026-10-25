@@ -47,7 +47,7 @@ try{
  Table 'RemoveFile' '`FileKey` CHAR(72) NOT NULL, `Component_` CHAR(72) NOT NULL, `FileName` CHAR(255) LOCALIZABLE, `DirProperty` CHAR(72) NOT NULL, `InstallMode` SHORT NOT NULL PRIMARY KEY `FileKey`'
  Table 'Upgrade' '`UpgradeCode` CHAR(38) NOT NULL, `VersionMin` CHAR(20), `VersionMax` CHAR(20), `Language` CHAR(255), `Attributes` LONG NOT NULL, `Remove` CHAR(255), `ActionProperty` CHAR(72) NOT NULL PRIMARY KEY `UpgradeCode`,`VersionMin`,`VersionMax`,`Language`,`Attributes`'
  $product=StableGuid ('product-'+$manifest.version);$upgrade=StableGuid 'upgrade'
- $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS;INSTALLDIR;PREVIOUSINSTALLDIR;CURRENTINSTALLDIR';ARPNOMODIFY='1';ARPINSTALLLOCATION='[INSTALLDIR]';DefaultUIFont='Normal';MsiLogging='voicewarmupx';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
+ $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS;INSTALLDIR;PREVIOUSINSTALLDIR;CURRENTINSTALLDIR;LAUNCHMANAGER';ARPNOMODIFY='1';ARPINSTALLLOCATION='[INSTALLDIR]';DefaultUIFont='Normal';MsiLogging='voicewarmupx';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
  if($TestPackage){$properties.ProductName='Codex Background isolated package test';$properties.SKIPBACKGROUND='1';$properties.LAUNCHMANAGER='0'}
  if($ExerciseServiceActions){$properties.DREAM_MSI_PROBE='1'}
  foreach($name in $properties.Keys){Row 'Property' @('Property','Value') @($name,$properties[$name])}
@@ -156,7 +156,10 @@ try{
  }
  Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('SuccessDlg','Finish','DoAction','LaunchManager','NOT REMOVE~="ALL" AND LAUNCHMANAGER="1"',1)
  $summary=$database.GetType().InvokeMember('SummaryInformation',$get,$null,$database,@(20))
- foreach($pair in @(@(1,936),@(2,'Installation Database'),@(3,'Codex Live Background '+$manifest.version),@(4,'codex-live-background contributors'),@(7,'x64;2052'),@(9,([guid]::NewGuid().ToString('B').ToUpperInvariant())),@(14,200),@(15,10),@(18,'Windows Installer database builder'))){SetProperty $summary 'Property' @($pair[0],$pair[1])}
+ # A real package can need UAC for protected folders or rollback files on a
+ # custom drive. Only isolated test packages promise no elevated privileges.
+ $wordCount=if($TestPackage){10}else{2}
+ foreach($pair in @(@(1,936),@(2,'Installation Database'),@(3,'Codex Live Background '+$manifest.version),@(4,'codex-live-background contributors'),@(7,'x64;2052'),@(9,([guid]::NewGuid().ToString('B').ToUpperInvariant())),@(14,200),@(15,$wordCount),@(18,'Windows Installer database builder'))){SetProperty $summary 'Property' @($pair[0],$pair[1])}
  $null=Call $summary 'Persist' @();$null=Call $database 'Commit' @();[void][Runtime.InteropServices.Marshal]::ReleaseComObject($summary)
  Write-Output $out
 }finally{if($database){[void][Runtime.InteropServices.Marshal]::ReleaseComObject($database)};[void][Runtime.InteropServices.Marshal]::ReleaseComObject($installer)}
