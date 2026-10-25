@@ -18,13 +18,13 @@ internal sealed class Setup : Form {
     bool busy,completed;readonly bool uninstall,relocated;string retryAction;
     static readonly JavaScriptSerializer Json=new JavaScriptSerializer();
     Setup(bool mode,string root,bool temporary){
-        uninstall=mode;relocated=temporary;Text="Codex 动态背景 · 1.5.4.2 EXE 修复版";BackColor=Color.FromArgb(14,21,25);ForeColor=Color.FromArgb(231,240,238);Font=new Font("Microsoft YaHei UI",10);ClientSize=new Size(710,594);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;Padding=new Padding(1);
+        uninstall=mode;relocated=temporary;Text="Codex 动态背景 · 1.5.4.3 EXE 修复版";BackColor=Color.FromArgb(14,21,25);ForeColor=Color.FromArgb(231,240,238);Font=new Font("Microsoft YaHei UI",10);ClientSize=new Size(710,594);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;Padding=new Padding(1);
         try{Icon=new Icon(Assembly.GetExecutingAssembly().GetManifestResourceStream("Codex.Setup.ico"));}catch{}
-        var frame=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty};frame.RowStyles.Add(new RowStyle(SizeType.Absolute,36));frame.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(frame);
+        var frame=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty};frame.RowStyles.Add(new RowStyle(SizeType.Absolute,32));frame.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(frame);
         var bar=new Panel{Dock=DockStyle.Fill,Margin=Padding.Empty,BackColor=Color.FromArgb(18,27,31)};var caption=new Label{Text=Text,Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft,Padding=new Padding(10,0,0,0),Font=new Font(Font.FontFamily,9),ForeColor=Color.FromArgb(174,197,194)};bar.Controls.Add(caption);
-        var close=new Button{Text="×",Dock=DockStyle.Right,Width=44,FlatStyle=FlatStyle.Flat,BackColor=bar.BackColor,ForeColor=ForeColor,Font=new Font("Segoe UI",15),AccessibleName="关闭"};close.FlatAppearance.BorderSize=0;close.FlatAppearance.MouseOverBackColor=Color.FromArgb(158,51,60);close.Click+=delegate{Close();};
-        var minimize=new Button{Text="—",Dock=DockStyle.Right,Width=44,FlatStyle=FlatStyle.Flat,BackColor=bar.BackColor,ForeColor=ForeColor,AccessibleName="最小化"};minimize.FlatAppearance.BorderSize=0;minimize.FlatAppearance.MouseOverBackColor=Color.FromArgb(39,58,62);minimize.Click+=delegate{WindowState=FormWindowState.Minimized;};bar.Controls.Add(minimize);bar.Controls.Add(close);frame.Controls.Add(bar,0,0);
-        MouseEventHandler drag=delegate(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){ReleaseCapture();SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}};bar.MouseDown+=drag;caption.MouseDown+=drag;Paint+=delegate(object sender,PaintEventArgs e){using(var pen=new Pen(Color.FromArgb(49,69,73)))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);};
+        var close=new WindowCaptionButton(WindowCaptionKind.Close){Dock=DockStyle.Right};close.Click+=delegate{Close();};
+        var minimize=new WindowCaptionButton(WindowCaptionKind.Minimize){Dock=DockStyle.Right};minimize.Click+=delegate{WindowState=FormWindowState.Minimized;};bar.Controls.Add(minimize);bar.Controls.Add(close);frame.Controls.Add(bar,0,0);
+        MouseEventHandler drag=delegate(object sender,MouseEventArgs e){if(e.Button==MouseButtons.Left){ReleaseCapture();SendMessage(Handle,0xA1,new IntPtr(2),IntPtr.Zero);}};bar.MouseDown+=drag;caption.MouseDown+=drag;Paint+=delegate(object sender,PaintEventArgs e){WindowFrame.PaintBorder(this,e.Graphics,Color.FromArgb(49,69,73));};
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(24),ColumnCount=1,RowCount=8,Margin=Padding.Empty};foreach(int h in new[]{48,43,42,42})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));foreach(int h in new[]{24,48,35})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));frame.Controls.Add(layout,0,1);
         layout.Controls.Add(new Label{Text=mode?"卸载 Codex 动态背景":"安装 Codex 动态背景",Font=new Font(Font.FontFamily,21,FontStyle.Bold),Dock=DockStyle.Fill},0,0);
         layout.Controls.Add(new Label{Text="1.5.4 基线 · 单 EXE 安装 · 自定义目录\r\n原始壁纸与 Codex 登录资料保留。",Dock=DockStyle.Fill,ForeColor=Color.FromArgb(151,176,175)},0,1);
@@ -37,6 +37,8 @@ internal sealed class Setup : Form {
         layout.Controls.Add(new Label{Text="窗口会保持到结束；失败时显示日志位置。",ForeColor=Color.FromArgb(151,176,175),Dock=DockStyle.Fill},0,7);
         FormClosing+=delegate(object s,FormClosingEventArgs e){if(busy){e.Cancel=true;MessageBox.Show(this,"正在处理文件或停止后台组件，请等待当前步骤结束。",Text);}};FormClosed+=delegate{if(relocated)ScheduleTemporaryCleanup();};
     }
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);WindowFrame.Update(this);}
+    protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);WindowFrame.Update(this);}
     [System.Runtime.InteropServices.DllImport("user32.dll")]static extern bool ReleaseCapture();
     [System.Runtime.InteropServices.DllImport("user32.dll")]static extern IntPtr SendMessage(IntPtr window,int message,IntPtr wParam,IntPtr lParam);
     static string Quote(string value){var b=new StringBuilder("\"");int slashes=0;foreach(char c in value){if(c=='\\'){slashes++;continue;}if(c=='"')b.Append('\\',slashes*2+1).Append(c);else b.Append('\\',slashes).Append(c);slashes=0;}return b.Append('\\',slashes*2).Append('"').ToString();}

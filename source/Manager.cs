@@ -14,14 +14,57 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.4.2")]
-[assembly: AssemblyFileVersion("1.5.4.2")]
+[assembly: AssemblyVersion("1.5.4.3")]
+[assembly: AssemblyFileVersion("1.5.4.3")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
 }
 internal sealed class BufferedFlow : FlowLayoutPanel {
     public BufferedFlow(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
+}
+internal static class WindowFrame {
+    public static void Update(Form form){
+        if(!form.IsHandleCreated||form.Width<2||form.Height<2||form.WindowState==FormWindowState.Minimized)return;
+        Region previous=form.Region;
+        if(form.WindowState==FormWindowState.Maximized){if(previous!=null){form.Region=null;previous.Dispose();}return;}
+        using(var g=form.CreateGraphics())using(var path=IconAssets.Round(new RectangleF(0,0,form.Width,form.Height),8*g.DpiX/96F))form.Region=new Region(path);
+        if(previous!=null)previous.Dispose();
+    }
+    public static void PaintBorder(Form form,Graphics graphics,Color color){
+        using(var pen=new Pen(color)){
+            if(form.WindowState==FormWindowState.Maximized){graphics.DrawRectangle(pen,0,0,form.Width-1,form.Height-1);return;}
+            graphics.SmoothingMode=SmoothingMode.AntiAlias;
+            using(var path=IconAssets.Round(new RectangleF(.5F,.5F,form.Width-1,form.Height-1),8*graphics.DpiX/96F))graphics.DrawPath(pen,path);
+        }
+    }
+}
+internal enum WindowCaptionKind { Minimize,Maximize,Close }
+internal sealed class WindowCaptionButton : Button {
+    readonly WindowCaptionKind kind;bool hover,pressed,restore;
+    public bool RestoreGlyph {get{return restore;}set{if(restore!=value){restore=value;Invalidate();}}}
+    public WindowCaptionButton(WindowCaptionKind value){
+        kind=value;Size=new Size(44,32);Margin=Padding.Empty;Padding=Padding.Empty;TabStop=false;FlatStyle=FlatStyle.Flat;FlatAppearance.BorderSize=0;
+        AccessibleName=value==WindowCaptionKind.Minimize?"最小化":value==WindowCaptionKind.Maximize?"最大化或还原":"关闭";
+        SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
+    }
+    protected override void OnMouseEnter(EventArgs e){hover=true;Invalidate();base.OnMouseEnter(e);}
+    protected override void OnMouseLeave(EventArgs e){hover=pressed=false;Invalidate();base.OnMouseLeave(e);}
+    protected override void OnMouseDown(MouseEventArgs e){if(e.Button==MouseButtons.Left){pressed=true;Invalidate();}base.OnMouseDown(e);}
+    protected override void OnMouseUp(MouseEventArgs e){pressed=false;base.OnMouseUp(e);if(!IsDisposed)Invalidate();}
+    protected override void OnPaint(PaintEventArgs e){
+        Color background=Parent==null?BackColor:Parent.BackColor;
+        if(hover)background=kind==WindowCaptionKind.Close?(pressed?Color.FromArgb(164,32,24):Color.FromArgb(196,43,28)):(pressed?Color.FromArgb(45,50,54):Color.FromArgb(35,40,44));
+        var g=e.Graphics;g.Clear(background);float scale=g.DpiX/96F,size=10*scale,x=(Width-size)/2F,y=(Height-size)/2F;
+        using(var pen=new Pen(hover?Color.FromArgb(245,247,248):Color.FromArgb(176,185,190),scale)){
+            g.SmoothingMode=SmoothingMode.None;g.PixelOffsetMode=PixelOffsetMode.Half;
+            if(kind==WindowCaptionKind.Minimize)g.DrawLine(pen,x,y+size/2,x+size,y+size/2);
+            else if(kind==WindowCaptionKind.Maximize){
+                if(restore){g.DrawRectangle(pen,x+3*scale,y,7*scale,7*scale);using(var brush=new SolidBrush(background))g.FillRectangle(brush,x,y+3*scale,7*scale,7*scale);g.DrawRectangle(pen,x,y+3*scale,7*scale,7*scale);}
+                else g.DrawRectangle(pen,x,y,9*scale,9*scale);
+            }else{g.SmoothingMode=SmoothingMode.AntiAlias;g.DrawLine(pen,x,y,x+9*scale,y+9*scale);g.DrawLine(pen,x+9*scale,y,x,y+9*scale);}
+        }
+    }
 }
 internal sealed class Surface : Panel {
     public Surface(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);BackColor=Color.FromArgb(23,31,35);Padding=new Padding(20);}
@@ -140,25 +183,25 @@ internal sealed partial class Manager : Form {
     Manager(bool checkStatus){ BuildGallery(checkStatus); }
     protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;return value;}}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
-    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}}
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}WindowFrame.Update(this);}
+    protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);WindowFrame.Update(this);}
     void ToggleMaximize(){MaximizedBounds=Screen.FromHandle(Handle).WorkingArea;WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;}
     void AddTitleBar(){
-        var bar=new Panel{Dock=DockStyle.Top,Height=38,BackColor=Color.FromArgb(12,14,17)};
-        var controls=new BufferedFlow{Dock=DockStyle.Right,Width=138,FlowDirection=FlowDirection.LeftToRight,WrapContents=false,Margin=Padding.Empty};
-        foreach(string symbol in new[]{"—","□","×"}){
-            var b=new Button{Text=symbol,Size=new Size(46,36),Margin=Padding.Empty,FlatStyle=FlatStyle.Flat,TabStop=false,ForeColor=Muted,BackColor=bar.BackColor,Font=new Font("Segoe UI",12),AccessibleName=symbol=="—"?"最小化":symbol=="□"?"最大化或还原":"关闭"};
-            b.FlatAppearance.BorderSize=0;b.FlatAppearance.MouseOverBackColor=symbol=="×"?Color.FromArgb(144,51,57):Color.FromArgb(39,52,57);
-            if(symbol=="—")b.Click+=delegate{WindowState=FormWindowState.Minimized;};else if(symbol=="□")b.Click+=delegate{ToggleMaximize();};else b.Click+=delegate{Close();};controls.Controls.Add(b);
+        var bar=new Panel{Dock=DockStyle.Top,Height=32,BackColor=Color.FromArgb(12,14,17)};
+        var controls=new BufferedFlow{Dock=DockStyle.Right,Width=132,FlowDirection=FlowDirection.LeftToRight,WrapContents=false,Margin=Padding.Empty,Padding=Padding.Empty};
+        foreach(WindowCaptionKind kind in new[]{WindowCaptionKind.Minimize,WindowCaptionKind.Maximize,WindowCaptionKind.Close}){
+            var b=new WindowCaptionButton(kind);
+            if(kind==WindowCaptionKind.Minimize)b.Click+=delegate{WindowState=FormWindowState.Minimized;};else if(kind==WindowCaptionKind.Maximize){b.Click+=delegate{ToggleMaximize();};SizeChanged+=delegate{b.RestoreGlyph=WindowState==FormWindowState.Maximized;};}else b.Click+=delegate{Close();};controls.Controls.Add(b);
         }
         var title=new Label{Text="Codex 动态背景",Font=new Font("Microsoft YaHei UI",8.5F),ForeColor=Muted,TextAlign=ContentAlignment.MiddleLeft,Dock=DockStyle.Fill,Padding=new Padding(15,0,0,0)};
         MouseEventHandler drag=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;if(e.Clicks==2){ToggleMaximize();return;}ReleaseCapture();SendMessage(Handle,0xA1,(IntPtr)2,IntPtr.Zero);};title.MouseDown+=drag;bar.MouseDown+=drag;
         bar.Controls.Add(title);bar.Controls.Add(controls);
         var content=Controls[0];Controls.Remove(content);
-        var shell=new BufferedTable{Dock=DockStyle.Fill,RowCount=2,ColumnCount=1,Margin=Padding.Empty,Padding=Padding.Empty};shell.RowStyles.Add(new RowStyle(SizeType.Absolute,38));shell.RowStyles.Add(new RowStyle(SizeType.Percent,100));
+        var shell=new BufferedTable{Dock=DockStyle.Fill,RowCount=2,ColumnCount=1,Margin=Padding.Empty,Padding=Padding.Empty};shell.RowStyles.Add(new RowStyle(SizeType.Absolute,32));shell.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         bar.Dock=DockStyle.Fill;bar.Margin=Padding.Empty;shell.Controls.Add(bar,0,0);shell.Controls.Add(content,0,1);Controls.Add(shell);
         Shown+=delegate{ActiveControl=importButton;};
     }
-    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);using(var pen=new Pen(Color.FromArgb(49,65,69)))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);}
+    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);WindowFrame.PaintBorder(this,e.Graphics,Color.FromArgb(49,65,69));}
     protected override void WndProc(ref Message m){
         base.WndProc(ref m);
         if(m.Msg==0x84&&WindowState==FormWindowState.Normal&&m.Result==(IntPtr)1){
