@@ -6,7 +6,7 @@
 
 **[下载安装包](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md) · [详细说明](docs/guide.md)**
 
-当前推荐 **v1.5.4.2 长名称与类型筛选修复版**：沿用 v1.5.4 管理器与 EXE 安装维护修复，主题名称扩展至 4096 字符，修复类型筛选时异常退出。v1.6.0–v1.6.2 已撤回推荐，保留历史记录。
+当前推荐 **v1.5.4.3 窗口细节优化版**：统一窗口按钮尺寸、图标及悬停样式，外框改为轻圆角；保留 4096 字符长名称、类型筛选修复与 EXE 安装维护流程。v1.6.0–v1.6.2 已撤回推荐，保留历史记录。
 
 ## 特点
 
@@ -56,7 +56,7 @@ Wallpaper Engine 壁纸库（本机实际扫描），向下连续滚动浏览：
 
 ## 使用
 
-1. 在 [Releases](https://github.com/chenyan-image/codex-live-background/releases/latest) 下载 **`Codex-Background-1.5.4.2-Setup.exe`**，双击安装并选择目标路径，无需解压。安装窗会保留到操作结束。
+1. 在 [Releases](https://github.com/chenyan-image/codex-live-background/releases/latest) 下载 **`Codex-Background-1.5.4.3-Setup.exe`**，双击安装并选择目标路径，无需解压。安装窗会保留到操作结束。
 2. 导入本地素材，或在 Wallpaper Engine 页面选择壁纸。
 3. 右侧预览后点击「应用这张壁纸」。关闭管理器，背景仍继续运行。
 

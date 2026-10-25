@@ -1,6 +1,6 @@
 # Windows 安装、签名和拦截
 
-v1.5.4.2 使用单文件 Setup EXE，直接部署程序和后台组件，不内嵌 MSI。新装与新版卸载不经过 Windows Installer；已有旧 MSI 时，才通过正式卸载进行一次迁移，必要时请求原账号的 Windows UAC。可选择专用安装目录，默认位于当前用户的 LocalAppData。桌面仅一个管理器图标，完整卸载入口随程序放在安装目录中，也注册到 Windows 的已安装应用。
+v1.5.4.3 使用单文件 Setup EXE，直接部署程序和后台组件，不内嵌 MSI。新装与新版卸载不经过 Windows Installer；已有旧 MSI 时，才通过正式卸载进行一次迁移，必要时请求原账号的 Windows UAC。可选择专用安装目录，默认位于当前用户的 LocalAppData。桌面仅一个管理器图标，完整卸载入口随程序放在安装目录中，也注册到 Windows 的已安装应用。
 
 EXE 先验证内嵌 ZIP 的 SHA-256，再验证清单中每个文件的大小与哈希。旧 MSI 安装源缺失时，只下载本仓库已知历史版本并验证固定哈希。安装与卸载先核验归属并关闭本项目进程，不结束官方 Codex 或其他应用的同名进程。日志和失败恢复文件仅保存在本机。
 
@@ -23,7 +23,7 @@ EXE 先验证内嵌 ZIP 的 SHA-256，再验证清单中每个文件的大小与
 .\source\sign-release.ps1 -PackageRoot .\dist\package `
   -CertificateThumbprint <证书指纹> -TimestampServer <证书服务商时间戳地址>
 # 按 guide.md 压缩负载并构建 Setup EXE，然后签署最终文件。
-.\source\sign-release.ps1 -InstallerPath .\dist\Codex-Background-1.5.4.2-Setup.exe `
+.\source\sign-release.ps1 -InstallerPath .\dist\Codex-Background-1.5.4.3-Setup.exe `
   -CertificateThumbprint <证书指纹> -TimestampServer <证书服务商时间戳地址>
 ```
 
