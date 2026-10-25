@@ -51,7 +51,7 @@ foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryC
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets') -Destination (Join-Path $sourceOut 'assets') -Recurse
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
-Copy-Item -LiteralPath (Join-Path $PortSource 'DreamSkinPortHook.cs'),(Join-Path $PortSource 'register-port.ps1') -Destination $port
+Copy-Item -LiteralPath (Join-Path $PortSource 'DreamSkinPortHook.cs'),(Join-Path $PortSource 'ShellIdentity.cs'),(Join-Path $PortSource 'register-port.ps1') -Destination $port
 $monitor = [IO.File]::ReadAllText((Join-Path $PortSource 'monitor-skin.ps1'))
 $monitor = [regex]::Replace($monitor, '(?m)^\$install = .*$', '$install = Split-Path -Parent $PSScriptRoot')
 $monitor = $monitor.Replace("'windows\scripts'", "'engine\scripts'")
@@ -75,7 +75,7 @@ if($LASTEXITCODE -ne 0){throw 'Wallpaper artwork compilation failed.'}
 $art=Start-Process -FilePath $wallpaperBuilder -ArgumentList ('"'+(Join-Path $out 'wallpapers')+'"') -WindowStyle Hidden -Wait -PassThru
 if($art.ExitCode -ne 0){throw 'Wallpaper artwork generation failed.'}
 Remove-Item -LiteralPath $wallpaperBuilder -Force
-& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$port\DreamSkinPortHook.exe" (Join-Path $port 'DreamSkinPortHook.cs')
+& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$port\DreamSkinPortHook.exe" (Join-Path $port 'DreamSkinPortHook.cs') (Join-Path $port 'ShellIdentity.cs')
 if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
 $repoRoot = Split-Path -Parent $EngineSource
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE'),(Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination $out
@@ -118,12 +118,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.5.4.3';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.5.4.4';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.5.4.3';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.5.4.4';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

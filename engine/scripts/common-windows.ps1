@@ -939,6 +939,7 @@ function Start-DreamSkinCodexDirect {
   $start.CreateNoWindow = $true
   $start.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Normal
   $profilePrefix = '--user-data-dir='
+  $profile = $null
   foreach ($argument in $Arguments) {
     if ($argument.StartsWith($profilePrefix, [StringComparison]::OrdinalIgnoreCase)) {
       $profile = $argument.Substring($profilePrefix.Length)
@@ -947,6 +948,14 @@ function Start-DreamSkinCodexDirect {
       # otherwise replaces Chromium's --user-data-dir with its normal profile.
       $start.EnvironmentVariables['CODEX_ELECTRON_USER_DATA_PATH'] = [IO.Path]::GetFullPath($profile)
     }
+  }
+  # The packaged manager ships this helper beside the startup guard. Use the
+  # same AppID for manual connection and package-start activation so taskbar
+  # grouping cannot depend on which launch entry the user selected.
+  $identitySource = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'startup\ShellIdentity.cs'
+  if (Test-Path -LiteralPath $identitySource -PathType Leaf) {
+    if (-not ('CodexBackgroundShell.Identity' -as [type])) { Add-Type -Path $identitySource }
+    return [CodexBackgroundShell.Identity]::Launch($Codex.Executable,$argumentLine,$Codex.AppUserModelId,$profile)
   }
   $process = [System.Diagnostics.Process]::Start($start)
   try {

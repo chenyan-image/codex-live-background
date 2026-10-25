@@ -15,8 +15,8 @@ using System.Reflection;
 [assembly: AssemblyTitle("Codex Background Startup")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.4.3")]
-[assembly: AssemblyFileVersion("1.5.4.3")]
+[assembly: AssemblyVersion("1.5.4.4")]
+[assembly: AssemblyFileVersion("1.5.4.4")]
 
 [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IDreamSkinPackageDebug {
@@ -53,12 +53,12 @@ internal static class DreamSkinPortHook {
   [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern IntPtr SendMessageTimeout(IntPtr window,uint message,IntPtr wParam,IntPtr lParam,uint flags,uint timeout,out IntPtr result);
   static IntPtr largeIcon,smallIcon;
   static void SetWindowIcons(IntPtr window){
-    if(window==IntPtr.Zero)return;string icon=Path.GetFullPath(Path.Combine(Root,@"..\icons\codex-official.ico"));if(!File.Exists(icon))return;
+    if(window==IntPtr.Zero)return;string icon=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexDreamSkin\icons\codex-official.ico");if(!File.Exists(icon))return;
     if(largeIcon==IntPtr.Zero)largeIcon=LoadImage(IntPtr.Zero,icon,1,64,64,0x10);if(smallIcon==IntPtr.Zero)smallIcon=LoadImage(IntPtr.Zero,icon,1,16,16,0x10);
     IntPtr result;if(largeIcon!=IntPtr.Zero)SendMessageTimeout(window,0x80,(IntPtr)1,largeIcon,2,100,out result);if(smallIcon!=IntPtr.Zero)SendMessageTimeout(window,0x80,IntPtr.Zero,smallIcon,2,100,out result);
   }
   static void RefreshWindowIcons(){
-    if(!File.Exists(Path.GetFullPath(Path.Combine(Root,@"..\icons\codex-official.ico"))))return;
+    if(!File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexDreamSkin\icons\codex-official.ico")))return;
     foreach(var app in Process.GetProcessesByName("ChatGPT"))using(app)try{if(app.MainWindowHandle==IntPtr.Zero)continue;IntPtr process=OpenProcess(0x1010,false,app.Id);if(process==IntPtr.Zero)continue;try{Verify(process);string command=CommandLine(process);if(command.IndexOf("--type=",StringComparison.OrdinalIgnoreCase)<0&&command.IndexOf("--remote-debugging-port=9335",StringComparison.OrdinalIgnoreCase)>=0)SetWindowIcons(app.MainWindowHandle);}catch{}finally{CloseHandle(process);}}catch{}
   }
   static readonly string Root=AppDomain.CurrentDomain.BaseDirectory;
@@ -104,13 +104,12 @@ internal static class DreamSkinPortHook {
     int count;IntPtr argv=CommandLineToArgvW(command,out count);if(argv==IntPtr.Zero)throw new Win32Exception();
     try{var result=new StringBuilder();for(int i=1;i<count;i++){if(result.Length>0)result.Append(' ');result.Append(Quote(Marshal.PtrToStringUni(Marshal.ReadIntPtr(argv,i*IntPtr.Size))));}return result.ToString();}finally{LocalFree(argv);}
   }
-  static bool FocusSkinMain(int pid,string executable){
+  static bool FocusExistingMain(int pid,string executable){
     foreach(var candidate in Process.GetProcessesByName("ChatGPT")){
       using(candidate){if(candidate.Id==pid)continue;IntPtr other=OpenProcess(0x1010,false,candidate.Id);if(other==IntPtr.Zero)continue;
         try{if(!SameUser(other)||!String.Equals(FinalPath(Image(other)),FinalPath(executable),StringComparison.OrdinalIgnoreCase))continue;
           string command=CommandLine(other);
-          if(command.IndexOf("--type=",StringComparison.OrdinalIgnoreCase)<0&&
-            command.IndexOf("--remote-debugging-port=9335",StringComparison.OrdinalIgnoreCase)>=0){
+          if(command.IndexOf("--type=",StringComparison.OrdinalIgnoreCase)<0){
             IntPtr window=candidate.MainWindowHandle;
             if(window==IntPtr.Zero)continue;
             SetWindowIcons(window);
@@ -188,12 +187,12 @@ internal static class DreamSkinPortHook {
     if(args.Length==1&&args[0]=="--guard"){Guard();return;}
     if(args.Length==1&&args[0]=="--ensure"){EnsureGuard();return;}
     if(args.Length==1&&args[0]=="--launch"){
-      try{if(File.Exists(Path.Combine(Root,"stop-guard")))throw new Exception("背景服务正在更新，请稍后重试。");EnsureGuard();string executable=PackageExecutable(InstalledPackage());if(FocusSkinMain(0,executable))return;
+      try{if(File.Exists(Path.Combine(Root,"stop-guard")))throw new Exception("背景服务正在更新，请稍后重试。");EnsureGuard();string executable=PackageExecutable(InstalledPackage());if(FocusExistingMain(0,executable))return;
         using(var mutex=new Mutex(false,"Local\\CodexDreamSkin.PortStartup."+WindowsIdentity.GetCurrent().User.Value)){
           bool owns=false;try{try{owns=mutex.WaitOne(0);}catch(AbandonedMutexException){owns=true;}if(!owns)return;
             var listener=new TcpListener(IPAddress.Loopback,9335);try{listener.Start();}finally{listener.Stop();}
             string profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexDreamSkin\cdp-profile");Directory.CreateDirectory(profile);
-            var info=new ProcessStartInfo(executable,"--remote-debugging-address=127.0.0.1 --remote-debugging-port=9335 --user-data-dir="+Quote(profile)){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(executable)};info.EnvironmentVariables["CODEX_ELECTRON_USER_DATA_PATH"]=profile;using(var app=Process.Start(info)){if(app==null)throw new Exception("Codex could not start");}
+            CodexBackgroundShell.Identity.Launch(executable,"--remote-debugging-address=127.0.0.1 --remote-debugging-port=9335 --user-data-dir="+Quote(profile),"OpenAI.Codex_2p2nqsd0c76g0!App",profile);
           }finally{if(owns)mutex.ReleaseMutex();}
         }
       }catch(Exception error){Log("Shortcut launch failed: "+error.Message);Environment.ExitCode=1;}return;
@@ -207,15 +206,14 @@ internal static class DreamSkinPortHook {
       string executable=Verify(process),command=CommandLine(process);
       EnsureGuard();
       if(command.IndexOf("--type=",StringComparison.OrdinalIgnoreCase)>=0||command.IndexOf("--remote-debugging-",StringComparison.OrdinalIgnoreCase)>=0)return;
-      if(FocusSkinMain(pid,executable)){retired=TerminateProcess(process,0);Log("Existing skin window activated; new activation "+pid);return;}
+      if(FocusExistingMain(pid,executable)){retired=TerminateProcess(process,0);Log("Existing app window activated; new activation "+pid);return;}
       using(var mutex=new Mutex(false,"Local\\CodexDreamSkin.PortStartup."+WindowsIdentity.GetCurrent().User.Value)){
         bool acquired=false;try{try{acquired=mutex.WaitOne(0);}catch(AbandonedMutexException){acquired=true;}if(!acquired)return;
           var reservation=new TcpListener(IPAddress.Loopback,9335);try{reservation.Start();}finally{reservation.Stop();}
           string profile=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexDreamSkin\cdp-profile");
           Directory.CreateDirectory(profile);
-          var start=new ProcessStartInfo(executable,OriginalArguments(command)+" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9335 --user-data-dir="+Quote(profile));
-          start.UseShellExecute=false;start.CreateNoWindow=true;start.WorkingDirectory=Path.GetDirectoryName(executable);start.EnvironmentVariables["CODEX_ELECTRON_USER_DATA_PATH"]=profile;
-          using(var launched=Process.Start(start)){if(launched==null)throw new Exception("App did not start");retired=TerminateProcess(process,0);if(!retired)throw new Win32Exception();Log("Prepared port 9335; app PID "+launched.Id);}
+          int launched=CodexBackgroundShell.Identity.Launch(executable,OriginalArguments(command)+" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9335 --user-data-dir="+Quote(profile),"OpenAI.Codex_2p2nqsd0c76g0!App",profile);
+          retired=TerminateProcess(process,0);if(!retired)throw new Win32Exception();Log("Prepared port 9335; app PID "+launched);
         }finally{if(acquired)mutex.ReleaseMutex();}
       }
     }catch(Exception error){Log("Ordinary startup retained: "+error.Message);}

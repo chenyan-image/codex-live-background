@@ -18,6 +18,10 @@ try{
  # Reproduce an old managed shortcut whose icon was set to the plain executable.
  $link=$shell.CreateShortcut($path);$link.IconLocation=$codex.Executable+',0';$link.Save();$record=Join-Path $state 'shortcut-backups\entries.json';$data=Get-Content -LiteralPath $record -Raw|ConvertFrom-Json;$data.entries[0].modifiedSha256=(Get-FileHash -LiteralPath $path).Hash;[IO.File]::WriteAllText($record,($data|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
  if((Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $state -Directories @($links)).repaired -ne 1){throw 'Old managed shortcut icon not upgraded'}
- Restore-DreamBackgroundShortcuts -StateRoot $state;if((Get-FileHash -LiteralPath $path).Hash -cne $original){throw 'Original shortcut bytes not restored'}
+ Restore-DreamBackgroundShortcuts -StateRoot $state;if($shell.CreateShortcut($path).Arguments -cne ('shell:AppsFolder\'+$codex.AppUserModelId)){throw 'Canonical official launcher lost on uninstall'}
 }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
-@{pass=$true;cases=6;validMultiSizeIcon=$true;cacheReused=$true;officialIconOnShortcut=$true;oldManagedIconRepaired=$true;idempotent=$true;originalRestored=$true}|ConvertTo-Json -Compress
+$beta=$codex.PSObject.Copy();$beta.AppUserModelId='OpenAI.CodexBeta_2p2nqsd0c76g0!App';$betaIcon=Get-DreamBackgroundCodexIcon -Codex $beta -StateRoot $state
+if($betaIcon -ieq $icon -or -not(Test-Path -LiteralPath $icon)){throw 'Beta replaced stable icon cache'}
+$bitmap=[Drawing.Bitmap]::new(256,256);$graphics=[Drawing.Graphics]::FromImage($bitmap);try{$graphics.Clear([Drawing.Color]::Coral);$bitmap.Save((Join-Path $assets 'Square44x44Logo.targetsize-256_altform-unplated.png'),[Drawing.Imaging.ImageFormat]::Png)}finally{$graphics.Dispose();$bitmap.Dispose()}
+$previous=(Get-FileHash $icon).Hash;$null=Get-DreamBackgroundCodexIcon -Codex $codex -StateRoot $state;if((Get-FileHash $icon).Hash -ceq $previous){throw 'Updated official icon was not refreshed'}
+@{pass=$true;cases=8;validMultiSizeIcon=$true;cacheReused=$true;officialIconOnShortcut=$true;oldManagedIconRepaired=$true;idempotent=$true;uninstallKeepsOfficialEntry=$true;stableAndBetaCachesSeparate=$true;updatedIconRefreshed=$true}|ConvertTo-Json -Compress
