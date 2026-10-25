@@ -1,5 +1,6 @@
-﻿param([Parameter(Mandatory=$true)][string]$PackageRoot,[Parameter(Mandatory=$true)][string]$OutputFile,[switch]$RequireTrustedSignature,[switch]$TestPackage)
+﻿param([Parameter(Mandatory=$true)][string]$PackageRoot,[Parameter(Mandatory=$true)][string]$OutputFile,[switch]$RequireTrustedSignature,[switch]$TestPackage,[switch]$ExerciseServiceActions)
 $ErrorActionPreference='Stop'
+if($ExerciseServiceActions -and -not $TestPackage){throw 'Service-action probes require an isolated TestPackage.'}
 $root=[IO.Path]::GetFullPath($PackageRoot);$out=[IO.Path]::GetFullPath($OutputFile)
 if(Test-Path -LiteralPath $out){throw 'OutputFile must be new.'}
 $manifest=[IO.File]::ReadAllText((Join-Path $root 'manifest.json'))|ConvertFrom-Json
@@ -36,13 +37,15 @@ try{
  $product=StableGuid ('product-'+$manifest.version);$upgrade=StableGuid 'upgrade'
  $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS';ARPNOMODIFY='1';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
  if($TestPackage){$properties.ProductName='Codex Background isolated package test';$properties.SKIPBACKGROUND='1';$properties.LAUNCHMANAGER='0'}
+ if($ExerciseServiceActions){$properties.DREAM_MSI_PROBE='1'}
  foreach($name in $properties.Keys){Row 'Property' @('Property','Value') @($name,$properties[$name])}
  Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('TARGETDIR',$null,'SourceDir')
  Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('LocalAppDataFolder','TARGETDIR','.')
  Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('UserPrograms','LocalAppDataFolder','Programs')
- Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('INSTALLDIR','UserPrograms','CodexLiveBackground')
+ $installFolder=if($TestPackage){'CodexBackgroundIsolated-'+$namespace.Substring(5)}else{'CodexLiveBackground'}
+ Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('INSTALLDIR','UserPrograms',$installFolder)
  Row 'Feature' @('Feature','Title','Display','Level','Directory_','Attributes') @('Main','Codex 动态背景',1,1,'INSTALLDIR',0)
- $directories=@{''='INSTALLDIR'};$sequence=0;$managerId=$null
+ $directories=@{''='INSTALLDIR'};$sequence=0;$managerId=$null;$managerComponent=$null
  $ddf=[Collections.Generic.List[string]]::new();$ddf.Add('.OPTION EXPLICIT');$ddf.Add('.Set Cabinet=on');$ddf.Add('.Set Compress=on');$ddf.Add('.Set CompressionType=LZX');$ddf.Add('.Set CompressionMemory=21');$ddf.Add('.Set CabinetNameTemplate=payload.cab');$ddf.Add('.Set MaxDiskSize=0');$ddf.Add('.Set DiskDirectoryTemplate="'+$work+'"');$ddf.Add('.Set InfFileName="'+(Join-Path $work 'payload.inf')+'"');$ddf.Add('.Set RptFileName="'+(Join-Path $work 'payload.rpt')+'"')
  foreach($file in Get-ChildItem -LiteralPath $root -Recurse -File|Sort-Object FullName){
   $relative=$file.FullName.Substring($root.Length+1);$folder=[IO.Path]::GetDirectoryName($relative);$parent='INSTALLDIR';$current=''
@@ -52,24 +55,31 @@ try{
   Row 'Component' @('Component','ComponentId','Directory_','Attributes','KeyPath') @($component,(StableGuid $relative),$parent,256,$id)
   Row 'FeatureComponents' @('Feature_','Component_') @('Main',$component)
   Row 'File' @('File','Component_','FileName','FileSize','Version','Attributes','Sequence') @($id,$component,$file.Name,[int]$file.Length,$version,16384,$sequence)
-  $ddf.Add('"'+$file.FullName+'" '+$id);if($relative -eq 'CodexLiveBackground.exe'){$managerId=$id}
+  $ddf.Add('"'+$file.FullName+'" '+$id);if($relative -eq 'CodexLiveBackground.exe'){$managerId=$id;$managerComponent=$component}
  }
  [IO.File]::WriteAllLines((Join-Path $work 'payload.ddf'),$ddf,[Text.Encoding]::Default)
  $lines=& (Join-Path $env:WINDIR 'System32\makecab.exe') /F (Join-Path $work 'payload.ddf') 2>&1;if($LASTEXITCODE -ne 0){throw ($lines -join "`n")}
  $view=Call $database 'OpenView' @('INSERT INTO `_Streams` (`Name`,`Data`) VALUES (?,?)');$record=Call $installer 'CreateRecord' @(2)
  try{SetProperty $record 'StringData' @(1,'payload.cab');$null=Call $record 'SetStream' @(2,(Join-Path $work 'payload.cab'));$null=Call $view 'Execute' @($record)}finally{$null=Call $view 'Close' @();[void][Runtime.InteropServices.Marshal]::ReleaseComObject($record);[void][Runtime.InteropServices.Marshal]::ReleaseComObject($view)}
  Row 'Media' @('DiskId','LastSequence','Cabinet') @(1,$sequence,'#payload.cab')
- Row 'CustomAction' @('Action','Type','Source','Target') @('InstallBackground',1042,$managerId,'--service-install')
- Row 'CustomAction' @('Action','Type','Source','Target') @('RemoveBackground',1042,$managerId,'--service-remove')
- Row 'CustomAction' @('Action','Type','Source','Target') @('LaunchManager',210,$managerId,'')
+ if(-not $managerComponent){throw 'Manager executable is missing from the package.'}
+ $installArgument=if($ExerciseServiceActions){'--msi-action-probe'}else{'--service-install'}
+ $removeArgument=if($ExerciseServiceActions){'--msi-action-probe'}else{'--service-remove'}
+ # Directory-based EXE actions avoid Type 18's "file not marked" failure
+ # during maintenance; quoted paths and component-state gates remain explicit.
+ Row 'CustomAction' @('Action','Type','Source','Target') @('InstallBackground',1058,'INSTALLDIR',('"[INSTALLDIR]CodexLiveBackground.exe" '+$installArgument))
+ Row 'CustomAction' @('Action','Type','Source','Target') @('RemoveBackground',1058,'INSTALLDIR',('"[INSTALLDIR]CodexLiveBackground.exe" '+$removeArgument))
+ Row 'CustomAction' @('Action','Type','Source','Target') @('LaunchManager',226,'INSTALLDIR','"[INSTALLDIR]CodexLiveBackground.exe"')
  Row 'CustomAction' @('Action','Type','Source','Target') @('SetInstallDirectory',51,'INSTALLDIR','[LocalAppDataFolder]Programs\CodexLiveBackground')
  Row 'Upgrade' @('UpgradeCode','VersionMin','VersionMax','Attributes','ActionProperty') @($upgrade,'0.0.0',$manifest.version,0,'OLDPRODUCTS')
  $actions=@{FindRelatedProducts=25;CostInitialize=800;FileCost=900;CostFinalize=1000;MigrateFeatureStates=1200;InstallValidate=1400;InstallInitialize=1500;ProcessComponents=1600;UnpublishFeatures=1800;RemoveFiles=3500;InstallFiles=4000;RegisterUser=6000;RegisterProduct=6100;PublishFeatures=6300;PublishProduct=6400;InstallExecute=6500;RemoveExistingProducts=6550;InstallFinalize=6600}
  foreach($name in $actions.Keys){Row 'InstallExecuteSequence' @('Action','Sequence') @($name,[int]$actions[$name])}
  Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('SetInstallDirectory','NOT SKIPBACKGROUND',950)
- Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('RemoveBackground','REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE AND NOT SKIPBACKGROUND',3450)
- Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('InstallBackground','NOT REMOVE~="ALL" AND NOT SKIPBACKGROUND',6450)
- Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('LaunchManager','NOT REMOVE~="ALL" AND UILevel>=3 AND LAUNCHMANAGER="1"',6700)
+ $serviceGate='(NOT SKIPBACKGROUND OR DREAM_MSI_PROBE="1")'
+ $managerPresent='($'+$managerComponent+'=3 OR ?'+$managerComponent+'=3)'
+ Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('RemoveBackground',('REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE AND '+$serviceGate+' AND ?'+$managerComponent+'=3'),3450)
+ Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('InstallBackground',('NOT REMOVE~="ALL" AND '+$serviceGate+' AND '+$managerPresent),6450)
+ Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('LaunchManager',('NOT REMOVE~="ALL" AND UILevel>=3 AND LAUNCHMANAGER="1" AND '+$managerPresent),6700)
  foreach($pair in @(@('FindRelatedProducts',25),@('CostInitialize',800),@('FileCost',900),@('CostFinalize',1000),@('ExecuteAction',1300))){Row 'InstallUISequence' @('Action','Sequence') @($pair[0],[int]$pair[1])}
  Row 'InstallUISequence' @('Action','Condition','Sequence') @('SetInstallDirectory','NOT SKIPBACKGROUND',950)
  $summary=$database.GetType().InvokeMember('SummaryInformation',$get,$null,$database,@(20))

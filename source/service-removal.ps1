@@ -38,7 +38,7 @@ function Get-DreamBackgroundPackageHooks {
     if(Test-DreamSkinPathEqual -Left $debugger -Right $expected){[pscustomobject]@{Package=$key.PSChildName;Key=$key.PSPath}}
   }
 }
-function Disable-DreamBackgroundPackageHook {
+function Invoke-DreamBackgroundNativeDebugRemoval {
   param([string]$Package)
   if(-not ('CodexBackground.DebugCleanup' -as [type])){
     Add-Type -TypeDefinition @"
@@ -47,11 +47,24 @@ using System.Runtime.InteropServices;
 namespace CodexBackground {
  [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
  interface IPackageDebug { [PreserveSig] int EnableDebugging([MarshalAs(UnmanagedType.LPWStr)]string package,[MarshalAs(UnmanagedType.LPWStr)]string debugger,IntPtr environment); [PreserveSig] int DisableDebugging([MarshalAs(UnmanagedType.LPWStr)]string package); }
- public static class DebugCleanup { public static void Remove(string package) { object settings=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("B1AEC16F-2383-4852-B0E9-8F0B1DC66B4D"))); try { Marshal.ThrowExceptionForHR(((IPackageDebug)settings).DisableDebugging(package)); } finally { Marshal.ReleaseComObject(settings); } } }
+ public static class DebugCleanup { public static bool CheckRemovalResult(int result) { if(result==unchecked((int)0x80070490))return false; Marshal.ThrowExceptionForHR(result);return true; } public static bool Remove(string package) { object settings=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("B1AEC16F-2383-4852-B0E9-8F0B1DC66B4D"))); try { return CheckRemovalResult(((IPackageDebug)settings).DisableDebugging(package)); } finally { Marshal.ReleaseComObject(settings); } } }
 }
 "@
   }
-  [CodexBackground.DebugCleanup]::Remove($Package)
+  return [CodexBackground.DebugCleanup]::Remove($Package)
+}
+function Disable-DreamBackgroundPackageHook {
+  param([string]$Package,[string]$StartupRoot)
+  if(Invoke-DreamBackgroundNativeDebugRemoval -Package $Package){return}
+  # Codex updates can remove an old package while leaving our old debugger key.
+  # Only the specific already-missing package case reaches this branch.
+  if($Package -notmatch '^OpenAI\.Codex_\d+\.\d+\.\d+\.\d+_x64__2p2nqsd0c76g0$' -or -not $StartupRoot){throw '无法验证旧启动挂接，已保留原设置。'}
+  $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\PackagedAppXDebug\'+$Package
+  if(-not(Test-Path -LiteralPath $key)){return}
+  $entry=Get-Item -LiteralPath $key -ErrorAction Stop
+  $debugger="$($entry.GetValue(''))".Trim().Trim('"')
+  if(-not(Test-DreamSkinPathEqual -Left $debugger -Right (Join-Path $StartupRoot 'DreamSkinPortHook.exe')) -or $entry.SubKeyCount -ne 0){throw '旧启动挂接已变化，未移除其他程序的设置。'}
+  Remove-Item -LiteralPath $key -Force -ErrorAction Stop
 }
 function Get-DreamBackgroundWorkers {
   param([string]$StartupRoot)
@@ -124,7 +137,7 @@ function Remove-DreamBackgroundService {
     do{$remaining=@(Get-DreamBackgroundWorkers -StartupRoot $startupRoot);if(-not $remaining.Count){break};Start-Sleep -Milliseconds 250}while([DateTime]::UtcNow -lt $deadline)
     foreach($worker in @(Get-DreamBackgroundWorkers -StartupRoot $startupRoot)){Stop-DreamBackgroundWorker -Identity $worker}
   }
-  foreach($hook in @(Get-DreamBackgroundPackageHooks -StartupRoot $startupRoot)){Disable-DreamBackgroundPackageHook -Package $hook.Package}
+  foreach($hook in @(Get-DreamBackgroundPackageHooks -StartupRoot $startupRoot)){Disable-DreamBackgroundPackageHook -Package $hook.Package -StartupRoot $startupRoot}
   $saved=Read-DreamSkinState -Path (Join-Path $StateRoot 'state.json')
   if($saved){$null=Stop-DreamSkinRecordedInjector -State $saved}
   if(Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue){throw '后台任务尚未完全移除，请重试。'}
