@@ -204,7 +204,7 @@ function Read-ManagerPresetCatalog {
     $imageName = "$($entry.image)"
     $category = "$($entry.category)"
     if ($id -notmatch '^[a-z0-9][a-z0-9-]{0,63}$' -or $seen.ContainsKey($id)) { throw "内置主题 ID 无效或重复：$id" }
-    if (-not $name -or $name.Length -gt 80) { throw "内置主题名称无效：$id" }
+    $name = Assert-DreamSkinThemeName -Value $name
     if ([System.IO.Path]::IsPathRooted($imageName) -or [System.IO.Path]::GetFileName($imageName) -cne $imageName) {
       throw "内置主题图片必须是目录根部的相对文件名：$id"
     }
@@ -688,10 +688,7 @@ function Save-ManagerThemeDirectly {
     [string]$SafeCssPath,
     [string]$LicensePath
   )
-  $trimmed = $ThemeName.Trim()
-  if (-not $trimmed -or $trimmed.Length -gt 80 -or $trimmed -match '[\u0000-\u001f]') {
-    throw '主题名称必须包含 1 到 80 个可见字符。'
-  }
+  $trimmed = Assert-DreamSkinThemeName -Value $ThemeName
   $source = [System.IO.Path]::GetFullPath($SourceImage)
   Assert-DreamSkinImageFile -Path $source -SkipImageMetadata
   Ensure-DreamSkinManagedDirectory -Path $paths.Root -Root $paths.Root
@@ -816,8 +813,7 @@ function Read-ManagerBatchRequest {
 
 function ConvertTo-ManagerBatchTheme {
   param([Parameter(Mandatory = $true)][object]$Item)
-  $itemName = "$($Item.name)".Trim()
-  if (-not $itemName -or $itemName.Length -gt 80 -or $itemName -match '[\u0000-\u001f]') { throw '主题名称必须包含 1 到 80 个可见字符。' }
+  $itemName = Assert-DreamSkinThemeName -Value $Item.name
   $appearanceValue = if ($Item.appearance) { "$($Item.appearance)" } else { 'auto' }
   $safeAreaValue = if ($Item.safeArea) { "$($Item.safeArea)" } else { 'auto' }
   $taskModeValue = if ($Item.taskMode) { "$($Item.taskMode)" } else { 'auto' }

@@ -23,7 +23,7 @@ $workerCode=Join-Path $sandbox Worker.cs;[IO.File]::WriteAllText($workerCode,'us
 & (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe') /nologo /target:winexe ('/out:'+(Join-Path $package CodexLiveBackground.exe)) $workerCode
 if($LASTEXITCODE -ne 0){throw 'Fixture compile failed'}
 $files=@(Get-ChildItem -LiteralPath $package -Recurse -File|ForEach-Object{@{path=$_.FullName.Substring($package.Length+1).Replace('\','/');bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName).Hash}})
-[IO.File]::WriteAllText((Join-Path $package manifest.json),(@{version='1.5.4.1';files=$files}|ConvertTo-Json -Depth 5))
+[IO.File]::WriteAllText((Join-Path $package manifest.json),(@{version='1.5.4.2';files=$files}|ConvertTo-Json -Depth 5))
 $zip=Join-Path $sandbox fixture.zip;Add-Type -AssemblyName System.IO.Compression.FileSystem;[IO.Compression.ZipFile]::CreateFromDirectory($package,$zip)
 $setup=Join-Path $sandbox FixtureSetup.exe
 & (Join-Path $repo 'source\build-setup.ps1') -PackageZip $zip -OutputFile $setup -IconFile $IconFile
@@ -43,7 +43,7 @@ $manager=$null
 try{
  Run-Worker Install
  $key='HKCU:\'+$namespace+'\Uninstall';$registration=Get-ItemProperty -LiteralPath $key
- if($registration.DisplayVersion -ne '1.5.4.1' -or $registration.InstallLocation -ne $root){throw 'Real registry registration mismatch'}
+ if($registration.DisplayVersion -ne '1.5.4.2' -or $registration.InstallLocation -ne $root){throw 'Real registry registration mismatch'}
  if((Get-FileHash -LiteralPath (Join-Path $root '卸载 Codex 动态背景.exe')).Hash -ne (Get-FileHash $setup).Hash){throw 'Standalone uninstaller copy mismatch'}
  $null=New-Item -ItemType Directory -Path (Join-Path $state cdp-profile),(Join-Path $state runtime) -Force
  [IO.File]::WriteAllText((Join-Path $state 'cdp-profile\Login Data'),'keep');[IO.File]::WriteAllText((Join-Path $state 'runtime\cache.txt'),'generated')

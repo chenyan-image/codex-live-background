@@ -19,7 +19,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.4.1-Setup.exe`**，双击安装，无需手动解压。可填写其他本地盘的专用目录，例如 `D:\Apps\CodexLiveBackground`。程序与后台组件统一放在所选目录，桌面仅一个管理器图标。安装窗持续显示步骤和运行记录，直到出现成功或失败结果；完成后从桌面正常打开管理器。失败时显示日志与恢复文件位置。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.4.2-Setup.exe`**，双击安装，无需手动解压。可填写其他本地盘的专用目录，例如 `D:\Apps\CodexLiveBackground`。程序与后台组件统一放在所选目录，桌面仅一个管理器图标。安装窗持续显示步骤和运行记录，直到出现成功或失败结果；完成后从桌面正常打开管理器。失败时显示日志与恢复文件位置。
 
 这是 **v1.5.4 基线的安装维护修复版**，管理器和壁纸引擎恢复到该版行为，不包含 v1.5.5 的主动连接与定时重试。v1.6.0–v1.6.2 已撤回推荐。新装和新版卸载不使用 MSI；只有迁移已安装的历史 MSI 时才调用 Windows Installer 正式移除旧产品。
 
@@ -50,6 +50,8 @@ Wallpaper Engine 的 `scene.pkg`、网页及应用项目无法直接播放；有
 图片在全窗口模式下按比例裁切铺满，不再按横图、方图或竖图决定覆盖范围；不会拉伸变形。聊天框透明度仍可单独调整。
 
 ## 素材与兼容转换
+
+主题名称和壁纸标题最多支持 **4096 个 Unicode 码点**，中文、英文和表情可用；组合表情按所含码点计数。导入、保存、主题包校验和背景加载使用统一上限，名称不能包含换行或控制字符。Steam 标题不再截到 160 字符，界面按原布局省略显示，完整内容保存在配置及使用记录中。
 
 | 素材 | 支持范围 |
 | --- | --- |
@@ -115,7 +117,7 @@ Wallpaper Engine 的 `scene.pkg`、网页及应用项目无法直接播放；有
 
 ### 跨盘安装出现 1926 / 拒绝访问
 
-若旧版卸载或升级在 `D:\Config.Msi\*.rbf` 报“无法设置文件安全”，先退出当前失败安装，再使用 v1.5.4.1 Setup EXE 的安装／修复或「只卸载旧版本」。新包会按上文迁移已识别的 MSI；请完成原账号的 UAC 授权。操作窗口会保留至结束，失败时保留备份和日志。
+若旧版卸载或升级在 `D:\Config.Msi\*.rbf` 报“无法设置文件安全”，先退出当前失败安装，再使用 v1.5.4.2 Setup EXE 的安装／修复或「只卸载旧版本」。新包会按上文迁移已识别的 MSI；请完成原账号的 UAC 授权。操作窗口会保留至结束，失败时保留备份和日志。
 
 工具不删除整个 Config.Msi、不改变盘根权限，也不关闭 Windows Installer 回滚。迁移链路已做隔离测试，现场是否成功以安装结果为准。
 
@@ -155,7 +157,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
   (Join-Path $PWD 'dist\payload.zip'))
 .\source\build-setup.ps1 -PackageZip .\dist\payload.zip `
   -IconFile .\dist\Codex-Background-local-win-x64\CodexBackground.ico `
-  -OutputFile .\dist\Codex-Background-1.5.4.1-Setup.exe
+  -OutputFile .\dist\Codex-Background-1.5.4.2-Setup.exe
 ```
 
 EXE 内嵌负载哈希及文件清单，安装前校验；安装时复制自身作为独立卸载工具，无递归嵌套。历史 `build-msi.ps1` 仅保留供旧版本维护。代码签名流程见 [Windows 发布与签名](windows-trust.md)。
