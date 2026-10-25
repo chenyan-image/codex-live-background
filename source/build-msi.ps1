@@ -38,6 +38,8 @@ try{
  Table 'Control' '`Dialog_` CHAR(72) NOT NULL, `Control` CHAR(50) NOT NULL, `Type` CHAR(20) NOT NULL, `X` SHORT NOT NULL, `Y` SHORT NOT NULL, `Width` SHORT NOT NULL, `Height` SHORT NOT NULL, `Attributes` LONG, `Property` CHAR(72), `Text` CHAR(0) LOCALIZABLE, `Control_Next` CHAR(50), `Help` CHAR(50) LOCALIZABLE PRIMARY KEY `Dialog_`,`Control`'
  Table 'ControlEvent' '`Dialog_` CHAR(72) NOT NULL, `Control_` CHAR(50) NOT NULL, `Event` CHAR(50) NOT NULL, `Argument` CHAR(255) NOT NULL, `Condition` CHAR(255), `Ordering` SHORT PRIMARY KEY `Dialog_`,`Control_`,`Event`,`Argument`,`Condition`'
  Table 'TextStyle' '`TextStyle` CHAR(72) NOT NULL, `FaceName` CHAR(32) NOT NULL, `Size` SHORT NOT NULL, `Color` LONG, `StyleBits` SHORT PRIMARY KEY `TextStyle`'
+ Table 'EventMapping' '`Dialog_` CHAR(72) NOT NULL, `Control_` CHAR(50) NOT NULL, `Event` CHAR(50) NOT NULL, `Attribute` CHAR(50) NOT NULL PRIMARY KEY `Dialog_`,`Control_`,`Event`'
+ Table 'ActionText' '`Action` CHAR(72) NOT NULL, `Description` CHAR(0) LOCALIZABLE, `Template` CHAR(0) LOCALIZABLE PRIMARY KEY `Action`'
  Table 'Registry' '`Registry` CHAR(72) NOT NULL, `Root` SHORT, `Key` CHAR(255) NOT NULL LOCALIZABLE, `Name` CHAR(255) LOCALIZABLE, `Value` CHAR(0) LOCALIZABLE, `Component_` CHAR(72) NOT NULL PRIMARY KEY `Registry`'
  Table 'RegLocator' '`Signature_` CHAR(72) NOT NULL, `Root` SHORT NOT NULL, `Key` CHAR(255) NOT NULL, `Name` CHAR(255), `Type` SHORT PRIMARY KEY `Signature_`'
  Table 'AppSearch' '`Property` CHAR(72) NOT NULL, `Signature_` CHAR(72) NOT NULL PRIMARY KEY `Property`,`Signature_`'
@@ -45,7 +47,7 @@ try{
  Table 'RemoveFile' '`FileKey` CHAR(72) NOT NULL, `Component_` CHAR(72) NOT NULL, `FileName` CHAR(255) LOCALIZABLE, `DirProperty` CHAR(72) NOT NULL, `InstallMode` SHORT NOT NULL PRIMARY KEY `FileKey`'
  Table 'Upgrade' '`UpgradeCode` CHAR(38) NOT NULL, `VersionMin` CHAR(20), `VersionMax` CHAR(20), `Language` CHAR(255), `Attributes` LONG NOT NULL, `Remove` CHAR(255), `ActionProperty` CHAR(72) NOT NULL PRIMARY KEY `UpgradeCode`,`VersionMin`,`VersionMax`,`Language`,`Attributes`'
  $product=StableGuid ('product-'+$manifest.version);$upgrade=StableGuid 'upgrade'
- $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS;INSTALLDIR;PREVIOUSINSTALLDIR;CURRENTINSTALLDIR';ARPNOMODIFY='1';ARPINSTALLLOCATION='[INSTALLDIR]';DefaultUIFont='Normal';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
+ $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS;INSTALLDIR;PREVIOUSINSTALLDIR;CURRENTINSTALLDIR';ARPNOMODIFY='1';ARPINSTALLLOCATION='[INSTALLDIR]';DefaultUIFont='Normal';MsiLogging='voicewarmupx';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
  if($TestPackage){$properties.ProductName='Codex Background isolated package test';$properties.SKIPBACKGROUND='1';$properties.LAUNCHMANAGER='0'}
  if($ExerciseServiceActions){$properties.DREAM_MSI_PROBE='1'}
  foreach($name in $properties.Keys){Row 'Property' @('Property','Value') @($name,$properties[$name])}
@@ -104,7 +106,7 @@ try{
  $managerPresent='($'+$managerComponent+'=3 OR ?'+$managerComponent+'=3)'
  Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('RemoveBackground',('REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE AND '+$serviceGate+' AND ?'+$managerComponent+'=3'),3450)
  Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('InstallBackground',('NOT REMOVE~="ALL" AND '+$serviceGate+' AND '+$managerPresent),6450)
- Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('LaunchManager',('NOT REMOVE~="ALL" AND UILevel>=3 AND LAUNCHMANAGER="1" AND '+$managerPresent),6700)
+ Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('LaunchManager',('NOT REMOVE~="ALL" AND UILevel>=3 AND UILevel<5 AND LAUNCHMANAGER="1" AND '+$managerPresent),6700)
  foreach($pair in @(@('FindRelatedProducts',25),@('AppSearch',50),@('CostInitialize',800),@('FileCost',900),@('CostFinalize',1000),@('ExecuteAction',1300))){Row 'InstallUISequence' @('Action','Sequence') @($pair[0],[int]$pair[1])}
  Row 'TextStyle' @('TextStyle','FaceName','Size') @('Normal','Microsoft YaHei UI',9)
  Row 'Dialog' @('Dialog','HCentering','VCentering','Width','Height','Attributes','Title','Control_First','Control_Default','Control_Cancel') @('InstallDirDlg',50,50,390,200,3,'Codex 动态背景 · 安装','InstallPath','Install','Cancel')
@@ -120,6 +122,39 @@ try{
  Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('InstallDirDlg','Install','EndDialog','Return','1',2)
  Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('InstallDirDlg','Cancel','EndDialog','Exit','1',1)
  Row 'InstallUISequence' @('Action','Condition','Sequence') @('InstallDirDlg','NOT Installed AND NOT REMOVE AND UILevel>=5',1100)
+ # This modeless dialog stays visible while ExecuteAction waits on the real
+ # synchronous file and service operations. Progress comes from MSI messages.
+ Row 'Dialog' @('Dialog','HCentering','VCentering','Width','Height','Attributes','Title','Control_First') @('ProgressDlg',50,50,420,220,1,'[ProductName] · 正在处理','Cancel')
+ foreach($control in @(
+  @('Heading','Text',20,16,380,24,3,$null,'正在安装或更新，请稍候',$null),
+  @('Stage','Text',20,55,380,38,3,$null,'正在准备安装步骤…',$null),
+  @('Progress','ProgressBar',20,103,380,16,1,$null,$null,$null),
+  @('Details','Text',20,128,380,23,3,$null,'',$null),
+  @('WaitNote','Text',20,156,380,26,3,$null,'配置后台组件可能需要几十秒。此窗口会保留到操作结束。',$null),
+  @('Cancel','PushButton',325,189,75,23,3,$null,'取消','Cancel')
+ )){Row 'Control' @('Dialog_','Control','Type','X','Y','Width','Height','Attributes','Property','Text','Control_Next') (@('ProgressDlg')+$control)}
+ Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('ProgressDlg','Cancel','EndDialog','Exit','1',1)
+ foreach($event in @(@('Stage','ActionText','Text'),@('Details','ActionData','Text'),@('Progress','SetProgress','Progress'))){Row 'EventMapping' @('Dialog_','Control_','Event','Attribute') (@('ProgressDlg')+$event)}
+ Row 'InstallUISequence' @('Action','Condition','Sequence') @('ProgressDlg','UILevel>=5',1280)
+ foreach($step in @(
+  @('StopOldBackground','正在停止旧版后台组件…'),@('RemoveExistingProducts','正在卸载旧版本…'),
+  @('InstallFiles','正在复制程序和后台组件…'),@('WriteRegistryValues','正在保存安装位置…'),
+  @('InstallBackground','正在配置并验证背景服务，请稍候…'),@('RemoveBackground','正在停止服务并清理缓存，请稍候…'),
+  @('RemoveFiles','正在移除程序文件…'),@('InstallFinalize','正在完成安装事务…')
+ )){Row 'ActionText' @('Action','Description') @($step[0],$step[1])}
+ foreach($ending in @(
+  @('SuccessDlg',-1,'操作已完成','程序文件和后台设置已处理完成。点击“完成”退出安装器。'),
+  @('FailureDlg',-3,'操作未完成','请查看安装日志中的错误信息后重试。日志位置：[MsiLogFileLocation]'),
+  @('UserExitDlg',-2,'操作已取消','安装操作已取消。若后台步骤已开始，安装器会先完成当前清理或回滚。')
+ )){
+  Row 'Dialog' @('Dialog','HCentering','VCentering','Width','Height','Attributes','Title','Control_First','Control_Default','Control_Cancel') @($ending[0],50,50,420,220,3,'[ProductName] · 结果','Finish','Finish','Finish')
+  Row 'Control' @('Dialog_','Control','Type','X','Y','Width','Height','Attributes','Text') @($ending[0],'Heading','Text',20,20,380,25,3,$ending[2])
+  Row 'Control' @('Dialog_','Control','Type','X','Y','Width','Height','Attributes','Text') @($ending[0],'Message','Text',20,62,380,105,3,$ending[3])
+  Row 'Control' @('Dialog_','Control','Type','X','Y','Width','Height','Attributes','Text','Control_Next') @($ending[0],'Finish','PushButton',325,185,75,24,3,'完成','Finish')
+  Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @($ending[0],'Finish','EndDialog','Return','1',2)
+  Row 'InstallUISequence' @('Action','Condition','Sequence') @($ending[0],'UILevel>=5',[int]$ending[1])
+ }
+ Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('SuccessDlg','Finish','DoAction','LaunchManager','NOT REMOVE~="ALL" AND LAUNCHMANAGER="1"',1)
  $summary=$database.GetType().InvokeMember('SummaryInformation',$get,$null,$database,@(20))
  foreach($pair in @(@(1,936),@(2,'Installation Database'),@(3,'Codex Live Background '+$manifest.version),@(4,'codex-live-background contributors'),@(7,'x64;2052'),@(9,([guid]::NewGuid().ToString('B').ToUpperInvariant())),@(14,200),@(15,10),@(18,'Windows Installer database builder'))){SetProperty $summary 'Property' @($pair[0],$pair[1])}
  $null=Call $summary 'Persist' @();$null=Call $database 'Commit' @();[void][Runtime.InteropServices.Marshal]::ReleaseComObject($summary)
