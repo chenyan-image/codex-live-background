@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-  [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','RemoveSkin','RemoveService','PrepareUpgrade','RollbackUpgrade','Status','Connection','Check')][string]$Action = 'Status',
+  [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','RemoveSkin','RemoveService','PrepareUpgrade','RollbackUpgrade','Status','Connection','Connect','AutoConnect','Check')][string]$Action = 'Status',
   [string]$Media,
   [int]$ManagerPid=0,
   [switch]$AllowDisconnected,
@@ -56,7 +56,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.5.4' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne '1.5.5' -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -69,7 +69,7 @@ function Connect-YzCodex {
   $registered=Get-DreamSkinVerifiedCdpIdentityForAnyRegistered -Port 9335
   if($registered){return $registered.Identity}
   $running=@(Get-DreamSkinRegisteredCodexInstalls|ForEach-Object{Get-DreamSkinCodexProcesses -Codex $_})
-  if($running.Count -gt 0){throw '当前 Codex 是未开启背景连接的普通启动实例。首次启用请保存输入并手动完全退出一次，再点击“换壁纸”；之后服务会自动准备连接。'}
+  if($running.Count -gt 0){throw '当前 Codex 实例未开放背景连接。请保存输入并手动完全退出 Codex，再点击左下角“连接 Codex”；服务已为下次启动准备连接。不会自动关闭聊天窗口。'}
   if(-not (Test-DreamSkinPortAvailable -Port 9335)){throw '本机 9335 端口被其他程序占用，暂时无法连接背景。'}
   $profile=Join-Path $stateRoot 'cdp-profile'
   $null=New-Item -ItemType Directory -Path $profile -Force
@@ -80,7 +80,41 @@ function Connect-YzCodex {
     $identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
     if($identity){return $identity}
   }while([DateTime]::UtcNow -lt $deadline)
-  throw '已请求打开 Codex，背景连接尚未就绪。等主窗口完成加载后，再点“换壁纸”。'
+  throw '已请求打开 Codex，背景连接尚未就绪。等主窗口完成加载后，再点击左下角重试连接。'
+}
+function Get-YzConnectionReport {
+  $codex=$null;$identity=$null;$auto=$null
+  try{$codex=Get-DreamSkinCodexInstall;$identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex;if(-not $identity){$registered=Get-DreamSkinVerifiedCdpIdentityForAnyRegistered -Port 9335;if($registered){$identity=$registered.Identity}}}catch{}
+  try{$auto=Get-YzBackgroundAutostart -StartupRoot $startup}catch{}
+  $health=Get-YzRendererHealth $identity
+  return @{installed=[bool]$codex;version=$(if($codex){"$($codex.Version)"}else{''});connected=[bool]$identity;serviceRunning=[bool]($auto -and $auto.running);autostart=[bool]($auto -and $auto.enabled);background=$health.status}
+}
+function Invoke-YzConnectionHandshake {
+  $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $engine 'scripts\start-dream-skin.ps1') -Port 9335 -ConnectOnly -OperationLockTimeoutMilliseconds 10000 2>&1)
+  if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
+}
+function Invoke-YzConnectionAttempt {
+  param([switch]$Automatic)
+  $report=Get-YzConnectionReport
+  try{
+    if(-not $report.installed){throw '未找到官方 Codex，请先安装。'}
+    if($Automatic){
+      if(-not $report.autostart){$report.message='点击此处装载服务并连接 Codex';return $report}
+      $running=@(Get-DreamSkinRegisteredCodexInstalls|ForEach-Object{Get-DreamSkinCodexProcesses -Codex $_})
+      if(-not $report.connected -and $running.Count -eq 0){$report.message='等待打开 Codex；也可点击此处打开并连接';return $report}
+    }
+    if(-not $report.connected -or -not $report.serviceRunning){
+      [Console]::Out.WriteLine('正在准备背景服务…')
+      Ensure-YzService
+      [Console]::Out.WriteLine('正在建立 Codex 连接…')
+      $identity=Connect-YzCodex
+      Invoke-YzConnectionHandshake
+      $report=Get-YzConnectionReport
+      if(-not $report.connected){throw '连接未通过验证，请点击重试。'}
+    }
+    $report.message='连接就绪，点击可重新检查连接'
+  }catch{$message=$_.Exception.Message;$report=Get-YzConnectionReport;$report.message=$message;$report.connectionError=$true}
+  return $report
 }
 function Prepare-YzVideo([string]$Path,[switch]$Preview) {
   if([IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.mp4','.webm','.gif') -or (-not $Preview -and [IO.Path]::GetExtension($Path).ToLowerInvariant() -eq '.gif')){return [pscustomobject]@{path=$Path;converted=$false}}
@@ -131,8 +165,8 @@ try {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       $prepared=$false
-      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.5.4' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
-      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.5.4')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
+      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.5.5' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
+      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.5.5')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
       $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
@@ -146,7 +180,7 @@ try {
       $shortcuts=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $stateRoot
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.5.4';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.5.5';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -226,12 +260,8 @@ try {
     'Resume' { Assert-Installed; $result = Invoke-Engine 'Resume'; if (-not $result.rendererApplied) { throw '已取消暂停，等待 Codex 连接；也可打开 Codex 后再点恢复。' }; Write-Output '已恢复保存的背景。' }
     'RemoveSkin' { Remove-DreamBackgroundSkin -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
     {$_ -in @('Remove','RemoveService')} { Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -AllowDisconnected:$AllowDisconnected }
-    'Connection' {
-      $codex=$null;$identity=$null;$auto=$null
-      try{$codex=Get-DreamSkinCodexInstall;$identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex}catch{}
-      try{$auto=Get-YzBackgroundAutostart -StartupRoot $startup}catch{}
-      $health=Get-YzRendererHealth $identity
-      $data=@{installed=[bool]$codex;version=$(if($codex){"$($codex.Version)"}else{''});connected=[bool]$identity;serviceRunning=[bool]($auto -and $auto.running);autostart=[bool]($auto -and $auto.enabled);background=$health.status}
+    {$_ -in @('Connection','Connect','AutoConnect')} {
+      $data=if($Action -eq 'Connection'){Get-YzConnectionReport}else{Invoke-YzConnectionAttempt -Automatic:($Action -eq 'AutoConnect')}
       [Console]::Out.WriteLine('DREAM_STATUS:'+($data|ConvertTo-Json -Compress))
     }
     'Status' {

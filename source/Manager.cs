@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.4.0")]
-[assembly: AssemblyFileVersion("1.5.4.0")]
+[assembly: AssemblyVersion("1.5.5.0")]
+[assembly: AssemblyFileVersion("1.5.5.0")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -225,8 +225,9 @@ internal sealed partial class Manager : Form {
         }
     }
     void Run(string action){
-        if(busy)return;bool statusOnly=action=="Status"||action=="Connection";if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
+        if(busy)return;bool connecting=action=="Connect"||action=="AutoConnect",statusOnly=action=="Status"||action=="Connection"||connecting;if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
         if(statusOnly)checkingStatus=true;
+        if(connecting&&(action=="Connect"||status.ForeColor!=Mint)){status.Text="○  正在连接 Codex…";connectionDetail.Text="正在检查服务和背景连接…";status.ForeColor=Muted;}
         if(!statusOnly){CancelPreview();busy=true;runningAction=action;SetBusyControls(true);progress.Visible=true;previewHint.Text=action=="Apply"?"正在应用壁纸，视频不兼容时会自动适配…":"正在处理服务设置…";}
         WallpaperEntry applyingEntry=selected;
         string chosen=selected!=null?selected.Path:media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -244,7 +245,7 @@ internal sealed partial class Manager : Form {
                     using(var outputDone=new ManualResetEvent(false))using(var errorDone=new ManualResetEvent(false)){
                     p.OutputDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{outputDone.Set();}catch(ObjectDisposedException){}return;}if(e.Data.StartsWith("DREAM_STATUS:")){string json=e.Data.Substring(13);Ui(delegate{if(generation==operationGeneration)UpdateConnection(json);});return;}if(e.Data.StartsWith("DREAM_PREVIEW:")){string file=e.Data.Substring(14);Ui(delegate{if(generation==operationGeneration)preview.SetMedia(file);});return;}lock(stdout)stdout.AppendLine(e.Data);Ui(delegate{if(generation==operationGeneration&&busy&&!closeRequested){if(log.TextLength>24000)log.Text=log.Text.Substring(log.TextLength-12000);log.AppendText(Environment.NewLine+e.Data);}});};
                     p.ErrorDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{errorDone.Set();}catch(ObjectDisposedException){}return;}lock(stderr)stderr.AppendLine(e.Data);};
-                    p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,statusOnly?30000:action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
+                    p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,connecting?120000:statusOnly?30000:action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
                     lock(stdout)lock(stderr)result=(stdout.ToString()+Environment.NewLine+stderr.ToString()).Trim();
                     }
                     if(result.Length==0)result=success?"操作完成。":"操作失败，请查看使用说明。";
@@ -255,10 +256,10 @@ internal sealed partial class Manager : Form {
                 if(generation!=operationGeneration)return;
                 if(action!="Connection")log.Text=(success?"✓ ":"操作未完成：")+result;busy=false;SetBusyControls(false);progress.Visible=false;
                 if(closeRequested){Close();return;}
-                if(!success){if(statusOnly){status.Text="○  检测暂不可用";status.ForeColor=Muted;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
+                if(!success){if(statusOnly){status.Text=connecting?"○  点击重试连接":"○  检测暂不可用";status.ForeColor=Muted;connectionDetail.Text=result.Length>220?result.Substring(0,220):result;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
                 if(success&&action=="Apply")AppliedToHistory(applyingEntry);
                 if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=action=="RemoveService"?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
-                if(success&&!statusOnly)Run("Connection");
+                if(pendingConnect){pendingConnect=false;Run("Connect");}else if(success&&!statusOnly)Run("Connection");
             });
         });
     }
