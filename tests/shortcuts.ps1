@@ -10,15 +10,17 @@ try{
  $oldEntry=Join-Path $links 'Codex（动态背景）.lnk';$link=$shell.CreateShortcut($oldEntry);$link.TargetPath=Join-Path $state 'startup\DreamSkinPortHook.exe';$link.Arguments='--launch';$link.Save()
  $result=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $state -Directories @($links) -DesktopDirectory $links
  if(Test-Path -LiteralPath $oldEntry){throw 'Extra generated desktop icon survived'}
- if($result.repaired -ne 1 -or $shell.CreateShortcut($path).Arguments -ne '--launch'){throw 'Taskbar shortcut not repaired'}
+ if($result.repaired -ne 1 -or $shell.CreateShortcut($path).Arguments -ne ('shell:AppsFolder\'+$codex.AppUserModelId) -or [CodexBackgroundShell.Identity]::ReadShortcut($path) -cne $codex.AppUserModelId){throw 'Taskbar shortcut not repaired'}
  if((Get-FileHash -LiteralPath $other).Hash -cne $unrelated){throw 'Unrelated shortcut changed'}
  if((Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $state -Directories @($links) -DesktopDirectory $links).repaired -ne 0){throw 'Shortcut migration is not idempotent'}
  $link=$shell.CreateShortcut($oldEntry);$link.TargetPath=$codex.Executable;$link.Description='启动官方 Codex 并恢复动态背景';$link.Save()
  $null=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $state -Directories @($links) -DesktopDirectory $links
  if(Test-Path -LiteralPath $oldEntry){throw 'Old restored generated icon survived'}
  Restore-DreamBackgroundShortcuts -StateRoot $state
- if((Get-FileHash -LiteralPath $path).Hash -cne $before){throw 'Shortcut bytes not restored'}
+ if($shell.CreateShortcut($path).Arguments -cne ('shell:AppsFolder\'+$codex.AppUserModelId)){throw 'Uninstall restored a versioned executable link'}
+ $record=Get-Content (Join-Path $state 'shortcut-backups\entries.json') -Raw|ConvertFrom-Json
+ if((Get-FileHash -LiteralPath $record.entries[0].backup).Hash -cne $before){throw 'Original shortcut backup lost'}
  $null=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $state -Directories @($links);$link=$shell.CreateShortcut($path);$link.TargetPath='C:\Windows\write.exe';$link.Save();$changed=(Get-FileHash -LiteralPath $path).Hash
  Restore-DreamBackgroundShortcuts -StateRoot $state;if((Get-FileHash -LiteralPath $path).Hash -cne $changed){throw 'User shortcut edits were overwritten'}
 }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
-@{pass=$true;cases=7;noExtraDesktopIcon=$true;directLaunch=$true;unrelatedPreserved=$true;idempotent=$true;restored=$true;userChangesPreserved=$true}|ConvertTo-Json -Compress
+@{pass=$true;cases=7;noExtraDesktopIcon=$true;canonicalLaunch=$true;unrelatedPreserved=$true;idempotent=$true;backupPreserved=$true;userChangesPreserved=$true}|ConvertTo-Json -Compress
