@@ -6,9 +6,18 @@ using System.Windows.Forms;
 
 internal sealed class TypeFilter : ActionButton {
     public readonly List<object> Items=new List<object>();int selected;
+    readonly ContextMenuStrip menu=new ContextMenuStrip{BackColor=Color.FromArgb(27,32,37),ForeColor=Color.FromArgb(225,235,230),ShowImageMargin=false};
     public event EventHandler SelectedIndexChanged;
     public int SelectedIndex {get{return selected;}set{if(selected==value){if(Items.Count>value)Text=Items[value]+"  ▾";return;}selected=value;Text=Items[value]+"  ▾";if(SelectedIndexChanged!=null)SelectedIndexChanged(this,EventArgs.Empty);}}
-    protected override void OnClick(EventArgs e){base.OnClick(e);var menu=new ContextMenuStrip{BackColor=Color.FromArgb(27,32,37),ForeColor=Color.FromArgb(225,235,230),ShowImageMargin=false};for(int i=0;i<Items.Count;i++){int index=i;var item=new ToolStripMenuItem(Convert.ToString(Items[i])){Checked=i==selected};item.Click+=delegate{SelectedIndex=index;};menu.Items.Add(item);}menu.Closed+=delegate{menu.Dispose();};menu.Show(this,new Point(0,Height));}
+    protected override void OnClick(EventArgs e){
+        base.OnClick(e);if(IsDisposed||Disposing||Items.Count==0)return;if(menu.Visible){menu.Close();return;}
+        for(int i=menu.Items.Count-1;i>=0;i--){var old=menu.Items[i];menu.Items.RemoveAt(i);old.Dispose();}
+        for(int i=0;i<Items.Count;i++){int index=i;var item=new ToolStripMenuItem(Convert.ToString(Items[i])){Checked=i==selected};item.Click+=delegate{SelectedIndex=index;};menu.Items.Add(item);}
+        menu.Font=Font;menu.Show(this,new Point(0,Height));
+    }
+    // WinForms continues using the popup after Closed returns. Keep it alive
+    // until its owning filter is disposed instead of disposing inside Closed.
+    protected override void Dispose(bool disposing){if(disposing)menu.Dispose();base.Dispose(disposing);}
 }
 
 internal sealed class NavigationButton : Button {
