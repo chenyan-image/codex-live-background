@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.3.0")]
-[assembly: AssemblyFileVersion("1.5.3.0")]
+[assembly: AssemblyVersion("1.5.4.0")]
+[assembly: AssemblyFileVersion("1.5.4.0")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -319,6 +319,7 @@ internal sealed partial class Manager : Form {
         File.WriteAllText(reportPath,"{\"pass\":true,\"minimize\":true,\"maximize\":true,\"restore\":true,\"resize\":true,\"resizeCycles\":80,\"resizeNoTrails\":true,\"opacityFeedback\":true,\"sliderDragEvents\":250,\"sliderNoTrails\":true,\"sliderKeyboard\":true,\"commands\":4}");close.PerformClick();if(!IsDisposed)throw new Exception("Close failed");return 0;
     }
     [STAThread]static int Main(string[] args){
+        if(args.Length==1&&args[0]=="--msi-action-probe")return 0;
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
         if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
