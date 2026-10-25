@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -11,7 +11,7 @@ using System.Windows.Forms;
 
 internal sealed partial class Manager {
     WallpaperLibrary library;List<WallpaperEntry> builtinEntries=new List<WallpaperEntry>(),steamEntries=new List<WallpaperEntry>();
-    WallpaperEntry selected;string page="local",typeFilter="all",stateDirectory;int pageNumber,previewGeneration,scanGeneration,renderedCapacity;bool scanning,checkingStatus;
+    WallpaperEntry selected;string page="local",typeFilter="all",stateDirectory;int pageNumber,previewGeneration,scanGeneration,renderedCapacity;bool scanning,checkingStatus,pendingConnect;
     readonly List<NavigationButton> navigation=new List<NavigationButton>();
     readonly FlowLayoutPanel gallery=new BufferedFlow();
     readonly ContinuousWallpaperGallery steamGallery=new ContinuousWallpaperGallery();
@@ -19,9 +19,10 @@ internal sealed partial class Manager {
     readonly Label pageTitle=new Label(),pageSubtitle=new Label(),countLabel=new Label(),pageLabel=new Label(),previewHint=new Label(),sourceLabel=new Label(),connectionDetail=new Label(),emptyLabel=new Label();
     readonly TextBox search=new TextBox();readonly Button importButton=new ActionButton(),scanButton=new ActionButton(),chooseSteam=new ActionButton(),applyButton=new ActionButton(),removeEntry=new ActionButton(),previousPage=new ActionButton(),nextPage=new ActionButton();
     readonly TypeFilter filters=new TypeFilter();readonly System.Windows.Forms.Timer connectionTimer=new System.Windows.Forms.Timer{Interval=20000};
+    readonly ToolTip connectionTip=new ToolTip{AutoPopDelay=20000,InitialDelay=250,ReshowDelay=100};
     MediaPreviewJob previewJob;readonly List<WallpaperTile> tiles=new List<WallpaperTile>();
     void BuildGallery(bool checkStatus){
-        Text="Codex 动态背景 · 1.5.4";Font=new Font("Microsoft YaHei UI",9.5F);ForeColor=Ink;BackColor=Color.FromArgb(12,14,17);
+        Text="Codex 动态背景 · 1.5.5";Font=new Font("Microsoft YaHei UI",9.5F);ForeColor=Ink;BackColor=Color.FromArgb(12,14,17);
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;FormBorderStyle=FormBorderStyle.None;Padding=new Padding(1);ClientSize=new Size(1310,816);MinimumSize=new Size(1090,720);StartPosition=FormStartPosition.CenterScreen;
         DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);
         try{Icon=new Icon(Path.Combine(root,"CodexBackground.ico"),32,32);}catch{}
@@ -35,7 +36,7 @@ internal sealed partial class Manager {
         var nav=new BufferedFlow{Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,Margin=Padding.Empty};
         string[] ids={"local","steam","history","settings"},names={"本地壁纸","Wallpaper Engine","使用记录","服务与设置"},glyphs={"library","steam","recent","settings"};
         for(int i=0;i<ids.Length;i++){string id=ids[i];var button=new NavigationButton{Text=names[i],Glyph=glyphs[i],Tag=id,Width=176,Selected=i==0,AccessibleName=names[i]};button.Click+=delegate{Navigate(id);};navigation.Add(button);nav.Controls.Add(button);}sidebar.Controls.Add(nav,0,2);
-        var connection=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12,8,8,4),Cursor=Cursors.Hand};status.Text=checkStatus?"○  正在检测 Codex":"○  尚未检测";status.Font=new Font(Font.FontFamily,9F,FontStyle.Bold);status.ForeColor=Muted;status.Dock=DockStyle.Top;status.Height=25;connectionDetail.Text="点击重新检测连接";connectionDetail.ForeColor=Muted;connectionDetail.Font=new Font(Font.FontFamily,8F);connectionDetail.Dock=DockStyle.Fill;connection.Controls.Add(connectionDetail);connection.Controls.Add(status);EventHandler recheck=delegate{Run("Connection");};connection.Click+=recheck;status.Click+=recheck;connectionDetail.Click+=recheck;sidebar.Controls.Add(connection,0,4);sidebar.Controls.Add(Caption("1.5.4  ·  LOCAL FIRST",7.5F,Color.FromArgb(81,96,106)),0,5);
+        var connection=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12,8,8,4),Cursor=Cursors.Hand};status.Text=checkStatus?"○  正在检测 Codex":"○  尚未检测";status.Font=new Font(Font.FontFamily,9F,FontStyle.Bold);status.ForeColor=Muted;status.Dock=DockStyle.Top;status.Height=25;connectionDetail.Text="点击连接 Codex";connectionDetail.ForeColor=Muted;connectionDetail.Font=new Font(Font.FontFamily,8F);connectionDetail.Dock=DockStyle.Fill;connection.Controls.Add(connectionDetail);connection.Controls.Add(status);EventHandler recheck=delegate{if(checkingStatus){pendingConnect=true;return;}Run("Connect");};connection.Click+=recheck;status.Click+=recheck;connectionDetail.Click+=recheck;sidebar.Controls.Add(connection,0,4);sidebar.Controls.Add(Caption("1.5.5  ·  LOCAL FIRST",7.5F,Color.FromArgb(81,96,106)),0,5);
         var main=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(29,17,28,8),Margin=Padding.Empty};main.RowStyles.Add(new RowStyle(SizeType.Absolute,87));main.RowStyles.Add(new RowStyle(SizeType.Percent,100));main.RowStyles.Add(new RowStyle(SizeType.Absolute,48));main.RowStyles.Add(new RowStyle(SizeType.Absolute,20));shell.Controls.Add(main,1,0);
         var heading=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=2,Margin=Padding.Empty};heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));heading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,150));heading.RowStyles.Add(new RowStyle(SizeType.Absolute,41));heading.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         pageTitle.Text="我的壁纸";pageTitle.Font=new Font(Font.FontFamily,23F,FontStyle.Bold);pageTitle.Dock=DockStyle.Fill;heading.Controls.Add(pageTitle,0,0);pageSubtitle.Text="把喜欢的风景，留在每一次对话里。";pageSubtitle.Font=new Font(Font.FontFamily,8.5F);pageSubtitle.ForeColor=Muted;pageSubtitle.Dock=DockStyle.Fill;heading.Controls.Add(pageSubtitle,0,1);
@@ -53,11 +54,11 @@ internal sealed partial class Manager {
         previewHint.Text="选中卡片后预览，点击应用切换背景。";previewHint.Font=new Font(Font.FontFamily,8F);previewHint.ForeColor=Muted;previewHint.Dock=DockStyle.Fill;previewHint.AutoEllipsis=true;main.Controls.Add(previewHint,0,3);
         AddTitleBar();
         FormClosing+=delegate(object sender,FormClosingEventArgs e){connectionTimer.Stop();Interlocked.Increment(ref scanGeneration);CancelPreview();cancelStatus=true;lock(statusLock){try{if(statusProcess!=null&&!statusProcess.HasExited)statusProcess.Kill();}catch(InvalidOperationException){}}if(busy){closeRequested=true;e.Cancel=true;Hide();}};
-        FormClosed+=delegate{connectionTimer.Dispose();};
+        FormClosed+=delegate{connectionTimer.Dispose();connectionTip.Dispose();};
         if(checkStatus){LoadSavedTheme();ImportCurrentTheme();if(selected==null){var recent=library.Snapshot().Where(x=>!String.IsNullOrEmpty(x.LastUsedUtc)).OrderByDescending(x=>x.LastUsedUtc).FirstOrDefault();if(recent!=null)SelectEntry(recent);}}RenderGallery();
         if(selected==null&&builtinEntries.Count>0)SelectEntry(builtinEntries[0]);
         if(!String.IsNullOrEmpty(library.Warning))log.Text=library.Warning;
-        if(checkStatus){Shown+=delegate{Run("Connection");};connectionTimer.Tick+=delegate{if(!busy&&!checkingStatus)Run("Connection");};connectionTimer.Start();}
+        if(checkStatus){Shown+=delegate{Run("AutoConnect");};connectionTimer.Tick+=delegate{if(!busy&&!checkingStatus)Run("AutoConnect");};connectionTimer.Start();}
     }
     void BuildInspector(){
         inspector.AutoScroll=true;var layout=new BufferedTable{Dock=DockStyle.Top,Height=540,ColumnCount=1,RowCount=11,Margin=Padding.Empty};int[] heights={20,135,42,23,42,32,28,32,42,12,32};foreach(int h in heights)layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));inspector.Controls.Add(layout);
@@ -72,7 +73,7 @@ internal sealed partial class Manager {
     void BuildServicePage(){
         var layout=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=5,Padding=new Padding(0,8,0,0),Margin=Padding.Empty};layout.RowStyles.Add(new RowStyle(SizeType.Absolute,38));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,46));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,64));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,32));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));servicePage.Controls.Add(layout);
         layout.Controls.Add(Caption("后台服务",16,Ink),0,0);layout.Controls.Add(Caption("装载后随 Windows 登录和 Codex 启动恢复，关闭管理器不影响背景。",9,Muted),0,1);
-        commands.Dock=DockStyle.Fill;commands.WrapContents=false;commands.Margin=Padding.Empty;commands.Controls.Add(MakeButton("装载服务",true,false,delegate{Run("Install");}));commands.Controls.Add(MakeButton("卸载皮肤",false,false,delegate{ConfirmRemoval();}));commands.Controls.Add(MakeButton("卸载服务",false,true,delegate{ConfirmServiceRemoval();}));commands.Controls.Add(MakeButton("重新检测",false,false,delegate{Run("Connection");}));foreach(Control b in commands.Controls){b.Width=153;b.Height=42;}layout.Controls.Add(commands,0,2);layout.Controls.Add(Caption("运行记录",9,Muted),0,3);
+        commands.Dock=DockStyle.Fill;commands.WrapContents=false;commands.Margin=Padding.Empty;commands.Controls.Add(MakeButton("装载服务",true,false,delegate{Run("Install");}));commands.Controls.Add(MakeButton("卸载皮肤",false,false,delegate{ConfirmRemoval();}));commands.Controls.Add(MakeButton("卸载服务",false,true,delegate{ConfirmServiceRemoval();}));commands.Controls.Add(MakeButton("连接 Codex",false,false,delegate{if(checkingStatus){pendingConnect=true;return;}Run("Connect");}));foreach(Control b in commands.Controls){b.Width=153;b.Height=42;}layout.Controls.Add(commands,0,2);layout.Controls.Add(Caption("运行记录",9,Muted),0,3);
         var card=new Surface{Dock=DockStyle.Fill,Padding=new Padding(15),BackColor=Color.FromArgb(20,24,28),Margin=Padding.Empty};log.Multiline=true;log.ReadOnly=true;log.BorderStyle=BorderStyle.None;log.ScrollBars=ScrollBars.Vertical;log.Dock=DockStyle.Fill;log.ForeColor=Muted;log.BackColor=card.BackColor;log.Font=new Font(Font.FontFamily,9F);log.Text="准备就绪。导入、选择，再点击应用壁纸。";card.Controls.Add(log);progress.Dock=DockStyle.Bottom;progress.Height=3;progress.Visible=false;progress.Style=ProgressBarStyle.Marquee;card.Controls.Add(progress);layout.Controls.Add(card,0,4);
     }
     void Navigate(string destination){
@@ -136,9 +137,12 @@ internal sealed partial class Manager {
         try{
             var data=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(json);object value;
             bool connected=data.TryGetValue("connected",out value)&&Convert.ToBoolean(value),installed=data.TryGetValue("installed",out value)&&Convert.ToBoolean(value),service=data.TryGetValue("serviceRunning",out value)&&Convert.ToBoolean(value);
+            string message=data.TryGetValue("message",out value)?Convert.ToString(value):"",connectionError=data.TryGetValue("connectionError",out value)?Convert.ToString(value):"";
             string version=data.TryGetValue("version",out value)?Convert.ToString(value):"",background=data.TryGetValue("background",out value)?Convert.ToString(value):"unknown";
-            status.Text=connected?"●  Codex 连接就绪":installed?"○  等待 Codex 连接":"○  未检测到 Codex";status.ForeColor=connected?Mint:Muted;
-            connectionDetail.Text=(installed?"Codex "+version:"请安装官方稳定版")+Environment.NewLine+(service?"背景服务运行中":"背景服务未装载")+(connected?Environment.NewLine+BackgroundStatusText(background):"");
+            status.Text=connected?"●  Codex 连接就绪":installed?"○  等待 Codex 连接":"○  未检测到 Codex";if(!connected&&connectionError=="True")status.Text="○  点击重试连接";status.ForeColor=connected?Mint:Muted;
+            connectionDetail.Text=(installed?"Codex "+version:"请安装官方稳定版")+Environment.NewLine+(service?"背景服务运行中":"背景服务未装载")+(connected?Environment.NewLine+BackgroundStatusText(background):"")+Environment.NewLine+(String.IsNullOrEmpty(message)?"点击此处连接 Codex":message);
+            connectionTip.SetToolTip(status,connectionDetail.Text);connectionTip.SetToolTip(connectionDetail,connectionDetail.Text);
+            if(connectionError=="True"){log.Text=message;previewHint.Text=message;}
         }catch{status.Text="○  连接检测失败";status.ForeColor=Muted;}
     }
     static string BackgroundStatusText(string state){switch(state){case "playing":return "视频播放中";case "image-ready":return "图片背景已就绪";case "waiting-visible":return "视频等待窗口显示";case "not-applied":return "尚未应用壁纸";case "loading":return "壁纸加载中";case "paused":return "视频当前暂停";case "reduced-motion":return "减少动态效果：视频暂停";case "blocked":return "视频播放被阻止";case "error":return "壁纸出错，请重新应用";case "stalled":return "视频暂未推进，请重试";default:return "壁纸状态暂不可用";}}
