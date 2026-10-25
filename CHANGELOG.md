@@ -2,6 +2,15 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.6.2 — 跨盘安装授权入口
+
+- 修正正式 MSI 始终声明“不需要提升权限”的摘要标志，允许 Windows 按需处理安装授权；保留回滚保护。
+- 新增同版 MSI 专用的授权安装入口，钉住安装包 SHA-256，提升前后核验，限制原始用户 SID，使用 Windows UAC 与标准 msiexec。
+- D 盘等非系统盘或用户数据目录之外的独立卸载工具按需请求 UAC，避免回滚备份安全信息处理受限。
+- 不修改 Config.Msi、盘根目录或其他程序的权限；不设置全局提权策略，不删除 Windows Installer 缓存。
+- 授权安装后通过普通桌面快捷方式打开管理器，避免管理器继承管理员权限。
+- 已确认现场错误 1926 / 5 发生在旧版卸载的 RollbackCleanup；真实授权后的现场结果仍需用户确认。
+
 ## v1.6.1 — 安装进度与结束页
 
 - 路径页后显示持续可见的 MSI 原生进度窗，直到同步文件和后台服务操作结束；不再选完路径就消失。
