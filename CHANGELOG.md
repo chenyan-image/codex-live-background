@@ -2,6 +2,14 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.5.4 — 轻量安装包与安装维护修复
+
+- 移除 v1.5.3 新增的两段眼睛视频、零二静态图及其预览素材，默认库恢复为六张原创背景；不改动用户自己的 Steam 原文件。
+- 即使旧安装目录遗留 bundled/catalog.json，也不再加载为默认壁纸；保留手动导入和 Steam 扫描功能。
+- 安装器改用带引号的目录执行动作，并按管理器组件状态控制安装、修复与卸载动作，避免已安装文件动作触发 2753。
+- 修正旧 Codex 包已不存在时启动挂接清理抛出 0x80070490 的问题，仅清理重新核验归属的残留键，不忽略其他失败。
+- 更新默认库截图、说明和构建参数，格式支持表与 Wallpaper Engine 完整截图保留。
+
 ## v1.5.3 — 指定素材随包安装与格式说明
 
 - 安装包附带「水中会说话的眼睛」「会说话的眼睛2」两段原始 4K / 60 FPS H.264 视频和「零二 02 FRANXX」静态预览图，与原有六张原创背景一起显示在本地页。
