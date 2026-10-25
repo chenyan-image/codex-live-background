@@ -69,23 +69,8 @@ internal sealed class WallpaperLibrary {
         string[] ids={"midnight-ridge","quiet-moon","forest-mist","blue-tide","amber-dunes","star-atlas"};
         string[] names={"午夜山脊","静海月色","雾林深处","深蓝潮汐","琥珀沙丘","暗夜星图"};
         for(int i=0;i<ids.Length;i++){string path=System.IO.Path.Combine(folder,ids[i]+".jpg");if(File.Exists(path))result.Add(new WallpaperEntry{Id="builtin-"+ids[i],Name=names[i],Path=path,Thumbnail=path,Source="builtin",Kind="image",Note="内置原创背景 · 2560 × 1440"});}
-        string bundled=System.IO.Path.Combine(folder,"bundled"),catalog=System.IO.Path.Combine(bundled,"catalog.json");
-        try{
-            if(File.Exists(catalog)&&new FileInfo(catalog).Length<=65536){
-                var data=new JavaScriptSerializer().Deserialize<BundledCatalog>(File.ReadAllText(catalog,Encoding.UTF8));
-                if(data!=null&&data.schema==1&&data.wallpapers!=null&&data.wallpapers.Count<=20)foreach(var item in data.wallpapers){
-                    if(item==null||!Regex.IsMatch(item.id??"","^[a-z0-9-]{1,64}$")||String.IsNullOrWhiteSpace(item.name)||item.name.Length>160)continue;
-                    string media=BundledPath(bundled,item.file),thumbnail=BundledPath(bundled,item.thumbnail),kind=MediaKind(item.file??"");
-                    if(media==null||thumbnail==null||(kind!="video"&&kind!="image")||result.Any(x=>x.Id=="builtin-"+item.id))continue;
-                    result.Add(new WallpaperEntry{Id="builtin-"+item.id,Name=item.name,Path=media,Thumbnail=thumbnail,Source="builtin",Kind=kind,Note=item.note??"内置背景"});
-                }
-            }
-        }catch(IOException){}catch(ArgumentException){}catch(InvalidOperationException){}
         return result;
     }
-    static string BundledPath(string folder,string file){if(String.IsNullOrEmpty(file)||System.IO.Path.IsPathRooted(file)||System.IO.Path.GetFileName(file)!=file||file.IndexOfAny(System.IO.Path.GetInvalidFileNameChars())>=0)return null;string full=System.IO.Path.Combine(folder,file);return File.Exists(full)?full:null;}
-    sealed class BundledCatalog {public int schema=0;public List<BundledItem> wallpapers=null;}
-    sealed class BundledItem {public string id=null,name=null,file=null,thumbnail=null,note=null;}
 }
 
 internal sealed class SteamScanResult {

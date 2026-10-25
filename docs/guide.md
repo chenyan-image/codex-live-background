@@ -19,13 +19,13 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.3-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.4-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
 
 管理器采用黑色壁纸库界面，按侧栏浏览：
 
 | 页面 | 作用 |
 | --- | --- |
-| 本地壁纸 | 六张原创背景和三项附带素材、导入的本地视频或图片，支持搜索、静态/动态过滤和分页。 |
+| 本地壁纸 | 六张内置原创背景、导入的本地视频或图片，支持搜索、静态/动态过滤和分页。 |
 | Wallpaper Engine | 自动发现 Steam 库中的视频、GIF、图片；所有匹配结果在同一列表中向下滚动，无需翻页。未发现时可手动定位 Steam 库或 `431960` 目录。 |
 | 使用记录 | 按最近成功应用的时间排列，重开软件仍保留；移除记录不会删除原文件。 |
 | 服务与设置 | 装载服务、卸载皮肤、彻底卸载服务、重新检测以及运行记录。 |
@@ -34,7 +34,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 Wallpaper Engine 列表支持鼠标滚轮和右侧深色滚动条，按需加载屏幕附近的卡片。搜索或切换静态/动态类型后回到列表顶部；滚动不影响已选壁纸和右侧预览。本地壁纸与使用记录沿用分页。
 
-左下角显示真实 Codex 连接状态、版本及背景服务状态，点击可重新检测；只有核验通过的 Codex 会话才显示绿色。六张原创背景由本仓库代码生成；另外附带两段眼睛视频和零二预览图，来源见 bundled-wallpapers.md。界面组织参考 [JiPaiFan1109/CodexPage](https://github.com/JiPaiFan1109/CodexPage)，黑色布局和交互独立实现。
+左下角显示真实 Codex 连接状态、版本及背景服务状态，点击可重新检测；只有核验通过的 Codex 会话才显示绿色。六张内置背景由本仓库代码生成；个人或 Steam 壁纸需自行导入或扫描。界面组织参考 [JiPaiFan1109/CodexPage](https://github.com/JiPaiFan1109/CodexPage)，黑色布局和交互独立实现。
 
 Wallpaper Engine 的 `scene.pkg`、网页及应用项目无法直接播放；有预览图时会明确显示为「场景预览图」，应用的是预览图而非原场景动画。不会执行壁纸项目脚本或修改 Steam 文件。壁纸库只记录原文件路径，文件被移动或磁盘离线后会显示不可用，可重新导入；不会批量复制或删除 Steam 壁纸。
 
@@ -129,17 +129,16 @@ $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
   -NodeLicense $nodeLicense `
   -PortSource .\startup `
   -ThirdPartySource .\THIRD_PARTY `
-  -BundledMediaSource "C:\已解压发布包\wallpapers\bundled" `
   -OutputDirectory .\dist\Codex-Background-local-win-x64
 ```
 
-输出目录必须是尚不存在的新目录。构建会生成六张原创背景，并校验后复制三项指定素材。-BundledMediaSource 指向已安装版本或发布 ZIP 内的 wallpapers\bundled 目录；素材较大，因此 Git 仅保留来源与哈希清单。账号凭据、聊天记录和其他本机壁纸不进入安装包。
+输出目录必须是尚不存在的新目录。构建生成六张轻量原创背景，不附带用户或 Workshop 媒体；账号凭据、聊天记录及本机配置不进入安装包。
 
 使用 Windows 自带的 Windows Installer COM 接口与 makecab 构建单文件 MSI，无需下载第三方编译器：
 
 ```powershell
 .\source\build-msi.ps1 -PackageRoot .\dist\Codex-Background-local-win-x64 `
-  -OutputFile .\dist\Codex-Background-1.5.3-win-x64.msi
+  -OutputFile .\dist\Codex-Background-1.5.4-win-x64.msi
 ```
 
 v1.3.0 自制 EXE 安装器的源码仅供历史参考，新版本优先发布标准 MSI。代码签名流程见 [Windows 发布与签名](windows-trust.md)。
