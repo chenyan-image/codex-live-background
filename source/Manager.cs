@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.4.4")]
-[assembly: AssemblyFileVersion("1.5.4.4")]
+[assembly: AssemblyVersion("1.5.4.5")]
+[assembly: AssemblyFileVersion("1.5.4.5")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -50,6 +50,11 @@ internal sealed class WindowCaptionButton : Button {
     }
     protected override void OnMouseEnter(EventArgs e){hover=true;Invalidate();base.OnMouseEnter(e);}
     protected override void OnMouseLeave(EventArgs e){hover=pressed=false;Invalidate();base.OnMouseLeave(e);}
+    protected override void OnVisibleChanged(EventArgs e){
+        // Hiding to the tray can bypass MouseLeave. Pointer feedback belongs
+        // to the visible HWND and must not survive the next visibility cycle.
+        hover=pressed=false;base.OnVisibleChanged(e);Invalidate();
+    }
     protected override void OnMouseDown(MouseEventArgs e){if(e.Button==MouseButtons.Left){pressed=true;Invalidate();}base.OnMouseDown(e);}
     protected override void OnMouseUp(MouseEventArgs e){pressed=false;base.OnMouseUp(e);if(!IsDisposed)Invalidate();}
     protected override void OnPaint(PaintEventArgs e){
