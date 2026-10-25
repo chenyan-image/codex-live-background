@@ -1,40 +1,34 @@
 # Windows 安装、签名和拦截
 
-v1.6.2 主安装文件采用 Windows 原生 MSI，单文件下载后双击安装。保持当前用户的背景配置；受保护目录和跨盘回滚可能需要 Windows UAC 授权。遇到 1926 / 拒绝访问时，使用同版 AuthorizedInstall 入口与 MSI，不改变盘根 ACL 或回滚策略。Windows 设置的已安装应用中可查看、修复或卸载。1.0.x 无完整版本字段的历史程序用原始发布 SHA-256 识别；无旧版则全新安装。用户壁纸和登录资料不作为安装文件覆盖。
+v1.5.4.1 使用单文件 Setup EXE，直接部署程序和后台组件，不内嵌 MSI。新装与新版卸载不经过 Windows Installer；已有旧 MSI 时，才通过正式卸载进行一次迁移，必要时请求原账号的 Windows UAC。可选择专用安装目录，默认位于当前用户的 LocalAppData。桌面仅一个管理器图标，完整卸载入口随程序放在安装目录中，也注册到 Windows 的已安装应用。
 
-新版不使用自制 EXE 解压器作为主安装器，不启动编码的 PowerShell 命令，子脚本使用 RemoteSigned，不重置 Windows 的 StartupApproved 禁用记录。仅使用一个当前用户登录计划任务，保留官方 Codex 包激活入口的恢复能力。用户原有防病毒、应用控制、证书信任及组织策略不变。
+EXE 先验证内嵌 ZIP 的 SHA-256，再验证清单中每个文件的大小与哈希。旧 MSI 安装源缺失时，只下载本仓库已知历史版本并验证固定哈希。安装与卸载先核验归属并关闭本项目进程，不结束官方 Codex 或其他应用的同名进程。日志和失败恢复文件仅保存在本机。
 
-## 两种不同提示
+脚本以明文随源码提供，使用 RemoteSigned，无编码命令或压壳；工具不关闭防病毒、不修改整个盘或 Config.Msi 权限、不禁用 Windows Installer 回滚。授权部署只给当前用户所选的专用程序目录写入权限，避免后台组件继承管理员运行要求。
 
-- “Windows 已保护你的电脑”“未知发布者”：涉及 SmartScreen、应用信誉、发布者签名。自签名或单纯重新打包不能建立受信任发布者身份。新版本即使签名有效仍可能需要积累信誉。
-- 具体病毒/PUA 名称或应用控制拦截：需要记录检测名称、被拦截文件及发行版本。未经调查不能直接宣称误报；微软及其他安全软件的最终判定由其维护。请勿为安装而关闭防护或添加整盘排除。
+## Windows 提示
 
-本机未找到可用的 CA 代码签名证书，Defender 检测提供程序无法读取。因此当前公开包必须明确视为**项目程序未签名**，没有“微软审核通过”“零误报”保证。自带 Node.js 的签名不代表整个产品已签名。
+- “Windows 已保护你的电脑”“未知发布者”：与发布者签名及 SmartScreen 信誉有关；更换安装格式不能保证消除提示。
+- 具体病毒／PUA 名称或应用控制拦截：请记录检测名称、文件及版本，用公开发行包提交复核。未经调查不能宣称误报。
 
-微软说明：[SmartScreen 与发布信誉](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)、[开发者检测复核](https://learn.microsoft.com/en-us/defender-xdr/developer-faq)、[提交可疑或误检文件](https://www.microsoft.com/en-us/wdsi/filesubmission)。提交时仅使用公开发行包，不附带壁纸、聊天或账号目录；本项目没有代用户提交、也没有收到复核结论。
+当前项目 EXE 与脚本**尚未使用正式发布者证书签名**。自带 Node.js 的签名不代表整个产品已签名，不承诺零误报或已通过微软审核。组织策略可能阻止未签名工具运行；不要为了安装关闭防护或添加整盘排除。
+
+微软说明：[SmartScreen 与发布信誉](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)、[开发者检测复核](https://learn.microsoft.com/en-us/defender-xdr/developer-faq)、[提交可疑或误检文件](https://www.microsoft.com/en-us/wdsi/filesubmission)。只提交公开安装包，不附带壁纸、聊天或账号资料；本项目没有代用户提交或取得复核结论。
 
 ## 正式代码签名
 
-发布者先取得有效 CA 代码签名证书或完成微软 Artifact Signing 的身份验证。不得用自签名根证书替代发行信任；私钥无需提交到仓库。
-
-在本机证书存储中已有证书及私钥时，按顺序操作：
+发布者需要有效的 CA 代码签名证书与私钥，或微软 Artifact Signing 身份。不得用自签名根证书替代发行信任。证书已在本机时，先签内部组件、刷新清单，压缩负载并构建 EXE，最后签署 Setup EXE：
 
 ```powershell
-# 先构建目录，然后签署内部 EXE 和 PowerShell 脚本，刷新校验表。
 .\source\sign-release.ps1 -PackageRoot .\dist\package `
   -CertificateThumbprint <证书指纹> -TimestampServer <证书服务商时间戳地址>
-# 只接受有效签名的内部组件来构建 MSI。
-.\source\build-msi.ps1 -PackageRoot .\dist\package `
-  -OutputFile .\dist\Codex-Background-win-x64.msi -RequireTrustedSignature
-# 最后签署 MSI，之后不再修改安装包字节。
-.\source\sign-release.ps1 -InstallerPath .\dist\Codex-Background-win-x64.msi `
+# 按 guide.md 压缩负载并构建 Setup EXE，然后签署最终文件。
+.\source\sign-release.ps1 -InstallerPath .\dist\Codex-Background-1.5.4.1-Setup.exe `
   -CertificateThumbprint <证书指纹> -TimestampServer <证书服务商时间戳地址>
 ```
 
-脚本会拒绝过期、自签名、缺少私钥或链不可信的证书，逐文件验证签名；不会导入证书或关闭安全功能。该流程已提供代码，当前没有真实发布者证书，尚未执行实际签名验证。
+签署后不再修改安装包字节。脚本拒绝过期、自签名、缺少私钥或不受信任的证书，不导入证书、不关闭安全功能。当前未执行实际发行签名。
 
 ## Windows 任务栏
 
-装载服务会备份并修复桌面、开始菜单、Quick Launch 和传统任务栏目录内能够识别的官方 Codex 直接启动快捷方式，同时创建 `Codex（动态背景）` 快捷方式。外观仍打开官方 Codex，后台管理器不会随之弹出。只改写可确认目标、没有额外深链接语义的入口；其他应用和用户后来修改的快捷方式保留。
-
-商店应用固定图标也由现有包激活守护处理。若某个旧固定项没有可修改的快捷方式且仍未恢复背景，可把桌面 `Codex（动态背景）` 固定到任务栏。程序不修改未公开的 Taskband 二进制数据。卸载服务时恢复未被用户再次修改的原快捷方式。
+装载服务会备份并修复可以确认目标的官方 Codex 直接启动快捷方式，缓存本机官方图标；既有商店包固定入口通过启动守护处理。只修改已核验入口，不改 Taskband 二进制数据。卸载时恢复未被用户再次修改的快捷方式，并清理旧版额外生成的「Codex（动态背景）」桌面图标。桌面仅保留管理器入口。

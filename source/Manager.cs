@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.6.2.0")]
-[assembly: AssemblyFileVersion("1.6.2.0")]
+[assembly: AssemblyVersion("1.5.4.1")]
+[assembly: AssemblyFileVersion("1.5.4.1")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -199,14 +199,14 @@ internal sealed partial class Manager : Form {
         if(busy)return;
         if(MessageBox.Show(this,"卸下当前皮肤，恢复原界面？\r\n\r\n后台服务保留，之后可以直接更换壁纸。","卸载皮肤",MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2)==DialogResult.OK)Run("RemoveSkin");
     }
-    void ConfirmServiceRemoval(){if(busy)return;if(MessageBox.Show(this,"彻底卸载背景服务？\r\n\r\n将移除自启动、Codex 启动挂接、后台守护、监控和服务文件。管理器、壁纸与登录资料保留，Codex 聊天不会关闭。","卸载服务",MessageBoxButtons.OKCancel,MessageBoxIcon.Warning,MessageBoxDefaultButton.Button2)==DialogResult.OK)Run("RemoveService");}
+    void ConfirmServiceRemoval(){if(busy)return;if(MessageBox.Show(this,"彻底卸载背景服务？\r\n\r\n将停止并解除自启动、Codex 启动挂接、后台守护和监控。完整卸载软件请使用安装目录的独立卸载工具。管理器、壁纸与登录资料保留，Codex 聊天不会关闭。","卸载服务",MessageBoxButtons.OKCancel,MessageBoxIcon.Warning,MessageBoxDefaultButton.Button2)==DialogResult.OK)Run("RemoveService");}
     static string Quote(string value){var b=new StringBuilder("\"");int slashes=0;foreach(char c in value){if(c=='\\'){slashes++;continue;}if(c=='"')b.Append('\\',slashes*2+1).Append(c);else b.Append('\\',slashes).Append(c);slashes=0;}return b.Append('\\',slashes*2).Append('"').ToString();}
     static int ServiceCommand(string action){
         try{
             string root=AppDomain.CurrentDomain.BaseDirectory;
             string ps=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
-            var info=new ProcessStartInfo(ps,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id+((action=="RemoveService"||action=="Uninstall")?" -AllowDisconnected":"")){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
-            using(var child=Process.Start(info)){var output=child.StandardOutput.ReadToEndAsync();var errors=child.StandardError.ReadToEndAsync();WaitForCommand(child,300000,delegate{return false;});string state=action=="Uninstall"?Path.GetTempPath():Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(state);File.WriteAllText(Path.Combine(state,"installer-service.log"),output.Result+Environment.NewLine+errors.Result);return child.ExitCode;}
+            var info=new ProcessStartInfo(ps,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id+(action=="RemoveService"?" -AllowDisconnected":"")){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
+            using(var child=Process.Start(info)){var output=child.StandardOutput.ReadToEndAsync();var errors=child.StandardError.ReadToEndAsync();WaitForCommand(child,300000,delegate{return false;});string state=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(state);File.WriteAllText(Path.Combine(state,"installer-service.log"),output.Result+Environment.NewLine+errors.Result);return child.ExitCode;}
         }catch(Exception error){try{string directory=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"installer-service.log"),error.ToString());}catch{}return 1;}
     }
     static string ExplainLaunchError(Exception error){
@@ -225,13 +225,12 @@ internal sealed partial class Manager : Form {
         }
     }
     void Run(string action){
-        if(busy)return;bool connecting=action=="Connect"||action=="AutoConnect",statusOnly=action=="Status"||action=="Connection"||connecting;if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
+        if(busy)return;bool statusOnly=action=="Status"||action=="Connection";if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
         if(statusOnly)checkingStatus=true;
-        if(connecting&&(action=="Connect"||status.ForeColor!=Mint)){status.Text="○  正在连接 Codex…";connectionDetail.Text="正在检查服务和背景连接…";status.ForeColor=Muted;}
         if(!statusOnly){CancelPreview();busy=true;runningAction=action;SetBusyControls(true);progress.Visible=true;previewHint.Text=action=="Apply"?"正在应用壁纸，视频不兼容时会自动适配…":"正在处理服务设置…";}
         WallpaperEntry applyingEntry=selected;
         string chosen=selected!=null?selected.Path:media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if(action!="Connection")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":(action=="RemoveService"||action=="Uninstall")?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
+        if(action!="Connection")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":action=="RemoveService"?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
         ThreadPool.QueueUserWorkItem(delegate{
             string result;bool success=false;
             try{
@@ -245,7 +244,7 @@ internal sealed partial class Manager : Form {
                     using(var outputDone=new ManualResetEvent(false))using(var errorDone=new ManualResetEvent(false)){
                     p.OutputDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{outputDone.Set();}catch(ObjectDisposedException){}return;}if(e.Data.StartsWith("DREAM_STATUS:")){string json=e.Data.Substring(13);Ui(delegate{if(generation==operationGeneration)UpdateConnection(json);});return;}if(e.Data.StartsWith("DREAM_PREVIEW:")){string file=e.Data.Substring(14);Ui(delegate{if(generation==operationGeneration)preview.SetMedia(file);});return;}lock(stdout)stdout.AppendLine(e.Data);Ui(delegate{if(generation==operationGeneration&&busy&&!closeRequested){if(log.TextLength>24000)log.Text=log.Text.Substring(log.TextLength-12000);log.AppendText(Environment.NewLine+e.Data);}});};
                     p.ErrorDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{errorDone.Set();}catch(ObjectDisposedException){}return;}lock(stderr)stderr.AppendLine(e.Data);};
-                    p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,connecting?120000:statusOnly?30000:action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
+                    p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,statusOnly?30000:action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
                     lock(stdout)lock(stderr)result=(stdout.ToString()+Environment.NewLine+stderr.ToString()).Trim();
                     }
                     if(result.Length==0)result=success?"操作完成。":"操作失败，请查看使用说明。";
@@ -256,10 +255,10 @@ internal sealed partial class Manager : Form {
                 if(generation!=operationGeneration)return;
                 if(action!="Connection")log.Text=(success?"✓ ":"操作未完成：")+result;busy=false;SetBusyControls(false);progress.Visible=false;
                 if(closeRequested){Close();return;}
-                if(!success){if(statusOnly){status.Text=connecting?"○  点击重试连接":"○  检测暂不可用";status.ForeColor=Muted;connectionDetail.Text=result.Length>220?result.Substring(0,220):result;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
+                if(!success){if(statusOnly){status.Text="○  检测暂不可用";status.ForeColor=Muted;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
                 if(success&&action=="Apply")AppliedToHistory(applyingEntry);
-                if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=(action=="RemoveService"||action=="Uninstall")?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
-                if(pendingConnect){pendingConnect=false;Run("Connect");}else if(success&&!statusOnly)Run("Connection");
+                if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=action=="RemoveService"?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
+                if(success&&!statusOnly)Run("Connection");
             });
         });
     }
@@ -322,12 +321,12 @@ internal sealed partial class Manager : Form {
     [STAThread]static int Main(string[] args){
         if(args.Length==1&&args[0]=="--msi-action-probe")return 0;
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
-        if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"||args[0]=="--package-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":args[0]=="--package-remove"?"Uninstall":"RemoveService");
+        if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test",steamScrollTest=args.Length==2&&args[0]=="--steam-scroll-test";
         bool test=smoke||uiTest||previewTest||lifecycle||galleryTest||steamScrollTest;Mutex instance=null;bool owns=false;
         try{
-        if(!test){instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
+        if(!test){try{using(var setup=Mutex.OpenExisting("Local\\CodexLiveBackground.Setup."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){MessageBox.Show("安装或卸载正在进行，请等待完成。","Codex 动态背景");return 0;}}catch(WaitHandleCannotBeOpenedException){}instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
             if(!owns){try{using(var activate=EventWaitHandle.OpenExisting("Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))activate.Set();}catch(WaitHandleCannotBeOpenedException){}return 0;}}
         using(var form=new Manager(!test)){
             if(steamScrollTest)return form.TestSteamScroll(args[1]);
