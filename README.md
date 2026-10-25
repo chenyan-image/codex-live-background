@@ -6,7 +6,7 @@
 
 **[下载安装包](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md) · [详细说明](docs/guide.md)**
 
-当前推荐 **v1.5.4.4 任务栏与后台运行修复版**：统一 Codex 启动入口和任务栏标识，修复失效的旧版本快捷方式；支持托盘后台运行，补齐最小化恢复后的整窗重绘，统一标题栏按钮与轻圆角。保留 4096 字符长名称、类型筛选修复与 EXE 安装维护流程。v1.6.0–v1.6.2 已撤回推荐，保留历史记录。
+当前推荐 **v1.5.4.5 托盘按钮状态修复版**：修复管理器从托盘打开后关闭按钮一直显示红色的问题。保留任务栏入口修复、托盘后台运行、恢复重绘、轻圆角、4096 字符名称及 EXE 安装维护流程。v1.6.0–v1.6.2 已撤回推荐，保留历史记录。
 
 ## 特点
 
@@ -58,7 +58,7 @@ Wallpaper Engine 壁纸库（本机实际扫描），向下连续滚动浏览：
 
 ## 使用
 
-1. 在 [Releases](https://github.com/chenyan-image/codex-live-background/releases/latest) 下载 **`Codex-Background-1.5.4.4-Setup.exe`**，双击安装并选择目标路径，无需解压。安装窗会保留到操作结束。
+1. 在 [Releases](https://github.com/chenyan-image/codex-live-background/releases/latest) 下载 **`Codex-Background-1.5.4.5-Setup.exe`**，双击安装并选择目标路径，无需解压。安装窗会保留到操作结束。
 2. 导入本地素材，或在 Wallpaper Engine 页面选择壁纸。
 3. 右侧预览后点击「应用这张壁纸」。最小化或关闭管理器会隐藏至托盘；右键托盘选择「退出管理器」可退出，背景仍继续运行。
 
