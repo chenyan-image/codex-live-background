@@ -9,8 +9,8 @@ using System.Runtime.InteropServices;
 
 [assembly:AssemblyTitle("卸载 Codex 动态背景")]
 [assembly:AssemblyProduct("Codex 动态背景")]
-[assembly:AssemblyVersion("1.6.0.0")]
-[assembly:AssemblyFileVersion("1.6.0.0")]
+[assembly:AssemblyVersion("1.6.1.0")]
+[assembly:AssemblyFileVersion("1.6.1.0")]
 internal static class Uninstall {
     [DllImport("msi.dll",CharSet=CharSet.Unicode)]static extern int MsiQueryProductState(string product);
     static string Product(){using(var hash=MD5.Create())return new Guid(hash.ComputeHash(Encoding.UTF8.GetBytes("codex-live-background|product-"+Assembly.GetExecutingAssembly().GetName().Version.ToString(3)))).ToString("B").ToUpperInvariant();}
