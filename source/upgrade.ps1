@@ -1,7 +1,9 @@
 ﻿function Get-DreamBackgroundLegacyInstalls {
   param([string]$InstallRoot)
   $programs=Split-Path -Parent $InstallRoot
-  foreach($candidate in @($InstallRoot,(Join-Path $programs 'CodexDreamSkinManager'))){
+  $registered=@();if(Test-Path -LiteralPath 'HKCU:\Software\CodexLiveBackground\Installs'){foreach($key in Get-ChildItem -LiteralPath 'HKCU:\Software\CodexLiveBackground\Installs'){$value=(Get-ItemProperty -LiteralPath $key.PSPath -Name InstallRoot -ErrorAction SilentlyContinue).InstallRoot;if($value){$registered+=@($value)}}}
+  $candidates=@($InstallRoot,(Join-Path $programs 'CodexDreamSkinManager'),(Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'))+@($registered)
+  foreach($candidate in @($candidates|Select-Object -Unique)){
     if(-not (Test-Path -LiteralPath $candidate)){continue}
     $exe=if(Test-Path -LiteralPath (Join-Path $candidate 'CodexLiveBackground.exe')){Join-Path $candidate 'CodexLiveBackground.exe'}elseif(Test-Path -LiteralPath (Join-Path $candidate 'CodexDreamSkinManager.exe')){Join-Path $candidate 'CodexDreamSkinManager.exe'}else{$null}
     if(-not $exe){if((Get-ChildItem -LiteralPath $candidate -Force|Measure-Object).Count -gt 0){throw '发现不完整的旧安装目录，无法确认归属。请保留该目录供修复。'};continue}
@@ -32,16 +34,18 @@ function Stop-DreamBackgroundManagers {
 function Prepare-DreamBackgroundUpgrade {
   param([string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[int]$ManagerPid)
   $installs=@(Get-DreamBackgroundLegacyInstalls -InstallRoot $InstallRoot)
-  foreach($install in $installs){if([IO.Path]::GetFileName($install.Executable) -eq 'CodexLiveBackground.exe' -and [version]$install.Version -gt [version]'1.5.5.0'){throw '检测到更高版本，请使用最新安装程序，避免旧包覆盖新版本。'}}
+  foreach($install in $installs){if([IO.Path]::GetFileName($install.Executable) -eq 'CodexLiveBackground.exe' -and [version]$install.Version -gt [version]'1.6.0.0'){throw '检测到更高版本，请使用最新安装程序，避免旧包覆盖新版本。'}}
   Stop-DreamBackgroundManagers -Installs $installs -ManagerPid $ManagerPid
   $startupRoot=Join-Path $StateRoot 'startup'
+  $task=Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
+  if($task){$taskRoot=Split-Path -Parent "$($task.Actions[0].Execute)";$approved=@($startupRoot)+@($installs|ForEach-Object{Join-Path $_.Root 'startup'});if(-not @($approved|Where-Object{Test-DreamSkinPathEqual -Left $_ -Right $taskRoot}).Count){throw '旧服务路径不属于已验证的安装。'};$startupRoot=$taskRoot}
   $hasService=(Test-Path -LiteralPath $startupRoot) -or (Test-Path -LiteralPath (Join-Path $StateRoot 'state.json')) -or (Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue)
-  if($hasService){Remove-DreamBackgroundService -InstallRoot $InstallRoot -StateRoot $StateRoot -PackageRoot $PackageRoot -ForUpgrade}
+  if($hasService){$serviceInstall=if(Test-DreamSkinPathEqual -Left $startupRoot -Right (Join-Path $StateRoot 'startup')){$InstallRoot}else{Split-Path -Parent $startupRoot};Remove-DreamBackgroundService -InstallRoot $serviceInstall -StateRoot $StateRoot -PackageRoot $PackageRoot -StartupRoot $startupRoot -ForUpgrade}
   $backups=@()
   $backupRoot=Join-Path $StateRoot ('upgrade-backups\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N'))
   $null=New-Item -ItemType Directory -Path $StateRoot -Force
   $record=Join-Path $StateRoot 'last-upgrade.json'
-  [IO.File]::WriteAllText($record,(@{version='1.5.5';packageRoot=$PackageRoot;backups=@();complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($record,(@{version='1.6.0';packageRoot=$PackageRoot;backups=@();complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   Initialize-DreamSkinNativeInspection
   foreach($process in @(Get-CimInstance Win32_Process -Filter "Name='node.exe'")){
     if(-not [CodexDreamSkin.NativeInspection]::CurrentUser([int]$process.ProcessId)){continue}
@@ -58,7 +62,7 @@ function Prepare-DreamBackgroundUpgrade {
   }
   foreach($install in $installs){
     if(Test-DreamSkinPathEqual -Left $install.Root -Right $PackageRoot){continue}
-    $programs=Split-Path -Parent $InstallRoot
+    $programs=Split-Path -Parent $install.Root
     Assert-DreamBackgroundTree -Path $install.Root -Parent $programs
     $null=New-Item -ItemType Directory -Path $backupRoot -Force
     $destination=Join-Path $backupRoot ([IO.Path]::GetFileName($install.Root))
@@ -66,10 +70,10 @@ function Prepare-DreamBackgroundUpgrade {
     [Console]::Out.WriteLine('检测到旧版 '+$install.Version+'，正在备份并迁移…')
     Move-Item -LiteralPath $install.Root -Destination $destination -ErrorAction Stop
     $backups+=@([pscustomobject]@{source=$install.Root;backup=$destination})
-    [IO.File]::WriteAllText($record,(@{version='1.5.5';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($record,(@{version='1.6.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   }
   $null=New-Item -ItemType Directory -Path $StateRoot -Force
-  [IO.File]::WriteAllText((Join-Path $StateRoot 'last-upgrade.json'),(@{version='1.5.5';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $StateRoot 'last-upgrade.json'),(@{version='1.6.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   Write-Output '旧版本检查完成。个人壁纸和登录资料已保留。'
 }
 function Restore-DreamBackgroundUpgrade {
@@ -88,9 +92,9 @@ function Restore-DreamBackgroundUpgrade {
     Move-Item -LiteralPath $InstallRoot -Destination $failed -ErrorAction Stop
   }
   foreach($item in $saved.backups){
-    if($item.source -notin @($InstallRoot,(Join-Path $programs 'CodexDreamSkinManager'))){throw '升级恢复记录中的目标不受支持。'}
+    if($item.source -notin @($InstallRoot,(Join-Path $programs 'CodexDreamSkinManager'),(Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'))){throw '升级恢复记录中的目标不受支持。'}
     Assert-DreamBackgroundTree -Path $item.backup -Parent (Join-Path $StateRoot 'upgrade-backups')
-    Assert-DreamBackgroundTree -Path $item.source -Parent $programs
+    Assert-DreamBackgroundTree -Path $item.source -Parent (Split-Path -Parent $item.source)
     if(Test-Path -LiteralPath $item.backup){Move-Item -LiteralPath $item.backup -Destination $item.source -ErrorAction Stop}
   }
   $saved.complete=$true

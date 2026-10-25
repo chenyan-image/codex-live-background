@@ -77,6 +77,10 @@ function Update-YzBackgroundService {
     [Parameter(Mandatory=$true)][ValidateSet('new','reuse')][string]$Mode
   )
   Initialize-DreamSkinNativeInspection
+  if(Test-DreamSkinPathEqual -Left $PackageStartup -Right $StartupRoot){
+    Invoke-YzBackgroundRegistration -StartupRoot $StartupRoot -Action Install
+    return [pscustomobject]@{changed=$false;backup=$null}
+  }
   $names = @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')
   $changed = $Mode -eq 'new'
   foreach ($name in $names) {

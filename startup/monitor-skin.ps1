@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
-$install = Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'
+$install = Split-Path -Parent $PSScriptRoot
 $scripts = Join-Path $install 'engine\scripts'
 $stateRoot = Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
 $stopMarker = Join-Path $PSScriptRoot 'stop-guard'
