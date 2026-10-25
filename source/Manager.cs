@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.4.3")]
-[assembly: AssemblyFileVersion("1.5.4.3")]
+[assembly: AssemblyVersion("1.5.4.4")]
+[assembly: AssemblyFileVersion("1.5.4.4")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -25,7 +25,7 @@ internal sealed class BufferedFlow : FlowLayoutPanel {
 }
 internal static class WindowFrame {
     public static void Update(Form form){
-        if(!form.IsHandleCreated||form.Width<2||form.Height<2||form.WindowState==FormWindowState.Minimized)return;
+        if(form.IsDisposed||form.Disposing||!form.IsHandleCreated||form.Width<2||form.Height<2||form.WindowState==FormWindowState.Minimized)return;
         Region previous=form.Region;
         if(form.WindowState==FormWindowState.Maximized){if(previous!=null){form.Region=null;previous.Dispose();}return;}
         using(var g=form.CreateGraphics())using(var path=IconAssets.Round(new RectangleF(0,0,form.Width,form.Height),8*g.DpiX/96F))form.Region=new Region(path);
@@ -120,7 +120,7 @@ internal sealed class WallpaperPreview : Control {
     Image picture;MemoryStream imageBytes;readonly EventHandler animation;int request;
     public bool Animate=true;
     public bool HasPicture {get{return picture!=null;}}
-    public WallpaperPreview(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);animation=delegate{if(IsHandleCreated&&!IsDisposed)try{BeginInvoke((MethodInvoker)delegate{Invalidate();});}catch(InvalidOperationException){}};}
+    public WallpaperPreview(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);animation=delegate{if(Visible&&IsHandleCreated&&!IsDisposed)try{BeginInvoke((MethodInvoker)delegate{if(Visible)Invalidate();});}catch(InvalidOperationException){}};}
     void ClearImage(){if(picture!=null){ImageAnimator.StopAnimate(picture,animation);picture.Dispose();picture=null;}if(imageBytes!=null){imageBytes.Dispose();imageBytes=null;}}
     public void SetMedia(string file){
         int generation=Interlocked.Increment(ref request);ClearImage();Invalidate();
@@ -170,6 +170,10 @@ internal sealed partial class Manager : Form {
     readonly ProgressBar progress=new ProgressBar();
     readonly WallpaperPreview preview=new WallpaperPreview();
     bool busy,closeRequested;volatile bool cancelStatus;string runningAction;int operationGeneration;
+    NotifyIcon tray;ContextMenuStrip trayMenu;Icon trayImage;
+    bool exitRequested,repaintQueued,nativeWasMinimized,restoringWindow;
+    readonly bool liveStatusEnabled;
+    FormWindowState stateBeforeHide=FormWindowState.Normal;
     readonly object statusLock=new object();Process statusProcess;
     readonly string root=AppDomain.CurrentDomain.BaseDirectory;
     static readonly Color Muted=Color.FromArgb(146,166,169),Ink=Color.FromArgb(231,240,238),Mint=Color.FromArgb(135,235,194);
@@ -179,19 +183,58 @@ internal sealed partial class Manager : Form {
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="SendMessageW")] static extern IntPtr SetCueText(IntPtr hwnd,int msg,IntPtr wParam,string text);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd,int attribute,ref int value,int size);
+    [DllImport("user32.dll")] static extern bool RedrawWindow(IntPtr window,IntPtr update,IntPtr region,uint flags);
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
-    Manager(bool checkStatus){ BuildGallery(checkStatus); }
+    Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);if(checkStatus)InitializeTray(); }
     protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;return value;}}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
     protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}WindowFrame.Update(this);}
-    protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);WindowFrame.Update(this);}
+    protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(Visible&&!restoringWindow&&WindowState!=FormWindowState.Minimized)stateBeforeHide=WindowState;WindowFrame.Update(this);}
+    protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)QueueCompleteRedraw();}
+    protected override void OnHandleDestroyed(EventArgs e){repaintQueued=false;base.OnHandleDestroyed(e);}
+    void QueueCompleteRedraw(){
+        if(repaintQueued||IsDisposed||Disposing||!IsHandleCreated||!Visible||WindowState==FormWindowState.Minimized)return;
+        repaintQueued=true;
+        try{BeginInvoke((MethodInvoker)delegate{
+            repaintQueued=false;if(IsDisposed||Disposing||!IsHandleCreated||!Visible||WindowState==FormWindowState.Minimized)return;
+            PerformLayout();if(Controls.Count>0)Controls[0].PerformLayout();WindowFrame.Update(this);
+            // Invalidate the complete composited surface after restore, including
+            // every child HWND; repainting just the preview leaves a stale buffer.
+            Invalidate(true);RedrawWindow(Handle,IntPtr.Zero,IntPtr.Zero,0x0585);
+        });}catch(InvalidOperationException){repaintQueued=false;}
+    }
+    void InitializeTray(){
+        if(tray!=null)return;
+        trayMenu=new ContextMenuStrip{BackColor=Color.FromArgb(27,32,37),ForeColor=Ink,ShowImageMargin=false};
+        trayMenu.Items.Add("打开管理器",null,delegate{RestoreWindow();});trayMenu.Items.Add(new ToolStripSeparator());
+        trayMenu.Items.Add("退出管理器",null,delegate{if(!IsDisposed&&!Disposing)BeginInvoke((MethodInvoker)delegate{exitRequested=true;Close();});});
+        trayImage=(Icon)Icon.Clone();tray=new NotifyIcon{Icon=trayImage,Text="Codex 动态背景",ContextMenuStrip=trayMenu,Visible=true};
+        tray.DoubleClick+=delegate{RestoreWindow();};
+    }
+    void HideToTray(){
+        if(tray==null){WindowState=FormWindowState.Minimized;return;}
+        if(WindowState!=FormWindowState.Minimized)stateBeforeHide=WindowState;
+        connectionTimer.Stop();CancelPreview();Hide();ShowInTaskbar=false;
+    }
+    void RestoreWindow(){
+        if(IsDisposed||Disposing)return;
+        var target=stateBeforeHide==FormWindowState.Minimized?FormWindowState.Normal:stateBeforeHide;
+        closeRequested=exitRequested=false;restoringWindow=true;
+        try{ShowInTaskbar=true;Show();WindowState=target;Activate();SetForegroundWindow(Handle);}finally{restoringWindow=false;}
+        QueueCompleteRedraw();
+        if(tray!=null&&liveStatusEnabled){connectionTimer.Start();if(!busy&&!checkingStatus)Run("Connection");}
+    }
+    protected override void Dispose(bool disposing){
+        if(disposing){if(tray!=null){tray.Visible=false;tray.Dispose();tray=null;}if(trayMenu!=null){trayMenu.Dispose();trayMenu=null;}if(trayImage!=null){trayImage.Dispose();trayImage=null;}}
+        base.Dispose(disposing);
+    }
     void ToggleMaximize(){MaximizedBounds=Screen.FromHandle(Handle).WorkingArea;WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;}
     void AddTitleBar(){
         var bar=new Panel{Dock=DockStyle.Top,Height=32,BackColor=Color.FromArgb(12,14,17)};
         var controls=new BufferedFlow{Dock=DockStyle.Right,Width=132,FlowDirection=FlowDirection.LeftToRight,WrapContents=false,Margin=Padding.Empty,Padding=Padding.Empty};
         foreach(WindowCaptionKind kind in new[]{WindowCaptionKind.Minimize,WindowCaptionKind.Maximize,WindowCaptionKind.Close}){
             var b=new WindowCaptionButton(kind);
-            if(kind==WindowCaptionKind.Minimize)b.Click+=delegate{WindowState=FormWindowState.Minimized;};else if(kind==WindowCaptionKind.Maximize){b.Click+=delegate{ToggleMaximize();};SizeChanged+=delegate{b.RestoreGlyph=WindowState==FormWindowState.Maximized;};}else b.Click+=delegate{Close();};controls.Controls.Add(b);
+            if(kind==WindowCaptionKind.Minimize)b.Click+=delegate{HideToTray();};else if(kind==WindowCaptionKind.Maximize){b.Click+=delegate{ToggleMaximize();};SizeChanged+=delegate{b.RestoreGlyph=WindowState==FormWindowState.Maximized;};}else b.Click+=delegate{Close();};controls.Controls.Add(b);
         }
         var title=new Label{Text="Codex 动态背景",Font=new Font("Microsoft YaHei UI",8.5F),ForeColor=Muted,TextAlign=ContentAlignment.MiddleLeft,Dock=DockStyle.Fill,Padding=new Padding(15,0,0,0)};
         MouseEventHandler drag=delegate(object sender,MouseEventArgs e){if(e.Button!=MouseButtons.Left)return;if(e.Clicks==2){ToggleMaximize();return;}ReleaseCapture();SendMessage(Handle,0xA1,(IntPtr)2,IntPtr.Zero);};title.MouseDown+=drag;bar.MouseDown+=drag;
@@ -204,6 +247,11 @@ internal sealed partial class Manager : Form {
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);WindowFrame.PaintBorder(this,e.Graphics,Color.FromArgb(49,65,69));}
     protected override void WndProc(ref Message m){
         base.WndProc(ref m);
+        if(m.Msg==0x0005){
+            bool minimized=m.WParam.ToInt32()==1,restored=nativeWasMinimized&&!minimized;nativeWasMinimized=minimized;
+            if(minimized&&tray!=null&&!exitRequested&&!restoringWindow){try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed&&!Disposing&&!exitRequested&&!restoringWindow&&WindowState==FormWindowState.Minimized)HideToTray();});}catch(InvalidOperationException){}}
+            if(restored)QueueCompleteRedraw();
+        }
         if(m.Msg==0x84&&WindowState==FormWindowState.Normal&&m.Result==(IntPtr)1){
             var point=PointToClient(new Point(unchecked((short)(long)m.LParam),unchecked((short)((long)m.LParam>>16))));int grip=6;
             bool left=point.X<grip,right=point.X>=Width-grip,top=point.Y<grip,bottom=point.Y>=Height-grip;
@@ -379,7 +427,7 @@ internal sealed partial class Manager : Form {
             if(uiTest)return form.TestChrome(args[1]);
             if(smoke){if(args.Length==4)form.ClientSize=new Size(int.Parse(args[2]),int.Parse(args[3]));form.Show();for(int i=0;i<50;i++){Thread.Sleep(30);Application.DoEvents();}using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(args[1]);}return form.commands.Controls.Count==4?0:1;}
             using(var activate=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))using(var timer=new System.Windows.Forms.Timer{Interval=250}){
-                timer.Tick+=delegate{if(activate.WaitOne(0)){form.closeRequested=false;form.Show();if(form.WindowState==FormWindowState.Minimized)form.WindowState=FormWindowState.Normal;SetForegroundWindow(form.Handle);}};timer.Start();Application.Run(form);
+                timer.Tick+=delegate{if(activate.WaitOne(0))form.RestoreWindow();};timer.Start();Application.Run(form);
             }
         }
         return 0;
