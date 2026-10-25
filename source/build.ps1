@@ -44,16 +44,16 @@ Copy-Item -LiteralPath $NodeExecutable -Destination (Join-Path $nodeRoot 'node.e
 Copy-Item -LiteralPath $NodeLicense -Destination (Join-Path $nodeRoot 'LICENSE')
 $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $nodeRoot 'node.exe')
 if ($signature.Status -ne 'Valid') { throw ('Bundled Node.js signature is invalid: ' + $signature.Status) }
-foreach ($file in @('control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
+foreach ($file in @('control.ps1','uninstall-data.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
-foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','BuiltinWallpapers.cs','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
+foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','BuiltinWallpapers.cs','Uninstall.cs','uninstall-data.ps1','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets') -Destination (Join-Path $sourceOut 'assets') -Recurse
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
 Copy-Item -LiteralPath (Join-Path $PortSource 'DreamSkinPortHook.cs'),(Join-Path $PortSource 'register-port.ps1') -Destination $port
 $monitor = [IO.File]::ReadAllText((Join-Path $PortSource 'monitor-skin.ps1'))
-$monitor = [regex]::Replace($monitor, '(?m)^\$install = .*$', '$install = Join-Path $env:LOCALAPPDATA ''Programs\CodexLiveBackground''')
+$monitor = [regex]::Replace($monitor, '(?m)^\$install = .*$', '$install = Split-Path -Parent $PSScriptRoot')
 $monitor = $monitor.Replace("'windows\scripts'", "'engine\scripts'")
 [IO.File]::WriteAllText((Join-Path $port 'monitor-skin.ps1'), $monitor, [Text.UTF8Encoding]::new($true))
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
@@ -69,6 +69,8 @@ Remove-Item -LiteralPath $iconBuilder -Force
 $managerSources=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs')|ForEach-Object{Join-Path $PSScriptRoot $_}
 & $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexLiveBackground.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll @managerSources
 if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
+& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\卸载 Codex 动态背景.exe" /r:System.Windows.Forms.dll (Join-Path $PSScriptRoot 'Uninstall.cs')
+if($LASTEXITCODE -ne 0){throw 'Uninstaller compilation failed.'}
 $wallpaperBuilder=Join-Path $out 'GenerateWallpapers.exe'
 & $csc /nologo /target:winexe /main:BuiltinWallpapers /codepage:65001 "/out:$wallpaperBuilder" /r:System.Drawing.dll (Join-Path $PSScriptRoot 'BuiltinWallpapers.cs')
 if($LASTEXITCODE -ne 0){throw 'Wallpaper artwork compilation failed.'}
@@ -118,12 +120,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.5.5';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.6.0';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.5.5';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.6.0';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out
