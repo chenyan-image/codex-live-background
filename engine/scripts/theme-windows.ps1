@@ -3,6 +3,7 @@
 }
 
 $script:DreamSkinMaxImageBytes = 512 * 1024 * 1024
+$script:DreamSkinMaxThemeNameCodePoints = 4096
 $script:DreamSkinMaxVideoBytes = 512 * 1024 * 1024
 $script:DreamSkinMaxThemeArchiveBytes = 160 * 1024 * 1024
 $script:DreamSkinMaxThemeArchiveExpandedBytes = 192 * 1024 * 1024
@@ -79,6 +80,17 @@ function Get-DreamSkinUnicodeScalarCount {
   return $count
 }
 
+function Assert-DreamSkinThemeName {
+  param([AllowNull()][object]$Value,[switch]$AllowEmpty)
+  if ($Value -isnot [string]) { throw '主题名称必须是文本。' }
+  $count = if ($Value.Length) { Get-DreamSkinUnicodeScalarCount -Value $Value } else { 0 }
+  if ($count -lt 0 -or $count -gt $script:DreamSkinMaxThemeNameCodePoints -or
+    $Value -match '[\u0000-\u001f\u007f]' -or (-not $AllowEmpty -and -not $Value.Trim())) {
+    throw '主题名称最多支持 4096 个 Unicode 字符，不能包含换行或控制字符。'
+  }
+  return $Value.Trim()
+}
+
 function Test-DreamSkinCommunityDisplayTextHasForbiddenUnicode {
   param([Parameter(Mandatory = $true)][string]$Value)
   for ($index = 0; $index -lt $Value.Length; $index++) {
@@ -152,7 +164,7 @@ function ConvertFrom-DreamSkinCommunityThemeMetadata {
     -Name 'themeId' -MaximumLength 80
   $name = Assert-DreamSkinCommunityDisplayText `
     -Value (Get-DreamSkinCommunityMetadataProperty -Metadata $metadata -Name 'name') `
-    -Name 'name' -MaximumLength 120
+    -Name 'name' -MaximumLength $script:DreamSkinMaxThemeNameCodePoints
   $author = Assert-DreamSkinCommunityDisplayText `
     -Value (Get-DreamSkinCommunityMetadataProperty -Metadata $metadata -Name 'authorDisplayName') `
     -Name 'authorDisplayName' -MaximumLength 120
@@ -467,6 +479,9 @@ function Normalize-DreamSkinThemeContract {
   if ($null -eq $Theme -or $Theme -is [string] -or $Theme -is [array]) {
     throw 'Theme contract must be a JSON object.'
   }
+  if ($Theme.PSObject.Properties['name']) {
+    $Theme.name = Assert-DreamSkinThemeName -Value $Theme.name -AllowEmpty
+  }
   if (-not $Theme.PSObject.Properties['id'] -or -not $Theme.PSObject.Properties['id'].Value) {
     $Theme | Add-Member -NotePropertyName id -NotePropertyValue 'custom' -Force
   }
@@ -680,6 +695,7 @@ function Set-DreamSkinActiveTheme {
     [switch]$SkipImageArchive,
     [string]$StateRoot = (Join-Path $env:LOCALAPPDATA 'CodexDreamSkin')
   )
+  if ($Name) { $Name = Assert-DreamSkinThemeName -Value $Name }
   $paths = Get-DreamSkinThemePaths -StateRoot $StateRoot
   Ensure-DreamSkinManagedDirectory -Path $paths.Root -Root $paths.Root
   Ensure-DreamSkinManagedDirectory -Path $paths.Active -Root $paths.Root
@@ -700,6 +716,8 @@ function Set-DreamSkinActiveTheme {
       art = [pscustomobject]@{ focusX = $null; focusY = $null; bubbleOpacity = 0.0; surfaceOpacity = 0.8; safeArea = 'auto'; taskMode = 'auto' }
     }
   }
+  if ($Name) { $Theme | Add-Member -NotePropertyName name -NotePropertyValue $Name -Force }
+  $Theme = Normalize-DreamSkinThemeContract -Theme $Theme
   $imageName = New-DreamSkinThemeImageName -Extension $extension
   $target = Join-Path $paths.Active $imageName
   $temporary = Join-Path $paths.Active ('.dream-tmp-' + [guid]::NewGuid().ToString('N') + $extension)
@@ -723,8 +741,6 @@ function Set-DreamSkinActiveTheme {
     Assert-DreamSkinNoReparseComponents -Path $target
     Assert-DreamSkinImageFile -Path $target -SkipImageMetadata
     $Theme | Add-Member -NotePropertyName image -NotePropertyValue $imageName -Force
-    if ($Name) { $Theme | Add-Member -NotePropertyName name -NotePropertyValue $Name -Force }
-    $Theme = Normalize-DreamSkinThemeContract -Theme $Theme
     $activeCss = Join-Path $paths.Active 'theme.css'
     Assert-DreamSkinNoReparseComponents -Path $activeCss
     if ($temporaryCss) {
@@ -781,10 +797,7 @@ function Save-DreamSkinCurrentTheme {
     [Parameter(Mandatory = $true)][string]$Name,
     [string]$StateRoot = (Join-Path $env:LOCALAPPDATA 'CodexDreamSkin')
   )
-  $trimmed = $Name.Trim()
-  if (-not $trimmed -or $trimmed.Length -gt 80 -or $trimmed -match '[\u0000-\u001f]') {
-    throw 'Theme name must be between 1 and 80 visible characters.'
-  }
+  $trimmed = Assert-DreamSkinThemeName -Value $Name
   $paths = Get-DreamSkinThemePaths -StateRoot $StateRoot
   Ensure-DreamSkinManagedDirectory -Path $paths.Root -Root $paths.Root
   Ensure-DreamSkinManagedDirectory -Path $paths.Saved -Root $paths.Root

@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import { decodeAndValidateSafeCss } from "./safe-css-validator.mjs";
 import { readImageMetadata } from "../scripts/image-metadata.mjs";
 
+export const MAX_THEME_NAME_CODE_POINTS = 4096;
+
 const LIMITS = Object.freeze({
   manifest: 65_536,
   theme: 65_536,
@@ -304,7 +306,7 @@ function validateOfficialTheme(value) {
   );
   if (theme.schemaVersion !== 1) fail("theme.json must use schemaVersion 1");
   assertString(theme.id, "theme.json.id", { min: 3, max: 64, pattern: THEME_ID_PATTERN, controls: null });
-  assertString(theme.name, "theme.json.name", { min: 1, max: 80 });
+  assertString(theme.name, "theme.json.name", { min: 1, max: MAX_THEME_NAME_CODE_POINTS });
   assertString(theme.image, "theme.json.image", { min: 1, max: 32, controls: null });
   if (!BACKGROUND_MEDIA.has(theme.image)) fail("theme.json.image must name one registered background file");
   for (const key of THEME_COPY_KEYS) {
@@ -553,6 +555,7 @@ async function validateSimple(root, names) {
   if (theme.schemaVersion !== 1 || typeof theme.image !== "string" || !theme.image) {
     fail("Local simplified theme must use schemaVersion 1 and name an image");
   }
+  normalizeThemeText(theme.name, "Codex Dream Skin", MAX_THEME_NAME_CODE_POINTS, "name", "theme.json");
   if (
     path.basename(theme.image) !== theme.image
     || CONTROL_PATTERN.test(theme.image)

@@ -20,6 +20,17 @@ internal sealed class LibraryIndex {
     public bool MigratedCurrentTheme;
 }
 internal sealed class WallpaperLibrary {
+    public const int MaxNameCodePoints=4096;
+    const int MaxIndexBytes=64*1024*1024;
+    public static string ValidateName(string value){
+        if(String.IsNullOrWhiteSpace(value))throw new InvalidDataException("请输入壁纸名称。");
+        int count=0;for(int i=0;i<value.Length;i++){
+            char c=value[i];if(c<0x20||c==0x7f)throw new InvalidDataException("壁纸名称不能包含换行或控制字符。");
+            if(Char.IsHighSurrogate(c)){if(i+1>=value.Length||!Char.IsLowSurrogate(value[i+1]))throw new InvalidDataException("壁纸名称包含无效字符。");i++;}else if(Char.IsLowSurrogate(c))throw new InvalidDataException("壁纸名称包含无效字符。");
+            if(++count>MaxNameCodePoints)throw new InvalidDataException("壁纸名称最多支持 4096 个 Unicode 字符。");
+        }
+        return value.Trim();
+    }
     readonly string file;readonly object gate=new object();
     LibraryIndex index=new LibraryIndex();
     public string Warning="";
@@ -27,8 +38,8 @@ internal sealed class WallpaperLibrary {
     void Load(){
         if(!File.Exists(file))return;
         try{
-            if(new FileInfo(file).Length>4*1024*1024)throw new InvalidDataException("Index too large");
-            index=new JavaScriptSerializer{MaxJsonLength=4*1024*1024}.Deserialize<LibraryIndex>(File.ReadAllText(file,Encoding.UTF8));
+            if(new FileInfo(file).Length>MaxIndexBytes)throw new InvalidDataException("Index too large");
+            index=new JavaScriptSerializer{MaxJsonLength=MaxIndexBytes}.Deserialize<LibraryIndex>(File.ReadAllText(file,Encoding.UTF8));
             if(index==null||index.Schema!=1||index.Entries==null||index.Entries.Count>2000)throw new InvalidDataException("Invalid library schema");
             index.Entries=index.Entries.Where(x=>x!=null&&!String.IsNullOrWhiteSpace(x.Path)&&System.IO.Path.IsPathRooted(x.Path)&&!String.IsNullOrWhiteSpace(x.Id)).GroupBy(x=>x.Id,StringComparer.OrdinalIgnoreCase).Select(g=>g.First()).ToList();
             if(index.SteamRoots==null)index.SteamRoots=new List<string>();
@@ -52,16 +63,16 @@ internal sealed class WallpaperLibrary {
             var old=index.Entries.FirstOrDefault(x=>String.Equals(x.Path,path,StringComparison.OrdinalIgnoreCase));
             if(old!=null)return old;
             if(index.Entries.Count>=2000)throw new InvalidDataException("壁纸记录已满，请移除不再需要的记录。");
-            var entry=new WallpaperEntry{Id=Identity(path),Path=path,Name=String.IsNullOrWhiteSpace(name)?System.IO.Path.GetFileNameWithoutExtension(path):name,Source=source,Kind=MediaKind(path),Thumbnail=thumbnail,Note=note,AddedUtc=DateTime.UtcNow.ToString("o")};
+            var entry=new WallpaperEntry{Id=Identity(path),Path=path,Name=ValidateName(String.IsNullOrWhiteSpace(name)?System.IO.Path.GetFileNameWithoutExtension(path):name),Source=source,Kind=MediaKind(path),Thumbnail=thumbnail,Note=note,AddedUtc=DateTime.UtcNow.ToString("o")};
             index.Entries.Add(entry);Save();return entry;
         }
     }
-    public void Applied(WallpaperEntry entry){lock(gate){var saved=index.Entries.FirstOrDefault(x=>x.Id==entry.Id);if(saved==null){if(index.Entries.Count>=2000)throw new InvalidDataException("壁纸记录已满。");index.Entries.Add(entry);saved=entry;}saved.LastUsedUtc=DateTime.UtcNow.ToString("o");Save();}}
+    public void Applied(WallpaperEntry entry){string name=ValidateName(entry.Name);lock(gate){var saved=index.Entries.FirstOrDefault(x=>x.Id==entry.Id);if(saved==null){if(index.Entries.Count>=2000)throw new InvalidDataException("壁纸记录已满。");index.Entries.Add(entry);saved=entry;}saved.Name=name;saved.LastUsedUtc=DateTime.UtcNow.ToString("o");Save();}}
     public void RememberPreview(WallpaperEntry entry,string thumbnail){lock(gate){entry.Thumbnail=thumbnail;Save();}}
     public void Forget(string id){lock(gate){index.Entries.RemoveAll(x=>x.Id==id);Save();}}
     void Save(){
         string directory=System.IO.Path.GetDirectoryName(file);Directory.CreateDirectory(directory);string temporary=file+"."+Guid.NewGuid().ToString("N")+".tmp";
-        try{File.WriteAllText(temporary,new JavaScriptSerializer().Serialize(index),new UTF8Encoding(false));if(File.Exists(file))File.Replace(temporary,file,file+".bak",true);else File.Move(temporary,file);}
+        try{string json=new JavaScriptSerializer{MaxJsonLength=MaxIndexBytes}.Serialize(index);if(Encoding.UTF8.GetByteCount(json)>MaxIndexBytes)throw new InvalidDataException("壁纸记录已达到容量上限。");File.WriteAllText(temporary,json,new UTF8Encoding(false));if(File.Exists(file))File.Replace(temporary,file,file+".bak",true);else File.Move(temporary,file);}
         finally{if(File.Exists(temporary))File.Delete(temporary);}
     }
     public static List<WallpaperEntry> Builtins(string root){
@@ -129,7 +140,7 @@ internal static class SteamWallpapers {
                     }
                     if(path==null||WallpaperLibrary.MediaKind(path)==null)continue;
                     string id=WallpaperLibrary.Identity(path);if(!ids.Add(id))continue;
-                    result.Entries.Add(new WallpaperEntry{Id=id,Name=title.Length>160?title.Substring(0,160):title,Path=path,Thumbnail=thumb,Source="steam",Kind=WallpaperLibrary.MediaKind(path),Note=scene?"场景预览图 · 不包含原场景动画":"Wallpaper Engine · 使用原文件"});
+                    result.Entries.Add(new WallpaperEntry{Id=id,Name=WallpaperLibrary.ValidateName(title),Path=path,Thumbnail=thumb,Source="steam",Kind=WallpaperLibrary.MediaKind(path),Note=scene?"场景预览图 · 不包含原场景动画":"Wallpaper Engine · 使用原文件"});
                 }catch{result.Invalid++;}
             }}catch{result.Invalid++;}
         }
