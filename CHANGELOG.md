@@ -2,7 +2,14 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
-## v1.5.4.4 — 任务栏入口、托盘与恢复重绘（当前推荐）
+## v1.5.4.5 — 托盘恢复后的按钮状态（当前推荐）
+
+- 修复点击关闭隐藏到托盘时，Windows 未触发 MouseLeave 导致红色悬停状态残留、托盘重新打开后仍显示红色的问题。
+- 窗口按钮在隐藏／显示时清除悬停与按下状态，关闭按钮仅在鼠标悬停时变红；最小化按钮同样清除残留状态。
+- 先在旧代码复现持续红色，再对修复代码验证 10 次托盘恢复、正常悬停与移出、无未处理异常；未重复窗口缩放和滑杆测试。
+- 保留 v1.5.4.4 所有功能。宠物功能保留在独立功能分支准备，本修复包不包含宠物素材或功能。
+
+## v1.5.4.4 — 任务栏入口、托盘与恢复重绘
 
 - 修复快捷方式更换启动目标后遗留旧 AppUserModelID 的问题；快捷方式、后台启动和手动连接使用一致的官方应用标识。
 - 识别带旧版本号的官方 WindowsApps 路径，备份后迁移到 `shell:AppsFolder` 注册入口，不再把某一版本的 `ChatGPT.exe` 固定为长期启动目标。普通版与 Beta 分别识别，不把 Beta 改成普通版。
