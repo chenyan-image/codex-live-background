@@ -1,0 +1,31 @@
+{
+  "revision": "35be534c1e48fb37e58e71da8d83511eada164af",
+  "author": "HanaAyane / 小蕾米",
+  "source": "https://github.com/HanaAyane/remielle-codex-pet",
+  "files": [
+    {
+      "name": "pet.json",
+      "url": "https://raw.githubusercontent.com/HanaAyane/remielle-codex-pet/35be534c1e48fb37e58e71da8d83511eada164af/output/xiaolemi/pet.json",
+      "bytes": 217,
+      "sha256": "5ba9de1f86556462c78278f1ebf91a0c94e4c151d8db1ab0cdc5f9f7405d8f7d"
+    },
+    {
+      "name": "spritesheet.webp",
+      "url": "https://raw.githubusercontent.com/HanaAyane/remielle-codex-pet/35be534c1e48fb37e58e71da8d83511eada164af/output/xiaolemi/spritesheet.webp",
+      "bytes": 3131354,
+      "sha256": "f049d67093d250f389045f4387a4baceae0e187d02603f98047acf40dfec543e"
+    },
+    {
+      "name": "ASSET-USAGE.md",
+      "url": "https://raw.githubusercontent.com/HanaAyane/remielle-codex-pet/35be534c1e48fb37e58e71da8d83511eada164af/ASSET-USAGE.md",
+      "bytes": 2670,
+      "sha256": "8d6830eeda8788f42fd305ba17af1b347a8ea7f1ae98856db3859b1336ef6ec5"
+    },
+    {
+      "name": "NOTICE.md",
+      "url": "https://raw.githubusercontent.com/HanaAyane/remielle-codex-pet/35be534c1e48fb37e58e71da8d83511eada164af/NOTICE.md",
+      "bytes": 2770,
+      "sha256": "cb58c9b88657f1511326140147528e55e1178225a880cc5aec917ceba538578c"
+    }
+  ]
+}

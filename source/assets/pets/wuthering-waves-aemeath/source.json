@@ -1,0 +1,10 @@
+{
+  "id": "wuthering-waves-aemeath",
+  "name": "爱弥斯",
+  "author": "mizunagare",
+  "source": "https://github.com/YaKun9/codex-pets/tree/5de75e244de7d4f74d35ea14f226f583b986d7d3/wuthering-waves-aemeath",
+  "download": "https://raw.githubusercontent.com/YaKun9/codex-pets/5de75e244de7d4f74d35ea14f226f583b986d7d3/wuthering-waves-aemeath/spritesheet.webp",
+  "downloadSha256": "23EEE1678DA7F705AD21A77352F10E0558E19385E65E64E59C9EEA67FA9F8DBC",
+  "license": "Non-commercial asset usage notice; see LICENSE.md; underlying character rights reserved by their respective owners.",
+  "modification": "Lossless WebP to PNG conversion; original animation frames unchanged."
+}

@@ -10,7 +10,7 @@
     $version=(Get-Item -LiteralPath $exe).VersionInfo
     $legacy=$null;$catalog=Join-Path $PSScriptRoot 'legacy-managers.json'
     if(Test-Path -LiteralPath $catalog){$hash=(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash;$legacy=([IO.File]::ReadAllText($catalog)|ConvertFrom-Json).releases|Where-Object{$_.sha256 -ceq $hash -and $_.filename -ieq [IO.Path]::GetFileName($exe)}|Select-Object -First 1}
-    if(-not $legacy -and $version.ProductName -notmatch '^(Codex 动态背景|Codex Dream Skin Manager|CodexDreamSkinManager|CodexLiveBackground)$'){throw '旧程序身份无法确认，未覆盖现有目录。'}
+    if(-not $legacy -and $version.ProductName -notmatch '^(CodexHub|Codex 动态背景|Codex Dream Skin Manager|CodexDreamSkinManager|CodexLiveBackground)$'){throw '旧程序身份无法确认，未覆盖现有目录。'}
     $detectedVersion=if($legacy){$legacy.version}else{$version.FileVersion}
     [pscustomobject]@{Root=[IO.Path]::GetFullPath($candidate);Executable=[IO.Path]::GetFullPath($exe);Version=$detectedVersion}
   }
@@ -45,7 +45,7 @@ function Prepare-DreamBackgroundUpgrade {
   $backupRoot=Join-Path $StateRoot ('upgrade-backups\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N'))
   $null=New-Item -ItemType Directory -Path $StateRoot -Force
   $record=Join-Path $StateRoot 'last-upgrade.json'
-  [IO.File]::WriteAllText($record,(@{version='1.5.4.5';packageRoot=$PackageRoot;backups=@();complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($record,(@{version='1.7.0.0';packageRoot=$PackageRoot;backups=@();complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   Initialize-DreamSkinNativeInspection
   foreach($process in @(Get-CimInstance Win32_Process -Filter "Name='node.exe'")){
     if(-not [CodexDreamSkin.NativeInspection]::CurrentUser([int]$process.ProcessId)){continue}
@@ -70,10 +70,10 @@ function Prepare-DreamBackgroundUpgrade {
     [Console]::Out.WriteLine('检测到旧版 '+$install.Version+'，正在备份并迁移…')
     Move-Item -LiteralPath $install.Root -Destination $destination -ErrorAction Stop
     $backups+=@([pscustomobject]@{source=$install.Root;backup=$destination})
-    [IO.File]::WriteAllText($record,(@{version='1.5.4.5';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($record,(@{version='1.7.0.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   }
   $null=New-Item -ItemType Directory -Path $StateRoot -Force
-  [IO.File]::WriteAllText((Join-Path $StateRoot 'last-upgrade.json'),(@{version='1.5.4.5';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $StateRoot 'last-upgrade.json'),(@{version='1.7.0.0';packageRoot=$PackageRoot;backups=@($backups);complete=$false}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
   Write-Output '旧版本检查完成。个人壁纸和登录资料已保留。'
 }
 function Restore-DreamBackgroundUpgrade {

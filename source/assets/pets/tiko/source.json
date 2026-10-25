@@ -1,0 +1,10 @@
+{
+  "id": "tiko",
+  "name": "Tiko",
+  "author": "huigegood",
+  "source": "https://petdex.dev/zh/pets/tiko",
+  "download": "https://assets.petdex.dev/pets/tiko-beefcdec1197/zip.zip",
+  "downloadSha256": "CBEEE2EA008EBA26A5B16002084F80A7D650145EE4F416469A06EC3B3D4CBCB4",
+  "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+  "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer."
+}

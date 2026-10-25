@@ -1,0 +1,10 @@
+{
+  "id": "honkai-star-rail-firefly-spring-missive",
+  "name": "流萤·春日手信",
+  "author": "YaKun9",
+  "source": "https://github.com/YaKun9/codex-pets/tree/5de75e244de7d4f74d35ea14f226f583b986d7d3/honkai-star-rail-firefly-spring-missive",
+  "download": "https://raw.githubusercontent.com/YaKun9/codex-pets/5de75e244de7d4f74d35ea14f226f583b986d7d3/honkai-star-rail-firefly-spring-missive/spritesheet.webp",
+  "downloadSha256": "7F0F047AD80F5751851C5E195521DD0A97EDB47320A1BADDDB5015C48CF27A66",
+  "license": "Non-commercial asset usage notice; see LICENSE.md; underlying character rights reserved by their respective owners.",
+  "modification": "Lossless WebP to PNG conversion; original animation frames unchanged."
+}

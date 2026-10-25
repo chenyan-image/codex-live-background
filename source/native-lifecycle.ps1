@@ -18,7 +18,7 @@ function Assert-BackgroundInstallPath {
 function Get-BackgroundOwnedFiles {
  param([string]$Root)
  $manifest=Join-Path $Root 'manifest.json';$marker=Join-Path $Root '.codex-background-install.json'
- if(Test-Path -LiteralPath $marker){$data=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;if($data.productId -cne $script:NativeBackgroundId -or -not(Test-DreamSkinPathEqual -Left $data.root -Right $Root)){throw '安装标记归属不匹配。'};$trusted=[IO.File]::ReadAllText((Join-Path $script:NativePackageRoot 'manifest.json'))|ConvertFrom-Json;$allowed=@($trusted.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles;foreach($file in $data.files){if($file -notin $allowed){throw '安装标记包含未经核验的文件，已停止。'}};return @($data.files)}
+ if(Test-Path -LiteralPath $marker){$data=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;if($data.productId -cne $script:NativeBackgroundId -or -not(Test-DreamSkinPathEqual -Left $data.root -Right $Root)){throw '安装标记归属不匹配。'};$trusted=[IO.File]::ReadAllText((Join-Path $script:NativePackageRoot 'manifest.json'))|ConvertFrom-Json;$allowed=@($trusted.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','卸载 CodexHub.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles;foreach($file in $data.files){if($file -notin $allowed){throw '安装标记包含未经核验的文件，已停止。'}};return @($data.files)}
  $exe=Join-Path $Root 'CodexLiveBackground.exe';$catalog=Join-Path $PSScriptRoot 'legacy-managers.json'
  if((Test-Path -LiteralPath $exe) -and (Test-Path -LiteralPath $catalog)){$hash=(Get-FileHash -LiteralPath $exe).Hash;$known=([IO.File]::ReadAllText($catalog)|ConvertFrom-Json).releases|Where-Object{$_.sha256 -ceq $hash}|Select-Object -First 1;if($known){return @($known.files)+@('CodexLiveBackground.exe','manifest.json')+$script:BackgroundRuntimeFiles}}
  return @()
@@ -140,7 +140,7 @@ function Stop-BackgroundIntegrations {
 function Write-BackgroundNativeRegistration {
  param([string]$Root,[string]$Version)
  $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\CodexLiveBackground'
- $null=New-Item -Path $key -Force;$values=@{DisplayName='Codex 动态背景';DisplayVersion=$Version;Publisher='codex-live-background contributors';InstallLocation=$Root;UninstallString=('"'+(Join-Path $Root '卸载 Codex 动态背景.exe')+'" --uninstall "'+$Root+'"');DisplayIcon=(Join-Path $Root 'CodexBackground.ico');NoModify=1;NoRepair=1;URLInfoAbout='https://github.com/chenyan-image/codex-live-background'}
+ $null=New-Item -Path $key -Force;$values=@{DisplayName='CodexHub';DisplayVersion=$Version;Publisher='codex-live-background contributors';InstallLocation=$Root;UninstallString=('"'+(Join-Path $Root '卸载 CodexHub.exe')+'" --uninstall "'+$Root+'"');DisplayIcon=(Join-Path $Root 'CodexBackground.ico');NoModify=1;NoRepair=1;URLInfoAbout='https://github.com/chenyan-image/codex-live-background'}
  foreach($name in $values.Keys){$type=if($values[$name] -is [int]){'DWord'}else{'String'};$null=New-ItemProperty -LiteralPath $key -Name $name -Value $values[$name] -PropertyType $type -Force}
  $key='HKCU:\Software\CodexLiveBackground';$null=New-Item -Path $key -Force;$null=New-ItemProperty -LiteralPath $key -Name InstallRoot -Value $Root -PropertyType String -Force;$null=New-ItemProperty -LiteralPath $key -Name InstallKind -Value EXE -PropertyType String -Force
 }
@@ -154,26 +154,35 @@ function Invoke-BackgroundNativeAction {
  [Console]::Out.WriteLine('正在停止并验证旧后台组件…')
  Stop-BackgroundIntegrations -Roots $plan.roots -StateRoot $StateRoot -PackageRoot $PackageRoot -Uninstall:($Action -eq 'Uninstall') -ExcludeIds @($PID,$ManagerPid)
  foreach($product in $plan.products){[Console]::Out.WriteLine('正在正式移除旧 MSI 记录 '+$product.Version+'…');Remove-BackgroundLegacyMsi -Product $product -BackupRoot (Join-Path $OperationRoot 'legacy-backup')}
+ Remove-BackgroundDesktopEntries -Roots (@($plan.roots)+@($InstallRoot))
  foreach($root in $plan.roots){$files=@(Get-BackgroundOwnedFiles -Root $root);if($files.Count){Remove-BackgroundOwnedFiles -Root $root -Files $files}}
  if($Action -eq 'Uninstall'){
   [Console]::Out.WriteLine('正在清理壁纸副本、预览和下载缓存…');Remove-DreamBackgroundGeneratedData -StateRoot $StateRoot
   $cleanupRoots=@($plan.roots)+@($InstallRoot);foreach($root in $cleanupRoots){Remove-BackgroundNativeRegistration -Root $root}
-  $desktop=Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk';if(Test-Path -LiteralPath $desktop){$shell=New-Object -ComObject WScript.Shell;try{$link=$shell.CreateShortcut($desktop);if(@($cleanupRoots|Where-Object{Test-DreamSkinPathEqual -Left $link.TargetPath -Right (Join-Path $_ 'CodexLiveBackground.exe')}).Count){Remove-Item -LiteralPath $desktop -Force}}finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}}
+  Remove-BackgroundDesktopEntries -Roots $cleanupRoots
   Stop-BackgroundOwnedProcesses -Roots $plan.roots -StateRoot $StateRoot -ExcludeIds @($PID,$ManagerPid)
   [Console]::Out.WriteLine('卸载完成：本项目进程和服务已退出，原始壁纸与 Codex 登录资料保留。');return
  }
- [Console]::Out.WriteLine('正在直接安装 1.5.4 基线文件…')
- $manifest=[IO.File]::ReadAllText((Join-Path $PackageRoot 'manifest.json'))|ConvertFrom-Json;$files=@($manifest.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles
+ [Console]::Out.WriteLine('正在安装 CodexHub 程序文件…')
+ $manifest=[IO.File]::ReadAllText((Join-Path $PackageRoot 'manifest.json'))|ConvertFrom-Json;$files=@($manifest.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','卸载 CodexHub.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles
  $null=New-Item -ItemType Directory -Path $InstallRoot -Force
  if([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
   $acl=Get-Acl -LiteralPath $InstallRoot;$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User;$rule=[Security.AccessControl.FileSystemAccessRule]::new($sid,'Modify','ContainerInherit,ObjectInherit','None','Allow');$acl.AddAccessRule($rule);Set-Acl -LiteralPath $InstallRoot -AclObject $acl
  }
  foreach($entry in $manifest.files){$source=Get-BackgroundSafePath -Root $PackageRoot -Relative $entry.path;if((Get-FileHash -LiteralPath $source).Hash -cne $entry.sha256){throw '安装源文件校验失败。'};$target=Get-BackgroundSafePath -Root $InstallRoot -Relative $entry.path;Assert-DreamBackgroundTree -Path $target -Parent $InstallRoot;$null=New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force;Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop}
  Copy-Item -LiteralPath (Join-Path $PackageRoot 'manifest.json') -Destination (Join-Path $InstallRoot 'manifest.json') -Force
- Copy-Item -LiteralPath $SetupExecutable -Destination (Join-Path $InstallRoot '卸载 Codex 动态背景.exe') -Force -ErrorAction Stop
+ Copy-Item -LiteralPath $SetupExecutable -Destination (Join-Path $InstallRoot '卸载 CodexHub.exe') -Force -ErrorAction Stop
  [IO.File]::WriteAllText((Join-Path $InstallRoot '.codex-background-install.json'),(@{productId=$script:NativeBackgroundId;version=$manifest.version;baseVersion='1.5.4';root=[IO.Path]::GetFullPath($InstallRoot);files=$files;pending=$true}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
  Write-BackgroundNativeRegistration -Root $InstallRoot -Version $manifest.version
  [Console]::Out.WriteLine('正在启用并验证背景服务，请稍候…');Invoke-BackgroundNativeActivate -Root $InstallRoot -ManagerPid $ManagerPid
  $marker=Join-Path $InstallRoot '.codex-background-install.json';$record=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;$record.pending=$false;[IO.File]::WriteAllText($marker,($record|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
  [Console]::Out.WriteLine('安装完成。请从桌面唯一的管理器图标打开软件。')
+}
+function Remove-BackgroundDesktopEntries {
+ param([string[]]$Roots)
+ $shell=New-Object -ComObject WScript.Shell
+ try{foreach($name in @('CodexHub.lnk','Codex 动态背景.lnk','yz Codex 动态背景.lnk')){
+  $path=Join-Path ([Environment]::GetFolderPath('Desktop')) $name;if(-not(Test-Path -LiteralPath $path)){continue};$link=$shell.CreateShortcut($path)
+  if(@($Roots|Where-Object{Test-DreamSkinPathEqual -Left $link.TargetPath -Right (Join-Path $_ 'CodexLiveBackground.exe')}).Count){Remove-Item -LiteralPath $path -Force -ErrorAction Stop}
+ }}finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
 }

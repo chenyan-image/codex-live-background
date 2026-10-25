@@ -34,6 +34,7 @@ internal sealed class NavigationButton : Button {
             if(Glyph=="recent"){g.DrawEllipse(pen,17,14,18,18);g.DrawLines(pen,new[]{new Point(26,17),new Point(26,23),new Point(30,25)});}
             else if(Glyph=="steam"){g.DrawEllipse(pen,25,12,10,10);g.DrawEllipse(pen,16,26,7,7);g.DrawLine(pen,22,27,28,21);g.DrawLine(pen,15,27,10,24);}
             else if(Glyph=="settings"){g.DrawLine(pen,16,18,36,18);g.DrawLine(pen,16,28,36,28);g.DrawEllipse(pen,20,15,6,6);g.DrawEllipse(pen,29,25,6,6);}
+            else if(Glyph=="pet"){g.DrawEllipse(pen,20,24,12,9);g.DrawEllipse(pen,15,17,5,6);g.DrawEllipse(pen,22,12,5,7);g.DrawEllipse(pen,30,16,5,6);}
             else{g.DrawRectangle(pen,16,14,20,17);g.DrawLines(pen,new[]{new Point(17,29),new Point(23,22),new Point(28,27),new Point(32,23),new Point(35,27)});g.DrawEllipse(pen,28,17,3,3);}
         }
         TextRenderer.DrawText(g,Text,Font,new Rectangle(48,0,Width-51,Height),Selected?Color.FromArgb(225,245,233):Color.FromArgb(161,171,178),TextFormatFlags.Left|TextFormatFlags.VerticalCenter|TextFormatFlags.EndEllipsis);

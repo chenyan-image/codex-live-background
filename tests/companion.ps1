@@ -1,0 +1,10 @@
+﻿param([Parameter(Mandatory=$true)][string]$PackageRoot,[switch]$LiveQuota,[switch]$LiveActivity,[switch]$LiveTokens,[switch]$LiveRemielle,[switch]$LiveSurface,[string]$DragonDirectory)
+$ErrorActionPreference='Stop'
+$repo=Split-Path -Parent $PSScriptRoot;$out=Join-Path $PSScriptRoot ('output\companion-'+[guid]::NewGuid().ToString('N'));$null=New-Item -ItemType Directory -Path $out
+$files=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','CompanionCore.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs')|ForEach-Object{Join-Path $repo ('source\'+$_)}
+$exe=Join-Path $PackageRoot CompanionTests.exe;$report=Join-Path $out result.json
+if(Test-Path -LiteralPath $exe){throw 'Companion test executable already exists'}
+& (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe') /nologo /target:winexe /main:CompanionTests /platform:x64 /codepage:65001 ("/out:$exe") /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll $files (Join-Path $PSScriptRoot CompanionTests.cs)
+if($LASTEXITCODE -ne 0){throw 'Companion test compilation failed'}
+$arguments='"'+$report+'" "'+[IO.Path]::GetFullPath($PackageRoot)+'"';if($LiveQuota){$arguments+=' --live-quota'};if($LiveActivity){$arguments+=' --live-activity'};if($LiveTokens){$arguments+=' --live-tokens'};if($LiveRemielle){$arguments+=' --live-remielle'};if($LiveSurface){$arguments+=' --live-surface'};if($DragonDirectory){$arguments+=' --dragon '+('"'+$DragonDirectory+'"')}
+try{$process=Start-Process $exe -ArgumentList $arguments -WindowStyle Hidden -PassThru;if(-not $process.WaitForExit(45000)){throw 'Companion tests timed out'};$data=[IO.File]::ReadAllText($report)|ConvertFrom-Json;if($process.ExitCode -ne 0 -or -not $data.pass){throw $data.error};$data|ConvertTo-Json -Depth 5 -Compress;Write-Output ('Report: '+$report)}finally{Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue}

@@ -47,7 +47,7 @@ if ($signature.Status -ne 'Valid') { throw ('Bundled Node.js signature is invali
 foreach ($file in @('control.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
-foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','BuiltinWallpapers.cs','Setup.cs','build-setup.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
+foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','CompanionCore.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','BuiltinWallpapers.cs','Setup.cs','build-setup.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets') -Destination (Join-Path $sourceOut 'assets') -Recurse
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
@@ -66,8 +66,8 @@ $iconProcess=Start-Process -FilePath $iconBuilder -ArgumentList ('"'+$iconPath+'
 if($iconProcess.ExitCode -ne 0){throw 'Icon generation failed.'}
 Copy-Item -LiteralPath $iconPath -Destination (Join-Path $out 'CodexBackground.ico')
 Remove-Item -LiteralPath $iconBuilder -Force
-$managerSources=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs')|ForEach-Object{Join-Path $PSScriptRoot $_}
-& $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexLiveBackground.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll @managerSources
+$managerSources=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','CompanionCore.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs')|ForEach-Object{Join-Path $PSScriptRoot $_}
+& $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" ("/resource:"+(Join-Path $PSScriptRoot 'assets\brand\codexhub.png')+",CodexHub.Brand") ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexLiveBackground.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll @managerSources
 if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
 $wallpaperBuilder=Join-Path $out 'GenerateWallpapers.exe'
 & $csc /nologo /target:winexe /main:BuiltinWallpapers /codepage:65001 "/out:$wallpaperBuilder" /r:System.Drawing.dll (Join-Path $PSScriptRoot 'BuiltinWallpapers.cs')
@@ -84,11 +84,13 @@ foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
 }
 if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\manager.png')){
   $null=New-Item -ItemType Directory -Path (Join-Path $out 'docs') -Force
-  foreach($name in @('manager.png','wallpaper-engine.png','icon.png','windows-trust.md','guide.md','bundled-wallpapers.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
+  foreach($name in @('manager.png','wallpaper-engine.png','icon.png','windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.png','pet-quota.png','pet-animation.gif','desktop-pets.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
 }
 $thirdParty = Join-Path $out 'THIRD_PARTY'
 New-Item -ItemType Directory -Path $thirdParty | Out-Null
 Copy-Item -LiteralPath (Join-Path $ThirdPartySource 'Codex-Dream-Skin') -Destination $thirdParty -Recurse
+Copy-Item -LiteralPath (Join-Path $repoRoot 'THIRD_PARTY\Pet-Assets') -Destination $thirdParty -Recurse
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets\fonts\ChakraPetch-OFL.txt') -Destination (Join-Path $thirdParty 'ChakraPetch-OFL.txt')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $thirdParty 'Dream-Skin-Manager-LICENSE')
 Copy-Item -LiteralPath $NodeLicense -Destination (Join-Path $thirdParty 'Node-LICENSE')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets\Phosphor-LICENSE') -Destination (Join-Path $thirdParty 'Phosphor-LICENSE')
@@ -118,12 +120,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.5.4.5';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.0';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.5.4.5';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.7.0.0';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

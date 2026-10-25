@@ -1,0 +1,10 @@
+{
+  "id": "codie",
+  "name": "Codie",
+  "author": "Codex Pet",
+  "source": "https://codexpet.xyz/pets/codie/",
+  "download": "https://codexpet.xyz/downloads/codie.zip",
+  "downloadSha256": "217E6D657BCE7EF22C8F1EA5F55A7C47AE6A1896222A90E53E581915B39E3613",
+  "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+  "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer."
+}

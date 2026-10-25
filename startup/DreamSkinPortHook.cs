@@ -13,10 +13,10 @@ using System.Collections.Generic;
 using System.Reflection;
 
 [assembly: AssemblyTitle("Codex Background Startup")]
-[assembly: AssemblyProduct("Codex 动态背景")]
+[assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.4.5")]
-[assembly: AssemblyFileVersion("1.5.4.5")]
+[assembly: AssemblyVersion("1.7.0.0")]
+[assembly: AssemblyFileVersion("1.7.0.0")]
 
 [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IDreamSkinPackageDebug {

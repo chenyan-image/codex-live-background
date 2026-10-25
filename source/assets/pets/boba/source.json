@@ -1,0 +1,10 @@
+{
+  "id": "boba",
+  "name": "Boba",
+  "author": "railly",
+  "source": "https://petdex.dev/zh/pets/boba",
+  "download": "https://assets.petdex.dev/curated/boba/v2/boba.zip",
+  "downloadSha256": "ABABD6911D11C6B1FA51366A84E0757F8F1242BB7B69458AD4F50F98A0A38A17",
+  "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+  "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer."
+}

@@ -1,0 +1,119 @@
+{
+  "pets": [
+    {
+      "id": "bailong",
+      "license": "Source asset notice does not grant general redistribution. No white-dragon artwork is bundled; load original local material or download directly from the author.",
+      "source": "https://github.com/jingh12312-rgb/bailong-desktop-pet",
+      "author": "jingh12312-rgb; Wunsch2048",
+      "distribution": "author-download-or-local"
+    },
+    {
+      "id": "boba",
+      "name": "Boba",
+      "author": "railly",
+      "source": "https://petdex.dev/zh/pets/boba",
+      "download": "https://assets.petdex.dev/curated/boba/v2/boba.zip",
+      "downloadSha256": "ABABD6911D11C6B1FA51366A84E0757F8F1242BB7B69458AD4F50F98A0A38A17",
+      "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+      "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "codie",
+      "name": "Codie",
+      "author": "Codex Pet",
+      "source": "https://codexpet.xyz/pets/codie/",
+      "download": "https://codexpet.xyz/downloads/codie.zip",
+      "downloadSha256": "217E6D657BCE7EF22C8F1EA5F55A7C47AE6A1896222A90E53E581915B39E3613",
+      "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+      "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "deepseek",
+      "name": "deepseek酱",
+      "author": "fightingshine",
+      "source": "https://petdex.dev/zh/pets/deepseek",
+      "download": "https://assets.petdex.dev/pets/deepseek-c3fa684cfe03/zip.zip",
+      "downloadSha256": "8BCF93748054BA31C659A46B4B1F8F41453C5FA78CCC6F3F7AC40C9FD57F5918",
+      "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+      "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "genshin-impact-odette",
+      "name": "奥黛塔",
+      "author": "Zlllo",
+      "source": "https://github.com/YaKun9/codex-pets/tree/5de75e244de7d4f74d35ea14f226f583b986d7d3/genshin-impact-odette",
+      "download": "https://raw.githubusercontent.com/YaKun9/codex-pets/5de75e244de7d4f74d35ea14f226f583b986d7d3/genshin-impact-odette/spritesheet.webp",
+      "downloadSha256": "B71AADA4DA5E59112834588CE714C44D5B8197C4561E2225D1F4C608943B8066",
+      "license": "Non-commercial asset usage notice; see LICENSE.md; underlying character rights reserved by their respective owners.",
+      "modification": "Lossless WebP to PNG conversion; original animation frames unchanged.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "honkai-star-rail-firefly-spring-missive",
+      "name": "流萤·春日手信",
+      "author": "YaKun9",
+      "source": "https://github.com/YaKun9/codex-pets/tree/5de75e244de7d4f74d35ea14f226f583b986d7d3/honkai-star-rail-firefly-spring-missive",
+      "download": "https://raw.githubusercontent.com/YaKun9/codex-pets/5de75e244de7d4f74d35ea14f226f583b986d7d3/honkai-star-rail-firefly-spring-missive/spritesheet.webp",
+      "downloadSha256": "7F0F047AD80F5751851C5E195521DD0A97EDB47320A1BADDDB5015C48CF27A66",
+      "license": "Non-commercial asset usage notice; see LICENSE.md; underlying character rights reserved by their respective owners.",
+      "modification": "Lossless WebP to PNG conversion; original animation frames unchanged.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "tiko",
+      "name": "Tiko",
+      "author": "huigegood",
+      "source": "https://petdex.dev/zh/pets/tiko",
+      "download": "https://assets.petdex.dev/pets/tiko-beefcdec1197/zip.zip",
+      "downloadSha256": "CBEEE2EA008EBA26A5B16002084F80A7D650145EE4F416469A06EC3B3D4CBCB4",
+      "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+      "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "wangcai",
+      "name": "Wangcai",
+      "author": "boxu-openai",
+      "source": "https://petdex.dev/zh/pets/wangcai",
+      "download": "https://assets.petdex.dev/pets/wangcai-4745956f417b/zip.zip",
+      "downloadSha256": "AB9B32B69D43F757B11F200C05E6281A1086BF8F7BF4DF753010B0159EB526AD",
+      "license": "No separate asset license included in downloaded pack; original rights remain with the creator.",
+      "modification": "Sprite atlas losslessly converted from WebP to PNG for the Windows renderer.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "wuthering-waves-aemeath",
+      "name": "爱弥斯",
+      "author": "mizunagare",
+      "source": "https://github.com/YaKun9/codex-pets/tree/5de75e244de7d4f74d35ea14f226f583b986d7d3/wuthering-waves-aemeath",
+      "download": "https://raw.githubusercontent.com/YaKun9/codex-pets/5de75e244de7d4f74d35ea14f226f583b986d7d3/wuthering-waves-aemeath/spritesheet.webp",
+      "downloadSha256": "23EEE1678DA7F705AD21A77352F10E0558E19385E65E64E59C9EEA67FA9F8DBC",
+      "license": "Non-commercial asset usage notice; see LICENSE.md; underlying character rights reserved by their respective owners.",
+      "modification": "Lossless WebP to PNG conversion; original animation frames unchanged.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "wuthering-waves-suisui",
+      "name": "穗穗",
+      "author": "mizunagare",
+      "source": "https://github.com/YaKun9/codex-pets/tree/5de75e244de7d4f74d35ea14f226f583b986d7d3/wuthering-waves-suisui",
+      "download": "https://raw.githubusercontent.com/YaKun9/codex-pets/5de75e244de7d4f74d35ea14f226f583b986d7d3/wuthering-waves-suisui/spritesheet.webp",
+      "downloadSha256": "5EAF17FC25A123E49ED4F096E8F86B5EE6A0F061CBE969857F8FD1F8CC1EE2CF",
+      "license": "Non-commercial asset usage notice; see LICENSE.md; underlying character rights reserved by their respective owners.",
+      "modification": "Lossless WebP to PNG conversion; original animation frames unchanged.",
+      "distribution": "bundled-atlas"
+    },
+    {
+      "id": "xiaolemi",
+      "name": "小蕾米",
+      "author": "HanaAyane / 小蕾米",
+      "source": "https://github.com/HanaAyane/remielle-codex-pet",
+      "license": "Load original material directly from the author; no Remielle artwork is redistributed. Read original ASSET-USAGE.md and NOTICE.md in the downloaded folder.",
+      "modification": "Local playback conversion only. The author notes AI-assisted redrawing and manual editing.",
+      "distribution": "author-download-or-local"
+    }
+  ]
+}
