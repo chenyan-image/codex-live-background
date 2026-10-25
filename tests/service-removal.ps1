@@ -69,4 +69,9 @@ Assert (([IO.File]::ReadAllText((Join-Path $outside 'keep.txt'))) -eq 'keep') 'O
 try{Assert-DreamBackgroundTree -Path (Join-Path $junction 'missing\target') -Parent $state;throw 'Ancestor junction accepted'}catch{Assert ($_.Exception.Message -match '链接或联接') 'Ancestor junction not checked'}
 [IO.Directory]::Delete($junction)
 try{Assert-DreamBackgroundTree -Path $outside -Parent $state;throw 'Escaping path accepted'}catch{Assert ($_.Exception.Message -match '超出') 'Escaping path not rejected'}
-[pscustomobject]@{pass=$true;cases=10;fullRemoval=$true;repeatable=$true;foreignEntriesPreserved=$true;disconnectReported=$true;packageUninstallDisconnected=$true;upgradeRetainsSession=$true;junctionRejected=$true;outsideUntouched=$true}|ConvertTo-Json -Compress
+$programStartup=Join-Path $install 'startup';$null=New-Item -ItemType Directory -Path $programStartup -Force
+[IO.File]::WriteAllText((Join-Path $programStartup 'DreamSkinPortHook.exe'),'MSI-owned payload')
+$null=Remove-DreamBackgroundService @call -StartupRoot $programStartup
+Assert (Test-Path -LiteralPath (Join-Path $programStartup 'DreamSkinPortHook.exe')) 'Service removal deleted MSI-owned payload'
+try{$null=Remove-DreamBackgroundService @call -StartupRoot $outside;throw 'Foreign startup accepted'}catch{Assert ($_.Exception.Message -match '不属于') 'Foreign startup root was not rejected'}
+[pscustomobject]@{pass=$true;cases=12;msiPayloadPreserved=$true;fullRemoval=$true;repeatable=$true;foreignEntriesPreserved=$true;disconnectReported=$true;packageUninstallDisconnected=$true;upgradeRetainsSession=$true;junctionRejected=$true;outsideUntouched=$true}|ConvertTo-Json -Compress

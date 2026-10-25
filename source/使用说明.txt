@@ -1,4 +1,4 @@
-﻿Codex 动态背景 1.5.5
+﻿Codex 动态背景 1.6.0
 
 使用方法：
 1. 本地壁纸：点击右上角导入视频、GIF或图片，或选择六张内置原创背景。
@@ -46,21 +46,21 @@
 固定链接、校验值、许可及源码位置见 THIRD_PARTY\FFmpeg-Runtime\README.md。
 
 升级：
-直接双击新版Codex-Background-1.5.5-win-x64.msi，使用Windows Installer安装，无需手动解压。
+直接双击新版Codex-Background-1.6.0-win-x64.msi，使用Windows Installer安装，无需手动解压。
 自动检测标准安装目录中的旧版，关闭旧管理器、迁移旧程序并启用新版服务。
-旧程序备份保存在CodexDreamSkin\upgrade-backups；失败时尝试恢复旧程序文件。
+旧 ZIP 迁移临时备份在安装成功后清理；失败时保留供恢复。
 ZIP也可完整解压后打开管理器并装载服务。聊天、壁纸和登录资料保留。
-程序安装在 %LOCALAPPDATA%\Programs\CodexLiveBackground。
+安装时可填写其他本地盘路径；后台组件与程序统一位于所选目录。桌面只生成一个管理器图标。
 当前用户的背景、兼容副本和资料在 %LOCALAPPDATA%\CodexDreamSkin。
-诊断文件是该目录下的last-video-diagnostic.json；后台日志在startup目录。
+诊断文件是该目录下的last-video-diagnostic.json；后台日志在所选安装目录的 startup 子目录。
 不需要沿用作者的路径或用户名；只支持Windows10/11 x64官方Codex稳定版。
 
 卸载皮肤：
-卸载皮肤只卸下效果，保留服务。点击卸载服务彻底移除背景自启动及服务文件。
+卸载皮肤只卸下效果，保留服务。卸载服务解除后台组件，MSI 管理的程序文件保留。
 若窗口断开连接，会明确提示当前皮肤未确认卸下，可以稍后重试。
-也可在Windows PowerShell运行：
-  & "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action RemoveService
-关闭管理器后可手动删除程序目录。素材、日志及独立登录资料默认保留。
+卸载整个软件：
+  在所选安装目录双击「卸载 Codex 动态背景.exe」可完整卸载软件。
+请使用独立卸载工具或 Windows 设置卸载，不要直接删除安装目录。
 
 源码及构建见README.md与source\build.ps1；使用不存在的新输出目录。
 原始作者： https://github.com/xxloocee/Codex-Dream-Skin-Manager
@@ -76,3 +76,5 @@ ZIP也可完整解压后打开管理器并装载服务。聊天、壁纸和登�
 详见README.md和docs/windows-trust.md。
 界面组织参考：https://github.com/JiPaiFan1109/CodexPage；黑色画廊与交互独立实现。
 任务栏快捷方式图标从本机官方Codex包缓存，不在发行包中分发官方图标。
+
+完整卸载先移除服务、自启动与挂接，再删除程序、预览和下载缓存；原始壁纸与 Codex 登录资料保留。

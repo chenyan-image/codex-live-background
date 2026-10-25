@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-  [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','RemoveSkin','RemoveService','PrepareUpgrade','RollbackUpgrade','Status','Connection','Connect','AutoConnect','Check')][string]$Action = 'Status',
+  [ValidateSet('Install','Apply','Launch','Pause','Resume','Remove','RemoveSkin','RemoveService','PrepareUpgrade','RollbackUpgrade','Status','Connection','Connect','AutoConnect','Uninstall','Check')][string]$Action = 'Status',
   [string]$Media,
   [int]$ManagerPid=0,
   [switch]$AllowDisconnected,
@@ -10,9 +10,9 @@ $ErrorActionPreference = 'Stop'
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = $PSScriptRoot
-$installRoot = Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'
+$installRoot = [IO.Path]::GetFullPath($PSScriptRoot)
 $stateRoot = Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
-$startup = Join-Path $stateRoot 'startup'
+$startup = Join-Path $installRoot 'startup'
 $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $engine = Join-Path $root 'engine'
 . (Join-Path $engine 'scripts\common-windows.ps1')
@@ -24,6 +24,7 @@ $engine = Join-Path $root 'engine'
 . (Join-Path $root 'upgrade.ps1')
 . (Join-Path $root 'codex-icons.ps1')
 . (Join-Path $root 'shortcuts.ps1')
+. (Join-Path $root 'uninstall-data.ps1')
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $previousErrorActionPreference = $ErrorActionPreference
   try {
@@ -56,7 +57,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.5.5' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne '1.6.0' -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -148,7 +149,7 @@ function Prepare-YzVideo([string]$Path,[switch]$Preview) {
 }
 $upgradeMutex=$null;$upgradeOwned=$false
 try {
-  if($Action -in @('Install','PrepareUpgrade','RollbackUpgrade','Remove','RemoveService')){
+  if($Action -in @('Install','PrepareUpgrade','RollbackUpgrade','Remove','RemoveService','Uninstall')){
     $upgradeMutex=[Threading.Mutex]::new($false,('Local\CodexLiveBackground.Upgrade.'+[Security.Principal.WindowsIdentity]::GetCurrent().User.Value))
     try{$upgradeOwned=$upgradeMutex.WaitOne(30000)}catch [Threading.AbandonedMutexException]{$upgradeOwned=$true}
     if(-not $upgradeOwned){throw '另一个安装或服务操作正在进行，请等待原操作完成后重试。'}
@@ -165,8 +166,8 @@ try {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       $prepared=$false
-      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.5.5' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
-      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.5.5')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
+      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.6.0' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
+      if(-not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.6.0')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
       $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
@@ -177,10 +178,10 @@ try {
       [IO.File]::WriteAllText((Join-Path $stateRoot 'startup-animation.disabled'), 'Startup animation disabled.')
       $upgrade=Update-YzBackgroundService -PackageStartup (Join-Path $installRoot 'startup') -StartupRoot $startup -Mode $plan.Mode
       $autostart=Enable-YzBackgroundAutostart -StartupRoot $startup
-      $shortcuts=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $stateRoot
+      $shortcuts=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $stateRoot -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.5.5';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version='1.6.0';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
@@ -198,6 +199,7 @@ try {
       } finally { [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null }
       $upgradeRecord=Join-Path $stateRoot 'last-upgrade.json'
       if(Test-Path -LiteralPath $upgradeRecord){$savedUpgrade=[IO.File]::ReadAllText($upgradeRecord)|ConvertFrom-Json;$savedUpgrade.complete=$true;[IO.File]::WriteAllText($upgradeRecord,($savedUpgrade|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))}
+      $upgradeBackup=Join-Path $stateRoot 'upgrade-backups';Assert-DreamBackgroundTree -Path $upgradeBackup -Parent $stateRoot;if(Test-Path -LiteralPath $upgradeBackup){Remove-Item -LiteralPath $upgradeBackup -Recurse -Force -ErrorAction Stop}
       Write-Output '服务已装载：登录 Windows 时自动运行，Codex 启动时也会检查并恢复服务。后台监控已验证正常，无需再次打开管理器；以后直接点“换壁纸”即可。'
     }
     'Apply' {
@@ -259,10 +261,20 @@ try {
     'Pause' { Assert-Installed; $null = Invoke-Engine 'Pause'; Write-Output '背景已暂停，窗口已恢复原貌。' }
     'Resume' { Assert-Installed; $result = Invoke-Engine 'Resume'; if (-not $result.rendererApplied) { throw '已取消暂停，等待 Codex 连接；也可打开 Codex 后再点恢复。' }; Write-Output '已恢复保存的背景。' }
     'RemoveSkin' { Remove-DreamBackgroundSkin -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root }
-    {$_ -in @('Remove','RemoveService')} { Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -AllowDisconnected:$AllowDisconnected }
+    {$_ -in @('Remove','RemoveService')} { Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -StartupRoot $startup -AllowDisconnected:$AllowDisconnected }
     {$_ -in @('Connection','Connect','AutoConnect')} {
       $data=if($Action -eq 'Connection'){Get-YzConnectionReport}else{Invoke-YzConnectionAttempt -Automatic:($Action -eq 'AutoConnect')}
       [Console]::Out.WriteLine('DREAM_STATUS:'+($data|ConvertTo-Json -Compress))
+    }
+    'Uninstall' {
+      $installs=@([pscustomobject]@{Root=$installRoot;Executable=(Join-Path $installRoot 'CodexLiveBackground.exe')})
+      Stop-DreamBackgroundManagers -Installs $installs -ManagerPid $ManagerPid
+      Remove-DreamBackgroundService -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -StartupRoot $startup -AllowDisconnected
+      Stop-DreamBackgroundMediaWorkers -InstallRoot $installRoot -StateRoot $stateRoot
+      $linkPath=Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex 动态背景.lnk'
+      if(Test-Path -LiteralPath $linkPath){$shell=New-Object -ComObject WScript.Shell;try{$link=$shell.CreateShortcut($linkPath);if(Test-DreamSkinPathEqual -Left $link.TargetPath -Right (Join-Path $installRoot 'CodexLiveBackground.exe')){Remove-Item -LiteralPath $linkPath -Force}}finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}}
+      Remove-DreamBackgroundGeneratedData -StateRoot $stateRoot
+      Write-Output '服务及缓存已清理。原始素材和 Codex 登录资料保留，正在卸载程序文件。'
     }
     'Status' {
       $codex = Get-DreamSkinCodexInstall

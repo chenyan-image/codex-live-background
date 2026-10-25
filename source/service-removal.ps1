@@ -103,9 +103,13 @@ function Get-DreamBackgroundStartupLink {
   }finally{[void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell)}
 }
 function Remove-DreamBackgroundService {
-  param([string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[switch]$ForUpgrade,[switch]$AllowDisconnected,[ValidateRange(0,30)][int]$GraceSeconds=12)
-  $startupRoot=Join-Path ([IO.Path]::GetFullPath($StateRoot)) 'startup'
-  Assert-DreamBackgroundTree -Path $startupRoot -Parent $StateRoot
+  param([string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[switch]$ForUpgrade,[switch]$AllowDisconnected,[ValidateRange(0,30)][int]$GraceSeconds=12,[string]$StartupRoot)
+  $programServices=$false
+  if(-not $StartupRoot){$StartupRoot=Join-Path ([IO.Path]::GetFullPath($StateRoot)) 'startup'}
+  elseif(Test-DreamSkinPathEqual -Left $StartupRoot -Right (Join-Path $InstallRoot 'startup')){$programServices=$true}
+  elseif(-not(Test-DreamSkinPathEqual -Left $StartupRoot -Right (Join-Path $StateRoot 'startup'))){throw '服务清理路径不属于当前安装。'}
+  $serviceParent=if($programServices){$InstallRoot}else{$StateRoot}
+  Assert-DreamBackgroundTree -Path $startupRoot -Parent $serviceParent
   $task=Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
   Assert-DreamBackgroundTaskOwner -Task $task -StartupRoot $startupRoot
   $runKey='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -143,8 +147,8 @@ function Remove-DreamBackgroundService {
   if(Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue){throw '后台任务尚未完全移除，请重试。'}
   if(@(Get-DreamBackgroundPackageHooks -StartupRoot $startupRoot).Count -or @(Get-DreamBackgroundWorkers -StartupRoot $startupRoot).Count){throw '后台启动挂接或进程尚未移除，请重试。'}
   # Recheck the whole tree immediately before the only recursive deletion.
-  Assert-DreamBackgroundTree -Path $startupRoot -Parent $StateRoot
-  if(Test-Path -LiteralPath $startupRoot){Remove-Item -LiteralPath $startupRoot -Recurse -Force -ErrorAction Stop}
+  Assert-DreamBackgroundTree -Path $startupRoot -Parent $serviceParent
+  if(-not $programServices -and (Test-Path -LiteralPath $startupRoot)){Remove-Item -LiteralPath $startupRoot -Recurse -Force -ErrorAction Stop}
   if(-not $ForUpgrade -and -not $liveFailure){Remove-Item -LiteralPath (Join-Path $StateRoot 'state.json') -Force -ErrorAction SilentlyContinue}
   Remove-Item -LiteralPath (Join-Path $InstallRoot 'installed.json') -Force -ErrorAction SilentlyContinue
   if($liveFailure){$message='后台服务、自启动和服务文件已移除；当前窗口未确认卸下皮肤。聊天与素材保留。原因：'+$liveFailure;if($AllowDisconnected){Write-Output $message;return};throw $message}

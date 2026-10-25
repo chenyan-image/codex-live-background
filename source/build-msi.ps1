@@ -1,6 +1,7 @@
-﻿param([Parameter(Mandatory=$true)][string]$PackageRoot,[Parameter(Mandatory=$true)][string]$OutputFile,[switch]$RequireTrustedSignature,[switch]$TestPackage,[switch]$ExerciseServiceActions)
+﻿param([Parameter(Mandatory=$true)][string]$PackageRoot,[Parameter(Mandatory=$true)][string]$OutputFile,[switch]$RequireTrustedSignature,[switch]$TestPackage,[switch]$ExerciseServiceActions,[ValidatePattern('^[a-f0-9]{32}$')][string]$TestIdentity)
 $ErrorActionPreference='Stop'
 if($ExerciseServiceActions -and -not $TestPackage){throw 'Service-action probes require an isolated TestPackage.'}
+if($TestIdentity -and -not $TestPackage){throw 'TestIdentity requires an isolated TestPackage.'}
 $root=[IO.Path]::GetFullPath($PackageRoot);$out=[IO.Path]::GetFullPath($OutputFile)
 if(Test-Path -LiteralPath $out){throw 'OutputFile must be new.'}
 $manifest=[IO.File]::ReadAllText((Join-Path $root 'manifest.json'))|ConvertFrom-Json
@@ -17,7 +18,7 @@ function Row([string]$Name,[string[]]$Columns,[object[]]$Values){
  $sql='INSERT INTO `'+$Name+'` (`'+($Columns -join '`,`')+'`) VALUES ('+((@('?')*$Values.Count)-join ',')+')';$view=Call $database 'OpenView' @($sql);$record=Call $installer 'CreateRecord' @($Values.Count)
  try{for($i=0;$i -lt $Values.Count;$i++){if($null -eq $Values[$i]){continue};if($Values[$i] -is [int]){SetProperty $record 'IntegerData' @(($i+1),$Values[$i])}else{SetProperty $record 'StringData' @(($i+1),[string]$Values[$i])}};$null=Call $view 'Execute' @($record)}finally{$null=Call $view 'Close' @();[void][Runtime.InteropServices.Marshal]::ReleaseComObject($record);[void][Runtime.InteropServices.Marshal]::ReleaseComObject($view)}
 }
-$namespace=if($TestPackage){'test-'+[guid]::NewGuid().ToString('N')}else{'codex-live-background'}
+$namespace=if($TestPackage){'test-'+$(if($TestIdentity){$TestIdentity}else{[guid]::NewGuid().ToString('N')})}else{'codex-live-background'}
 function StableGuid([string]$Value){$md5=[Security.Cryptography.MD5]::Create();try{return ([guid]::new($md5.ComputeHash([Text.Encoding]::UTF8.GetBytes($namespace+'|'+$Value.ToLowerInvariant())))).ToString('B').ToUpperInvariant()}finally{$md5.Dispose()}}
 try{
  $database=Call $installer 'OpenDatabase' @($out,3)
@@ -33,9 +34,18 @@ try{
  Table 'CustomAction' '`Action` CHAR(72) NOT NULL, `Type` SHORT NOT NULL, `Source` CHAR(72), `Target` LONGCHAR LOCALIZABLE PRIMARY KEY `Action`'
  Table 'InstallExecuteSequence' '`Action` CHAR(72) NOT NULL, `Condition` CHAR(255), `Sequence` SHORT PRIMARY KEY `Action`'
  Table 'InstallUISequence' '`Action` CHAR(72) NOT NULL, `Condition` CHAR(255), `Sequence` SHORT PRIMARY KEY `Action`'
+ Table 'Dialog' '`Dialog` CHAR(72) NOT NULL, `HCentering` SHORT NOT NULL, `VCentering` SHORT NOT NULL, `Width` SHORT NOT NULL, `Height` SHORT NOT NULL, `Attributes` LONG, `Title` CHAR(128) LOCALIZABLE, `Control_First` CHAR(50) NOT NULL, `Control_Default` CHAR(50), `Control_Cancel` CHAR(50) PRIMARY KEY `Dialog`'
+ Table 'Control' '`Dialog_` CHAR(72) NOT NULL, `Control` CHAR(50) NOT NULL, `Type` CHAR(20) NOT NULL, `X` SHORT NOT NULL, `Y` SHORT NOT NULL, `Width` SHORT NOT NULL, `Height` SHORT NOT NULL, `Attributes` LONG, `Property` CHAR(72), `Text` CHAR(0) LOCALIZABLE, `Control_Next` CHAR(50), `Help` CHAR(50) LOCALIZABLE PRIMARY KEY `Dialog_`,`Control`'
+ Table 'ControlEvent' '`Dialog_` CHAR(72) NOT NULL, `Control_` CHAR(50) NOT NULL, `Event` CHAR(50) NOT NULL, `Argument` CHAR(255) NOT NULL, `Condition` CHAR(255), `Ordering` SHORT PRIMARY KEY `Dialog_`,`Control_`,`Event`,`Argument`,`Condition`'
+ Table 'TextStyle' '`TextStyle` CHAR(72) NOT NULL, `FaceName` CHAR(32) NOT NULL, `Size` SHORT NOT NULL, `Color` LONG, `StyleBits` SHORT PRIMARY KEY `TextStyle`'
+ Table 'Registry' '`Registry` CHAR(72) NOT NULL, `Root` SHORT, `Key` CHAR(255) NOT NULL LOCALIZABLE, `Name` CHAR(255) LOCALIZABLE, `Value` CHAR(0) LOCALIZABLE, `Component_` CHAR(72) NOT NULL PRIMARY KEY `Registry`'
+ Table 'RegLocator' '`Signature_` CHAR(72) NOT NULL, `Root` SHORT NOT NULL, `Key` CHAR(255) NOT NULL, `Name` CHAR(255), `Type` SHORT PRIMARY KEY `Signature_`'
+ Table 'AppSearch' '`Property` CHAR(72) NOT NULL, `Signature_` CHAR(72) NOT NULL PRIMARY KEY `Property`,`Signature_`'
+ Table 'Signature' '`Signature` CHAR(72) NOT NULL, `FileName` CHAR(255), `MinVersion` CHAR(20), `MaxVersion` CHAR(20), `MinSize` LONG, `MaxSize` LONG, `MinDate` LONG, `MaxDate` LONG, `Languages` CHAR(255) PRIMARY KEY `Signature`'
+ Table 'RemoveFile' '`FileKey` CHAR(72) NOT NULL, `Component_` CHAR(72) NOT NULL, `FileName` CHAR(255) LOCALIZABLE, `DirProperty` CHAR(72) NOT NULL, `InstallMode` SHORT NOT NULL PRIMARY KEY `FileKey`'
  Table 'Upgrade' '`UpgradeCode` CHAR(38) NOT NULL, `VersionMin` CHAR(20), `VersionMax` CHAR(20), `Language` CHAR(255), `Attributes` LONG NOT NULL, `Remove` CHAR(255), `ActionProperty` CHAR(72) NOT NULL PRIMARY KEY `UpgradeCode`,`VersionMin`,`VersionMax`,`Language`,`Attributes`'
  $product=StableGuid ('product-'+$manifest.version);$upgrade=StableGuid 'upgrade'
- $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS';ARPNOMODIFY='1';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
+ $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductVersion=$manifest.version;ProductLanguage='2052';ProductName='Codex 动态背景';Manufacturer='codex-live-background contributors';INSTALLLEVEL='1';REBOOT='ReallySuppress';MSIINSTALLPERUSER='1';ALLUSERS='2';SecureCustomProperties='OLDPRODUCTS;INSTALLDIR;PREVIOUSINSTALLDIR;CURRENTINSTALLDIR';ARPNOMODIFY='1';ARPINSTALLLOCATION='[INSTALLDIR]';DefaultUIFont='Normal';ARPURLINFOABOUT='https://github.com/chenyan-image/codex-live-background';LAUNCHMANAGER='1'}
  if($TestPackage){$properties.ProductName='Codex Background isolated package test';$properties.SKIPBACKGROUND='1';$properties.LAUNCHMANAGER='0'}
  if($ExerciseServiceActions){$properties.DREAM_MSI_PROBE='1'}
  foreach($name in $properties.Keys){Row 'Property' @('Property','Value') @($name,$properties[$name])}
@@ -64,24 +74,52 @@ try{
  Row 'Media' @('DiskId','LastSequence','Cabinet') @(1,$sequence,'#payload.cab')
  if(-not $managerComponent){throw 'Manager executable is missing from the package.'}
  $installArgument=if($ExerciseServiceActions){'--msi-action-probe'}else{'--service-install'}
- $removeArgument=if($ExerciseServiceActions){'--msi-action-probe'}else{'--service-remove'}
+ $removeArgument=if($ExerciseServiceActions){'--msi-action-probe'}else{'--package-remove'}
  # Directory-based EXE actions avoid Type 18's "file not marked" failure
  # during maintenance; quoted paths and component-state gates remain explicit.
  Row 'CustomAction' @('Action','Type','Source','Target') @('InstallBackground',1058,'INSTALLDIR',('"[INSTALLDIR]CodexLiveBackground.exe" '+$installArgument))
  Row 'CustomAction' @('Action','Type','Source','Target') @('RemoveBackground',1058,'INSTALLDIR',('"[INSTALLDIR]CodexLiveBackground.exe" '+$removeArgument))
  Row 'CustomAction' @('Action','Type','Source','Target') @('LaunchManager',226,'INSTALLDIR','"[INSTALLDIR]CodexLiveBackground.exe"')
- Row 'CustomAction' @('Action','Type','Source','Target') @('SetInstallDirectory',51,'INSTALLDIR','[LocalAppDataFolder]Programs\CodexLiveBackground')
+ Row 'CustomAction' @('Action','Type','Source','Target') @('SetInstallDirectory',51,'INSTALLDIR','[CURRENTINSTALLDIR]')
+ Row 'CustomAction' @('Action','Type','Source','Target') @('SetPreviousDirectory',51,'INSTALLDIR','[PREVIOUSINSTALLDIR]')
+ Row 'CustomAction' @('Action','Type','Source','Target') @('SetDefaultDirectory',51,'INSTALLDIR','[LocalAppDataFolder]Programs\CodexLiveBackground')
+ Row 'CustomAction' @('Action','Type','Source','Target') @('SetLegacyDirectory',51,'PREVIOUSINSTALLDIR','[LocalAppDataFolder]Programs\CodexLiveBackground\')
+ Row 'CustomAction' @('Action','Type','Source','Target') @('StopOldBackground',34,'LocalAppDataFolder','"[PREVIOUSINSTALLDIR]CodexLiveBackground.exe" --service-remove')
+ $registryRoot=if($TestPackage){'Software\CodexLiveBackgroundIsolated\'+$namespace}else{'Software\CodexLiveBackground'}
+ foreach($pair in @(@('PreviousLocation',$registryRoot,'PREVIOUSINSTALLDIR'),@('CurrentLocation',($registryRoot+'\Installs\'+$product),'CURRENTINSTALLDIR'))){Row 'RegLocator' @('Signature_','Root','Key','Name','Type') @($pair[0],1,$pair[1],'InstallRoot',2);Row 'AppSearch' @('Property','Signature_') @($pair[2],$pair[0])}
+ foreach($pair in @(@('RootLocation',$registryRoot),@('ProductLocation',($registryRoot+'\Installs\'+$product)))){Row 'Registry' @('Registry','Root','Key','Name','Value','Component_') @($pair[0],1,$pair[1],'InstallRoot','[INSTALLDIR]',$managerComponent)}
+ Row 'RemoveFile' @('FileKey','Component_','FileName','DirProperty','InstallMode') @('InstallState',$managerComponent,'installed.json','INSTALLDIR',2)
+ $number=0;foreach($pattern in @('*.log','*-state.json','stop-guard','registration.json')){$number++;Row 'RemoveFile' @('FileKey','Component_','FileName','DirProperty','InstallMode') @(('ServiceRuntime'+$number),$managerComponent,$pattern,$directories['startup'],2)}
  Row 'Upgrade' @('UpgradeCode','VersionMin','VersionMax','Attributes','ActionProperty') @($upgrade,'0.0.0',$manifest.version,0,'OLDPRODUCTS')
- $actions=@{FindRelatedProducts=25;CostInitialize=800;FileCost=900;CostFinalize=1000;MigrateFeatureStates=1200;InstallValidate=1400;InstallInitialize=1500;ProcessComponents=1600;UnpublishFeatures=1800;RemoveFiles=3500;InstallFiles=4000;RegisterUser=6000;RegisterProduct=6100;PublishFeatures=6300;PublishProduct=6400;InstallExecute=6500;RemoveExistingProducts=6550;InstallFinalize=6600}
+ $actions=@{FindRelatedProducts=25;AppSearch=50;CostInitialize=800;FileCost=900;CostFinalize=1000;MigrateFeatureStates=1200;InstallValidate=1400;RemoveExistingProducts=1450;InstallInitialize=1500;ProcessComponents=1600;UnpublishFeatures=1800;RemoveRegistryValues=2600;RemoveFiles=3500;InstallFiles=4000;WriteRegistryValues=5000;RegisterUser=6000;RegisterProduct=6100;PublishFeatures=6300;PublishProduct=6400;InstallExecute=6500;InstallFinalize=6600}
  foreach($name in $actions.Keys){Row 'InstallExecuteSequence' @('Action','Sequence') @($name,[int]$actions[$name])}
- Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('SetInstallDirectory','NOT SKIPBACKGROUND',950)
+ foreach($sequenceTable in @('InstallExecuteSequence','InstallUISequence')){
+  Row $sequenceTable @('Action','Condition','Sequence') @('SetInstallDirectory','NOT INSTALLDIR AND CURRENTINSTALLDIR',740)
+  Row $sequenceTable @('Action','Condition','Sequence') @('SetPreviousDirectory','NOT INSTALLDIR AND PREVIOUSINSTALLDIR AND NOT Installed',750)
+  Row $sequenceTable @('Action','Condition','Sequence') @('SetDefaultDirectory','NOT INSTALLDIR AND NOT SKIPBACKGROUND',760)
+ }
+ Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('SetLegacyDirectory','OLDPRODUCTS AND NOT PREVIOUSINSTALLDIR',770)
+ Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('StopOldBackground','OLDPRODUCTS AND NOT SKIPBACKGROUND',1420)
  $serviceGate='(NOT SKIPBACKGROUND OR DREAM_MSI_PROBE="1")'
  $managerPresent='($'+$managerComponent+'=3 OR ?'+$managerComponent+'=3)'
  Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('RemoveBackground',('REMOVE~="ALL" AND NOT UPGRADINGPRODUCTCODE AND '+$serviceGate+' AND ?'+$managerComponent+'=3'),3450)
  Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('InstallBackground',('NOT REMOVE~="ALL" AND '+$serviceGate+' AND '+$managerPresent),6450)
  Row 'InstallExecuteSequence' @('Action','Condition','Sequence') @('LaunchManager',('NOT REMOVE~="ALL" AND UILevel>=3 AND LAUNCHMANAGER="1" AND '+$managerPresent),6700)
- foreach($pair in @(@('FindRelatedProducts',25),@('CostInitialize',800),@('FileCost',900),@('CostFinalize',1000),@('ExecuteAction',1300))){Row 'InstallUISequence' @('Action','Sequence') @($pair[0],[int]$pair[1])}
- Row 'InstallUISequence' @('Action','Condition','Sequence') @('SetInstallDirectory','NOT SKIPBACKGROUND',950)
+ foreach($pair in @(@('FindRelatedProducts',25),@('AppSearch',50),@('CostInitialize',800),@('FileCost',900),@('CostFinalize',1000),@('ExecuteAction',1300))){Row 'InstallUISequence' @('Action','Sequence') @($pair[0],[int]$pair[1])}
+ Row 'TextStyle' @('TextStyle','FaceName','Size') @('Normal','Microsoft YaHei UI',9)
+ Row 'Dialog' @('Dialog','HCentering','VCentering','Width','Height','Attributes','Title','Control_First','Control_Default','Control_Cancel') @('InstallDirDlg',50,50,390,200,3,'Codex 动态背景 · 安装','InstallPath','Install','Cancel')
+ foreach($control in @(
+  @('Heading','Text',18,15,350,26,3,$null,'选择安装位置',$null),
+  @('Info','Text',18,47,350,28,3,$null,'程序、后台组件及卸载工具将安装到此目录。',$null),
+  @('InstallPath','PathEdit',18,82,350,22,3,'INSTALLDIR',$null,'Install'),
+  @('Note','Text',18,115,350,35,3,$null,'可填写其他本地盘路径，例如 D:\Apps\CodexLiveBackground。桌面仅创建一个管理器图标。',$null),
+  @('Install','PushButton',210,165,75,23,3,$null,'安装','Cancel'),
+  @('Cancel','PushButton',294,165,75,23,3,$null,'取消','InstallPath')
+ )){Row 'Control' @('Dialog_','Control','Type','X','Y','Width','Height','Attributes','Property','Text','Control_Next') (@('InstallDirDlg')+$control)}
+ Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('InstallDirDlg','Install','SetTargetPath','INSTALLDIR','1',1)
+ Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('InstallDirDlg','Install','EndDialog','Return','1',2)
+ Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @('InstallDirDlg','Cancel','EndDialog','Exit','1',1)
+ Row 'InstallUISequence' @('Action','Condition','Sequence') @('InstallDirDlg','NOT Installed AND NOT REMOVE AND UILevel>=5',1100)
  $summary=$database.GetType().InvokeMember('SummaryInformation',$get,$null,$database,@(20))
  foreach($pair in @(@(1,936),@(2,'Installation Database'),@(3,'Codex Live Background '+$manifest.version),@(4,'codex-live-background contributors'),@(7,'x64;2052'),@(9,([guid]::NewGuid().ToString('B').ToUpperInvariant())),@(14,200),@(15,10),@(18,'Windows Installer database builder'))){SetProperty $summary 'Property' @($pair[0],$pair[1])}
  $null=Call $summary 'Persist' @();$null=Call $database 'Commit' @();[void][Runtime.InteropServices.Marshal]::ReleaseComObject($summary)

@@ -15,8 +15,8 @@ using System.Reflection;
 [assembly: AssemblyTitle("Codex Background Startup")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.5.0")]
-[assembly: AssemblyFileVersion("1.5.5.0")]
+[assembly: AssemblyVersion("1.6.0.0")]
+[assembly: AssemblyFileVersion("1.6.0.0")]
 
 [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IDreamSkinPackageDebug {
@@ -127,7 +127,7 @@ internal static class DreamSkinPortHook {
     return Process.Start(start);
   }
   static string InstalledPackage(){
-    string script=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\CodexLiveBackground\engine\scripts\query-codex-package.ps1");
+    string script=Path.Combine(Directory.GetParent(Root.TrimEnd(Path.DirectorySeparatorChar)).FullName,@"engine\scripts\query-codex-package.ps1");
     string powershell=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
     var start=new ProcessStartInfo(powershell,"-NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "+Quote(script));
     start.UseShellExecute=false;start.CreateNoWindow=true;start.RedirectStandardOutput=true;start.RedirectStandardError=true;

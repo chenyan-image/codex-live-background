@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Codex 动态背景")]
 [assembly: AssemblyProduct("Codex 动态背景")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.5.5.0")]
-[assembly: AssemblyFileVersion("1.5.5.0")]
+[assembly: AssemblyVersion("1.6.0.0")]
+[assembly: AssemblyFileVersion("1.6.0.0")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -203,10 +203,10 @@ internal sealed partial class Manager : Form {
     static string Quote(string value){var b=new StringBuilder("\"");int slashes=0;foreach(char c in value){if(c=='\\'){slashes++;continue;}if(c=='"')b.Append('\\',slashes*2+1).Append(c);else b.Append('\\',slashes).Append(c);slashes=0;}return b.Append('\\',slashes*2).Append('"').ToString();}
     static int ServiceCommand(string action){
         try{
-            string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\CodexLiveBackground");
+            string root=AppDomain.CurrentDomain.BaseDirectory;
             string ps=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),@"WindowsPowerShell\v1.0\powershell.exe");
-            var info=new ProcessStartInfo(ps,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id+(action=="RemoveService"?" -AllowDisconnected":"")){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
-            using(var child=Process.Start(info)){var output=child.StandardOutput.ReadToEndAsync();var errors=child.StandardError.ReadToEndAsync();WaitForCommand(child,300000,delegate{return false;});string state=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(state);File.WriteAllText(Path.Combine(state,"installer-service.log"),output.Result+Environment.NewLine+errors.Result);return child.ExitCode;}
+            var info=new ProcessStartInfo(ps,"-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "+Quote(Path.Combine(root,"control.ps1"))+" -Action "+action+" -ManagerPid "+Process.GetCurrentProcess().Id+((action=="RemoveService"||action=="Uninstall")?" -AllowDisconnected":"")){UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
+            using(var child=Process.Start(info)){var output=child.StandardOutput.ReadToEndAsync();var errors=child.StandardError.ReadToEndAsync();WaitForCommand(child,300000,delegate{return false;});string state=action=="Uninstall"?Path.GetTempPath():Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(state);File.WriteAllText(Path.Combine(state,"installer-service.log"),output.Result+Environment.NewLine+errors.Result);return child.ExitCode;}
         }catch(Exception error){try{string directory=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin");Directory.CreateDirectory(directory);File.WriteAllText(Path.Combine(directory,"installer-service.log"),error.ToString());}catch{}return 1;}
     }
     static string ExplainLaunchError(Exception error){
@@ -231,7 +231,7 @@ internal sealed partial class Manager : Form {
         if(!statusOnly){CancelPreview();busy=true;runningAction=action;SetBusyControls(true);progress.Visible=true;previewHint.Text=action=="Apply"?"正在应用壁纸，视频不兼容时会自动适配…":"正在处理服务设置…";}
         WallpaperEntry applyingEntry=selected;
         string chosen=selected!=null?selected.Path:media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if(action!="Connection")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":action=="RemoveService"?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
+        if(action!="Connection")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":(action=="RemoveService"||action=="Uninstall")?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
         ThreadPool.QueueUserWorkItem(delegate{
             string result;bool success=false;
             try{
@@ -258,7 +258,7 @@ internal sealed partial class Manager : Form {
                 if(closeRequested){Close();return;}
                 if(!success){if(statusOnly){status.Text=connecting?"○  点击重试连接":"○  检测暂不可用";status.ForeColor=Muted;connectionDetail.Text=result.Length>220?result.Substring(0,220):result;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
                 if(success&&action=="Apply")AppliedToHistory(applyingEntry);
-                if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=action=="RemoveService"?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
+                if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=(action=="RemoveService"||action=="Uninstall")?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
                 if(pendingConnect){pendingConnect=false;Run("Connect");}else if(success&&!statusOnly)Run("Connection");
             });
         });
@@ -322,7 +322,7 @@ internal sealed partial class Manager : Form {
     [STAThread]static int Main(string[] args){
         if(args.Length==1&&args[0]=="--msi-action-probe")return 0;
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
-        if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
+        if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"||args[0]=="--package-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":args[0]=="--package-remove"?"Uninstall":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test",steamScrollTest=args.Length==2&&args[0]=="--steam-scroll-test";
         bool test=smoke||uiTest||previewTest||lifecycle||galleryTest||steamScrollTest;Mutex instance=null;bool owns=false;
