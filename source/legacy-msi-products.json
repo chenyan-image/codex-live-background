@@ -1,0 +1,107 @@
+{
+  "products": [
+    {
+      "productCode": "{D121E2D3-CBBA-69D4-54BD-58C61CF4D6E8}",
+      "version": "1.0.0"
+    },
+    {
+      "productCode": "{1E1303C3-24B0-9DA9-B585-085DF90F2EEA}",
+      "version": "1.0.1"
+    },
+    {
+      "productCode": "{D7CF8ED1-CC24-337B-D2BA-DE30D98C647C}",
+      "version": "1.0.2"
+    },
+    {
+      "productCode": "{7BA2FE84-9E8F-F60E-CB0A-7CF1E142242E}",
+      "version": "1.1.0"
+    },
+    {
+      "productCode": "{8EEF0336-F69B-29BE-AB96-C89D9992C300}",
+      "version": "1.1.1"
+    },
+    {
+      "productCode": "{37E6CB3A-C9DF-725F-B603-77D0AC9239E1}",
+      "version": "1.1.2"
+    },
+    {
+      "productCode": "{828E7508-9E19-08C0-0B15-52E90D5435C6}",
+      "version": "1.2.0"
+    },
+    {
+      "productCode": "{701D979B-6AFD-103A-B855-73A7E7B773F4}",
+      "version": "1.3.0"
+    },
+    {
+      "productCode": "{4DB24046-FBF6-A62D-38DC-048B4F83BE14}",
+      "version": "1.4.0",
+      "fileName": "Codex-Background-1.4.0-win-x64.msi",
+      "sha256": "9603D41B36D6D26A8D999C14E06DEE37466272CE7EBCF62E54B0C058B92A892E",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.4.0/Codex-Background-1.4.0-win-x64.msi"
+    },
+    {
+      "productCode": "{ACDB74E2-6C44-21D6-3AF9-B41D93C9A199}",
+      "version": "1.5.0",
+      "fileName": "Codex-Background-1.5.0-win-x64.msi",
+      "sha256": "000E5392047E9978C3C75F159D109C08EE0F25C9C7DA0F756CC7E4C08189690A",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.5.0/Codex-Background-1.5.0-win-x64.msi"
+    },
+    {
+      "productCode": "{7EA16F80-D95B-62DF-2C3B-C4B56567F731}",
+      "version": "1.5.1",
+      "fileName": "Codex-Background-1.5.1-win-x64.msi",
+      "sha256": "1538835680CB8D83EAB819EB005CBEC194A49B256F37803F8DD57AFA97AFB1ED",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.5.1/Codex-Background-1.5.1-win-x64.msi"
+    },
+    {
+      "productCode": "{1E23A49D-5D2C-0A49-5FCE-66A83B63C83A}",
+      "version": "1.5.2",
+      "fileName": "Codex-Background-1.5.2-win-x64.msi",
+      "sha256": "F550C6C2E46BA39229466BCC9891FB970C088472E0C19F76E4298052E9A319CD",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.5.2/Codex-Background-1.5.2-win-x64.msi"
+    },
+    {
+      "productCode": "{2D7DCB54-E4EA-2431-25F0-6F8ADD30CBB3}",
+      "version": "1.5.3",
+      "fileName": "Codex-Background-1.5.3-win-x64.msi",
+      "sha256": "734EEEF207362E997F777480023E3DF466893FB0CD6F02D7ACC5CCAD8C53604C",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.5.3/Codex-Background-1.5.3-win-x64.msi"
+    },
+    {
+      "productCode": "{BFB7766C-2D06-9F70-23DE-346D52B747B1}",
+      "version": "1.5.4",
+      "fileName": "Codex-Background-1.5.4-win-x64.msi",
+      "sha256": "E51CD7EFCA87A8B16CD0F961D04495F64FB5C8181A658F1F0115B8B208AA3318",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.5.4/Codex-Background-1.5.4-win-x64.msi"
+    },
+    {
+      "productCode": "{FAD0A4BA-FF14-25CB-147B-D84C0343CDDD}",
+      "version": "1.5.5",
+      "fileName": "Codex-Background-1.5.5-win-x64.msi",
+      "sha256": "8199356C6CAA519830971A6090A08F57A8B6030916DA5DE7516AD1FA42FAB8E1",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.5.5/Codex-Background-1.5.5-win-x64.msi"
+    },
+    {
+      "productCode": "{4150435D-A350-5C0A-125A-CA4D9C80CDDE}",
+      "version": "1.6.0",
+      "fileName": "Codex-Background-1.6.0-win-x64.msi",
+      "sha256": "AA5E0371140A0CF6B5AD7D64432340A96E590EFF7E19C25BD5ED868F5B4B9374",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.6.0/Codex-Background-1.6.0-win-x64.msi"
+    },
+    {
+      "productCode": "{F49E6A14-0A98-9B3E-D199-67F7FBC36DD5}",
+      "version": "1.6.1",
+      "fileName": "Codex-Background-1.6.1-win-x64.msi",
+      "sha256": "6302B72E5EB9A5D2DED57BBB0A668296403D3E3570C9BB6964E993FB46D362C6",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.6.1/Codex-Background-1.6.1-win-x64.msi"
+    },
+    {
+      "productCode": "{45880A22-C805-126D-85F1-096C99DD6A76}",
+      "version": "1.6.2",
+      "fileName": "Codex-Background-1.6.2-win-x64.msi",
+      "sha256": "494CF86ECFB77D1C4468050DA032E6589129FFE4D0BFBD6FBA26257A61E1CB62",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.6.2/Codex-Background-1.6.2-win-x64.msi"
+    }
+  ],
+  "schemaVersion": 1
+}
