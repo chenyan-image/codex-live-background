@@ -19,7 +19,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 
 ## 使用
 
-从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.5.5-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。标准 MSI 安装器会检测旧版并配置服务，最后打开管理器；没有旧版时直接安装。ZIP 供需要手动部署的用户选用。
+从本仓库 **[Releases](https://github.com/chenyan-image/codex-live-background/releases/latest)** 下载 **`Codex-Background-1.6.0-win-x64.msi`**，双击交给 Windows Installer 安装即可，无需手动解压。安装页可填写其他本地盘路径，例如 D:\Apps\CodexLiveBackground。安装器先移除已识别的旧 MSI，再配置新版服务，最后打开管理器；没有旧版时直接安装。桌面仅创建一个管理器图标，程序与后台组件统一放在所选目录。ZIP 供需要手动部署的用户选用。
 
 管理器采用黑色壁纸库界面，按侧栏浏览：
 
@@ -28,7 +28,7 @@ Codex 后续更新可能改变界面或启动行为；出现不兼容时请使�
 | 本地壁纸 | 六张内置原创背景、导入的本地视频或图片，支持搜索、静态/动态过滤和分页。 |
 | Wallpaper Engine | 自动发现 Steam 库中的视频、GIF、图片；所有匹配结果在同一列表中向下滚动，无需翻页。未发现时可手动定位 Steam 库或 `431960` 目录。 |
 | 使用记录 | 按最近成功应用的时间排列，重开软件仍保留；移除记录不会删除原文件。 |
-| 服务与设置 | 装载服务、卸载皮肤、彻底卸载服务、重新检测以及运行记录。 |
+| 服务与设置 | 装载服务、卸载皮肤、卸载服务、连接 Codex以及运行记录。 |
 
 点击右上角「导入壁纸」添加本地文件，或在卡片中选择内置/Steam 壁纸，再点右侧「应用这张壁纸」。导入和预览不会更改当前背景，成功应用后才写入使用记录。首次手动 ZIP 部署可在「服务与设置」装载服务。关闭管理器不会停止后台服务，登录后也不会自动弹出管理器窗口。拖动滑杆调整聊天框背景的不透明度：数值越低越透明。换壁纸时会同步启用 Codex 深色外观，避免浅色界面覆盖背景。
 
@@ -83,9 +83,9 @@ Wallpaper Engine 的 `scene.pkg`、网页及应用项目无法直接播放；有
 
 | 内容 | 当前用户目录或入口 |
 | --- | --- |
-| 程序安装位置 | `%LOCALAPPDATA%\Programs\CodexLiveBackground` |
+| 程序安装位置 | 安装时自定义；默认 `%LOCALAPPDATA%\Programs\CodexLiveBackground`，后台组件在所选目录的 `startup` 子目录 |
 | 背景、兼容副本和运行时 | `%LOCALAPPDATA%\CodexDreamSkin` |
-| 后台日志 | `%LOCALAPPDATA%\CodexDreamSkin\startup` |
+| 后台日志 | 所选安装目录的 `startup` 子目录 |
 | 最近的视频诊断 | `%LOCALAPPDATA%\CodexDreamSkin\last-video-diagnostic.json` |
 | 壁纸库、使用记录与 Steam 目录 | `%LOCALAPPDATA%\CodexDreamSkin\wallpaper-library.json` |
 | 本机官方 Codex 图标缓存 | `%LOCALAPPDATA%\CodexDreamSkin\icons` |
@@ -97,15 +97,15 @@ Wallpaper Engine 的 `scene.pkg`、网页及应用项目无法直接播放；有
 
 ## 升级与卸载
 
-直接运行新版 MSI。安装器会检测当前用户的 `CodexLiveBackground` 和 `CodexDreamSkinManager` 标准安装目录（包含通过历史发布校验值确认的 1.0.x），关闭旧管理器及已验证的背景组件，由 Windows Installer 更新程序文件；手动 ZIP 升级及旧版管理器目录迁移保留在 `CodexDreamSkin\upgrade-backups`。不关闭 Codex，不删除壁纸、背景配置和登录资料。失败时尝试恢复旧程序文件，旧版备份保留供恢复。不会扫描或删除用户任意文件夹。
+直接运行新版 MSI，可选择本地其他盘的安装目录。安装器先停止已识别的旧后台组件、移除旧自启动和挂接，再卸载旧 MSI，随后安装新版。可识别历史标准目录和注册的自定义安装目录；旧 ZIP / 1.0.x 管理器继续按已验证身份迁移，安装成功后清理升级备份。不扫描或删除任意用户目录，不关闭 Codex。
 
-「卸载皮肤」只卸下当前效果，保留服务。需要彻底移除背景服务时，点击「卸载服务」。也可以在 Windows PowerShell 中运行：
+桌面只保留「Codex 动态背景」管理器图标。旧版额外生成的「Codex（动态背景）」图标经归属核验后移除，任务栏既有 Codex 入口仍可使用。
 
-```powershell
-& "$env:LOCALAPPDATA\Programs\CodexLiveBackground\control.ps1" -Action RemoveService
-```
+**卸载整个软件：** 双击安装目录中的 **`卸载 Codex 动态背景.exe`**，确认后由 Windows Installer 执行；也可以在 Windows 设置的「已安装的应用」中卸载。两种入口走同一清理流程：停止守护、监控和记录的注入进程，移除登录任务与启动挂接，恢复改过的快捷方式，再删除程序文件、程序生成的壁纸副本、预览、下载的 FFmpeg 运行时、日志和记录。
 
-卸载服务会停用背景、删除服务启动文件并移除后台启动，保留管理器入口，方便以后重新装载。关闭管理器后可手动删除程序目录。用户素材、日志和独立背景登录资料仍保留在 `CodexDreamSkin` 用户目录；需要删除时请先自行备份。如果当前窗口断开连接，管理器会明确报告未确认卸下的状态，不会误报全部完成。
+**保留内容：** Steam、桌面等外部位置的壁纸原文件不删除。`%LOCALAPPDATA%\CodexDreamSkin\cdp-profile` 可能包含 Codex 登录及聊天相关资料，卸载时保留；因此数据目录可能仍存在，但其中不再运行背景服务。未知用户文件及包含联接的异常路径不会被递归删除。
+
+「卸载皮肤」仅移除当前效果；「卸载服务」仅停用并解除后台组件，管理器与 MSI 管理的组件文件仍保留，便于重新装载。彻底删除程序请使用上述独立卸载工具。
 
 ## 从源码构建
 
@@ -138,7 +138,7 @@ $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
 
 ```powershell
 .\source\build-msi.ps1 -PackageRoot .\dist\Codex-Background-local-win-x64 `
-  -OutputFile .\dist\Codex-Background-1.5.5-win-x64.msi
+  -OutputFile .\dist\Codex-Background-1.6.0-win-x64.msi
 ```
 
 v1.3.0 自制 EXE 安装器的源码仅供历史参考，新版本优先发布标准 MSI。代码签名流程见 [Windows 发布与签名](windows-trust.md)。
