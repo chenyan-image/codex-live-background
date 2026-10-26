@@ -26,7 +26,9 @@
       "row": 0,
       "cellWidth": 640,
       "cellHeight": 360,
-      "fps": 24
+      "fps": 24,
+      "dragStartSeconds": 0.65,
+      "dragHoldSeconds": 3.5
     },
     {
       "id": "dsh-003",
@@ -722,7 +724,10 @@
       "row": 0,
       "cellWidth": 640,
       "cellHeight": 360,
-      "fps": 24
+      "fps": 24,
+      "moveLeadSeconds": 2,
+      "moveTailSeconds": 2,
+      "moveFacesLeft": true
     },
     {
       "id": "dsh-061",
@@ -1154,7 +1159,10 @@
       "row": 0,
       "cellWidth": 640,
       "cellHeight": 360,
-      "fps": 24
+      "fps": 24,
+      "moveLeadSeconds": 2,
+      "moveTailSeconds": 2,
+      "moveFacesLeft": true
     },
     {
       "id": "dsh-097",
@@ -1226,7 +1234,10 @@
       "row": 0,
       "cellWidth": 640,
       "cellHeight": 360,
-      "fps": 24
+      "fps": 24,
+      "moveLeadSeconds": 1.75,
+      "moveTailSeconds": 4.8,
+      "moveFacesLeft": true
     },
     {
       "id": "dsh-103",
@@ -1283,7 +1294,7 @@
     59,
     35,
     35,
-    31,
+    85,
     38,
     46,
     38
@@ -1474,6 +1485,14 @@
     ],
     "sleep": [
       98
+    ],
+    "lowQuotaOnly": true,
+    "lowQuotaPool": [
+      88,
+      89
+    ],
+    "collision": [
+      85
     ]
   },
   "canvas": {

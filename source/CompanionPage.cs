@@ -41,26 +41,36 @@ internal sealed class PetCardGallery : Panel {
 internal sealed class PetController : IDisposable {
     readonly string root,state;readonly Control owner;readonly bool live;
     readonly PetQuotaReader reader=new PetQuotaReader();readonly System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer{Interval=120000},activityTimer=new System.Windows.Forms.Timer{Interval=1000};readonly PetActivityReader activity;readonly PetTokenReader tokenReader;
-    bool checking;volatile bool readingActivity,disposed;public PetPreferences Preferences;public List<PetPack> Packs;public PetWindow Window;
+    bool checking;volatile bool readingActivity,disposed,readingSurface;int selectionVersion;string preparingId,windowId;PetSurface cachedSurface;readonly System.Windows.Forms.Timer surfaceTimer=new System.Windows.Forms.Timer{Interval=250};public double LastSwitchMilliseconds;public string SwitchError;public PetPreferences Preferences;public List<PetPack> Packs;public PetWindow Window;
     public PetQuotaSnapshot Quota;public PetTokenSnapshot Tokens;public string QuotaStatus="尚未读取";
+    public bool IsPreparing{get{return preparingId!=null;}}
+    public Dictionary<string,long> LastSwitchStages=new Dictionary<string,long>();
     public event Action Changed,SettingsRequested;
     public PetController(Control ui,string appRoot,string stateRoot,bool enabled){owner=ui;root=appRoot;state=stateRoot;live=enabled;Preferences=PetPreferences.Load(state);Packs=PetPack.Discover(root,state);timer.Tick+=delegate{if(Preferences.Enabled&&Preferences.ShowQuota)Refresh();};if(live){string home=Environment.GetEnvironmentVariable("CODEX_HOME")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),".codex");activity=new PetActivityReader(home,root);tokenReader=new PetTokenReader(home);activityTimer.Tick+=delegate{ReadActivity();};}}
     void Raise(){if(Changed!=null)Changed();}
-    public void Start(){if(!live||disposed)return;Apply(false);timer.Start();activityTimer.Start();ReadActivity();}
+    public void Start(){if(!live||disposed)return;surfaceTimer.Tick+=delegate{ReadSurface();};surfaceTimer.Start();ReadSurface();Apply(false);timer.Start();activityTimer.Start();ReadActivity();}
+    void ReadSurface(){if(disposed||readingSurface||!Preferences.CodexOnly)return;readingSurface=true;ThreadPool.QueueUserWorkItem(delegate{try{var found=CodexPetSurface.Find();if(!disposed&&owner.IsHandleCreated)owner.BeginInvoke((MethodInvoker)delegate{if(!disposed)cachedSurface=found;});}catch(InvalidOperationException){}finally{readingSurface=false;}});}
     void ReadActivity(){if(disposed||readingActivity||activity==null)return;readingActivity=true;ThreadPool.QueueUserWorkItem(delegate{try{var value=activity.Read();var tokens=tokenReader.Read();if(!disposed&&owner.IsHandleCreated)owner.BeginInvoke((MethodInvoker)delegate{if(!disposed){Tokens=tokens;if(Window!=null){Window.Activity=value;Window.Tokens=tokens;}}});}catch(InvalidOperationException){}catch(IOException){}catch(UnauthorizedAccessException){}finally{readingActivity=false;}});}
     public void Apply(bool rebuild){
         if(disposed)return;Preferences.Scale=Math.Max(70,Math.Min(150,Preferences.Scale));Preferences.CapsuleScale=Math.Max(70,Math.Min(150,Preferences.CapsuleScale));Preferences.Save(state);
         if(live){
-            if(rebuild&&Window!=null){Preferences.X=Window.Left;Preferences.Y=Window.Top;Window.Dispose();Window=null;}
             var pack=Packs.FirstOrDefault(x=>x.Id==Preferences.SelectedId&&x.Available)??Packs.FirstOrDefault(x=>x.Available);
-            if(Preferences.Enabled&&Window==null&&pack!=null){
-                Preferences.SelectedId=pack.Id;Window=PetWindow.Create(pack,Preferences,root);Window.Quota=Quota;Window.Tokens=Tokens;Window.QuotaStatus=QuotaStatus;Window.QuotaRefreshing=checking;
-                Window.OpenSettings+=delegate{if(SettingsRequested!=null)SettingsRequested();};Window.ScopeRequested+=SetScope;Window.RefreshQuota+=Refresh;Window.PreferenceChanged+=delegate{Preferences.Save(state);Raise();};Window.NotifyQuota(Quota);
-            }
+            if(Preferences.Enabled&&pack!=null&&(Window==null||rebuild||windowId!=pack.Id)&&preparingId!=pack.Id){Preferences.SelectedId=pack.Id;PrepareWindow(pack);}
             if(Window!=null){if(!Preferences.Enabled)Window.Hide();else Window.AdvanceOnce();}
             if(Preferences.Enabled&&Preferences.ShowQuota&&Quota==null)Refresh();
         }Raise();
     }
+    void PrepareWindow(PetPack pack){int version=++selectionVersion;preparingId=pack.Id;SwitchError=null;var clock=Stopwatch.StartNew();var profile=Preferences.ForPet(pack.Id);IntPtr uiHandle=owner.Handle;
+        ThreadPool.QueueUserWorkItem(delegate{PetAtlas prepared=null;Exception failure=null;try{prepared=new PetAtlas(pack);var spec=new PetAnimationDirector(pack,profile,1);prepared.PrepareDrag(spec.DragRow);var ready=Stopwatch.StartNew();while(!prepared.DragReady&&ready.ElapsedMilliseconds<1500&&!disposed)Thread.Sleep(10);}catch(Exception error){failure=error;}
+            if(disposed||owner.IsDisposed){if(prepared!=null)prepared.Dispose();return;}try{owner.BeginInvoke((MethodInvoker)delegate{FinishWindow(pack,version,prepared,failure,clock);});}catch(InvalidOperationException){if(prepared!=null)prepared.Dispose();}
+        });
+    }
+    void FinishWindow(PetPack pack,int version,PetAtlas prepared,Exception failure,Stopwatch clock){PetWindow next=null;var uiClock=Stopwatch.StartNew();LastSwitchStages=new Dictionary<string,long>();try{
+        if(disposed||version!=selectionVersion||!Preferences.Enabled||Preferences.SelectedId!=pack.Id){if(prepared!=null)prepared.Dispose();return;}if(failure!=null)throw failure;
+        var previous=Window;RectangleF anchor=previous==null?RectangleF.Empty:previous.VisibleBodyScreenBounds;if(previous!=null){Preferences.X=previous.Left;Preferences.Y=previous.Top;}next=PetWindow.Create(pack,Preferences,root,prepared);LastSwitchStages["createWindow"]=uiClock.ElapsedMilliseconds;prepared=null;next.TrackLiveSurface=true;next.SurfaceProvider=()=>cachedSurface;next.Quota=Quota;next.Tokens=Tokens;next.QuotaStatus=QuotaStatus;next.QuotaRefreshing=checking;
+        next.OpenSettings+=delegate{if(SettingsRequested!=null)SettingsRequested();};next.ScopeRequested+=SetScope;next.RefreshQuota+=Refresh;next.PreferenceChanged+=delegate{Preferences.Save(state);Raise();};next.NotifyQuota(Quota);next.AdvanceOnce();LastSwitchStages["firstFrame"]=uiClock.ElapsedMilliseconds;
+        if(!anchor.IsEmpty&&next.Visible){var body=next.VisibleBodyScreenBounds;next.Motion.Position=new PointF(next.Left+anchor.Left+anchor.Width/2-body.Left-body.Width/2,next.Top+anchor.Bottom-body.Bottom);next.AdvanceOnce();}LastSwitchStages["position"]=uiClock.ElapsedMilliseconds;Window=next;windowId=pack.Id;if(previous!=null)previous.Dispose();LastSwitchStages["disposeOld"]=uiClock.ElapsedMilliseconds;Preferences.X=next.Left;Preferences.Y=next.Top;Preferences.Save(state);LastSwitchMilliseconds=clock.Elapsed.TotalMilliseconds;
+    }catch(Exception error){if(prepared!=null)prepared.Dispose();if(next!=null&&Window!=next)next.Dispose();if(!disposed)SwitchError="宠物未能载入："+error.Message;}finally{if(version==selectionVersion)preparingId=null;if(!disposed)Raise();}}
     public async void Refresh(){
         if(disposed||checking||!live)return;checking=true;if(Window!=null)Window.QuotaRefreshing=true;QuotaStatus="正在刷新真实额度…";Raise();
         try{var value=await reader.ReadAsync();if(disposed)return;Quota=value;if(Window!=null)Window.NotifyQuota(value);QuotaStatus="更新于 "+value.CheckedUtc.ToLocalTime().ToString("HH:mm:ss");}
@@ -70,7 +80,7 @@ internal sealed class PetController : IDisposable {
     public void Select(PetPack pack){Preferences.SelectedId=pack.Id;Apply(true);}
     public void SetScope(bool codexOnly){Preferences.CodexOnly=codexOnly;if(Window!=null)Window.SetScope(codexOnly);else{Preferences.Save(state);Raise();}}
     public void Reload(){Packs=PetPack.Discover(root,state);Raise();}
-    public void Dispose(){if(disposed)return;disposed=true;timer.Stop();timer.Dispose();activityTimer.Stop();activityTimer.Dispose();if(activity!=null)activity.Dispose();if(tokenReader!=null)tokenReader.Dispose();reader.Dispose();if(Window!=null){Preferences.X=Window.Left;Preferences.Y=Window.Top;Window.Dispose();Window=null;}Preferences.Save(state);}
+    public void Dispose(){if(disposed)return;disposed=true;selectionVersion++;timer.Stop();timer.Dispose();surfaceTimer.Stop();surfaceTimer.Dispose();activityTimer.Stop();activityTimer.Dispose();if(activity!=null)activity.Dispose();if(tokenReader!=null)tokenReader.Dispose();reader.Dispose();if(Window!=null){Preferences.X=Window.Left;Preferences.Y=Window.Top;Window.Dispose();Window=null;}Preferences.Save(state);}
 }
 internal sealed partial class Manager {
     readonly Panel petPage=new Panel();readonly PetCardGallery petCards=new PetCardGallery();readonly List<PetCard> petTiles=new List<PetCard>();
@@ -121,7 +131,7 @@ internal sealed partial class Manager {
         if(IsDisposed||pets==null)return;if(InvokeRequired){Ui(SyncPetSettings);return;}petSync=true;try{
             var settings=pets.Preferences;petEnabled.Checked=settings.Enabled;petRoaming.Checked=settings.Roaming;petSound.Checked=settings.Sound;petQuotaVisible.Checked=settings.ShowQuota;petInCodex.Checked=settings.CodexOnly;petOnDesktop.Checked=!settings.CodexOnly;petSize.Value=settings.Scale;petSizeLabel.Text="宠物大小  "+settings.Scale+"%";petCapsuleSize.Value=settings.CapsuleScale;petCapsuleSizeLabel.Text="胶囊大小  "+settings.CapsuleScale+"%";
             foreach(var tile in petTiles){tile.Selected=tile.Pack.Id==settings.SelectedId;tile.Invalidate();}
-            var quota=pets.Quota;petQuotaValues.Text=(quota==null||quota.Short==null?"短周期 未知":quota.Short.Label+"  "+quota.Short.Percent)+"\r\n"+(quota==null||quota.Week==null?"本周 未知":quota.Week.Label+"  "+quota.Week.Percent);petQuotaStatus.Text=pets.QuotaStatus+(quota!=null&&quota.Stale?"（读数已过期）":"");
+            var quota=pets.Quota;petQuotaValues.Text=(quota==null||quota.Short==null?"短周期 未知":quota.Short.Label+"  "+quota.Short.Percent)+"\r\n"+(quota==null||quota.Week==null?"本周 未知":quota.Week.Label+"  "+quota.Week.Percent);petQuotaStatus.Text=pets.IsPreparing?"正在准备形象，原宠物继续显示…":pets.SwitchError??(pets.QuotaStatus+(quota!=null&&quota.Stale?"（读数已过期）":""));
         }finally{petSync=false;}
     }
     void ImportPet(){

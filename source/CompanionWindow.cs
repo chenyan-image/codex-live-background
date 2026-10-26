@@ -18,6 +18,30 @@ internal sealed class PetSurface {
     public Rectangle Bounds;public IntPtr Window;
     public PetSurface(Rectangle bounds,IntPtr window){Bounds=bounds;Window=window;}
 }
+// Manager stays system-DPI aware. Only pet windows and monitor geometry use
+// physical pixels, including callbacks arriving from its system-DPI timer.
+internal sealed class PetDpi : IDisposable {
+    [DllImport("user32.dll")]static extern IntPtr SetThreadDpiAwarenessContext(IntPtr value);readonly IntPtr previous;
+    PetDpi(){try{previous=SetThreadDpiAwarenessContext(new IntPtr(-4));}catch(EntryPointNotFoundException){}}
+    public static PetDpi Enter(){return new PetDpi();}public void Dispose(){if(previous!=IntPtr.Zero)SetThreadDpiAwarenessContext(previous);}
+}
+internal sealed class PetDisplay {
+    public string DeviceName;public Rectangle Bounds,WorkingArea;
+}
+internal static class PetDisplays {
+    [StructLayout(LayoutKind.Sequential)]struct Rect {public int Left,Top,Right,Bottom;public Rectangle Box{get{return Rectangle.FromLTRB(Left,Top,Right,Bottom);}}}
+    [StructLayout(LayoutKind.Sequential)]struct PointI {public int X,Y;public PointI(Point point){X=point.X;Y=point.Y;}}
+    [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]struct Info {public int Size;public Rect Monitor,Work;public uint Flags;[MarshalAs(UnmanagedType.ByValTStr,SizeConst=32)]public string Device;}
+    delegate bool MonitorCallback(IntPtr monitor,IntPtr dc,IntPtr bounds,IntPtr data);
+    [DllImport("user32.dll")]static extern bool EnumDisplayMonitors(IntPtr dc,IntPtr clip,MonitorCallback callback,IntPtr data);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]static extern bool GetMonitorInfo(IntPtr monitor,ref Info info);
+    [DllImport("user32.dll")]static extern IntPtr MonitorFromPoint(PointI point,uint flags);
+    [DllImport("user32.dll")]static extern IntPtr MonitorFromRect(ref Rect bounds,uint flags);
+    static PetDisplay Read(IntPtr monitor){var info=new Info{Size=Marshal.SizeOf(typeof(Info))};if(!GetMonitorInfo(monitor,ref info))throw new Win32Exception();return new PetDisplay{DeviceName=info.Device,Bounds=info.Monitor.Box,WorkingArea=info.Work.Box};}
+    public static PetDisplay[] All{get{using(PetDpi.Enter()){var result=new List<PetDisplay>();EnumDisplayMonitors(IntPtr.Zero,IntPtr.Zero,(monitor,dc,bounds,data)=>{result.Add(Read(monitor));return true;},IntPtr.Zero);return result.ToArray();}}}
+    public static PetDisplay At(Point point){using(PetDpi.Enter())return Read(MonitorFromPoint(new PointI(point),2));}
+    public static PetDisplay At(Rectangle bounds){using(PetDpi.Enter()){var native=new Rect{Left=bounds.Left,Top=bounds.Top,Right=bounds.Right,Bottom=bounds.Bottom};return Read(MonitorFromRect(ref native,2));}}
+}
 internal static class CodexPetSurface {
     [StructLayout(LayoutKind.Sequential)]struct Rect {public int Left,Top,Right,Bottom;}
     [StructLayout(LayoutKind.Sequential)]struct Point {public int X,Y;}
@@ -45,7 +69,8 @@ internal static class CodexPetSurface {
         if(!OfficialPackage.IsMatch(fullName))return false;uint length=0;GetPackagePathByFullName(fullName,ref length,null);if(length<2||length>32768)return false;var installed=new StringBuilder((int)length);
         return GetPackagePathByFullName(fullName,ref length,installed)==0&&MatchesRegisteredImage(executable,installed.ToString(),fullName);
     }
-    public static PetSurface Find(){
+    public static PetSurface Find(){using(PetDpi.Enter())return FindPhysical();}
+    static PetSurface FindPhysical(){
         PetSurface selected=null;IntPtr foreground=GetForegroundWindow();var trusted=new HashSet<uint>();
         foreach(var process in Process.GetProcessesByName("ChatGPT"))using(process)try{
             if(process.MainWindowHandle!=IntPtr.Zero&&OfficialProcess(process))trusted.Add((uint)process.Id);
@@ -65,11 +90,14 @@ internal static class CodexPetSurface {
     public static bool ForegroundAllows(PetSurface surface){
         if(surface==null)return false;IntPtr foreground=GetForegroundWindow();if(foreground==surface.Window)return true;uint id;GetWindowThreadProcessId(foreground,out id);return id==(uint)Process.GetCurrentProcess().Id;
     }
+    public static uint Owner(IntPtr window){uint id;GetWindowThreadProcessId(window,out id);return id;}
+    public static PetSurface RefreshKnown(IntPtr window,uint owner){using(PetDpi.Enter()){if(window==IntPtr.Zero||owner==0||Owner(window)!=owner||!IsWindowVisible(window)||IsIconic(window))return null;int cloaked;if(DwmGetWindowAttribute(window,14,out cloaked,4)==0&&cloaked!=0)return null;Rect client;var origin=new Point();if(!GetClientRect(window,out client)||!ClientToScreen(window,ref origin)||client.Right<240||client.Bottom<300)return null;return new PetSurface(new Rectangle(origin.X,origin.Y,client.Right,client.Bottom),window);}}
 }
 internal sealed class PetLayout {
     public readonly Size Size;public readonly RectangleF Quota,Sprite;public readonly float PetScale,CapsuleScale,QuotaOffset;
-    public PetLayout(bool expanded,float petScale=1,float capsuleScale=1,float reveal=-1,bool wide=false){
+    public PetLayout(bool expanded,float petScale=1,float capsuleScale=1,float reveal=-1,bool wide=false,bool bodyOnly=false){
         PetScale=Math.Max(.05F,petScale);CapsuleScale=Math.Max(.05F,capsuleScale);
+        if(bodyOnly){Size=new Size((int)Math.Ceiling((wide?512:192)*PetScale),(int)Math.Ceiling((wide?288:208)*PetScale+8));Sprite=new RectangleF(0,0,(wide?512:192)*PetScale,(wide?288:208)*PetScale);Quota=RectangleF.Empty;QuotaOffset=0;return;}
         if(reveal<0)reveal=expanded?1:0;reveal=Math.Max(0,Math.Min(1,reveal));
         int width=(int)Math.Ceiling(Math.Max(280*CapsuleScale,(wide?512:208)*PetScale));QuotaOffset=(width-280*CapsuleScale)/2;
         Quota=new RectangleF(QuotaOffset+6*CapsuleScale,5*CapsuleScale,268*CapsuleScale,(46+174*reveal)*CapsuleScale);
@@ -85,8 +113,8 @@ internal sealed class PetPainter : IDisposable {
     public static RectangleF QuotaRect(bool expanded,float petScale=1,float capsuleScale=1){return new PetLayout(expanded,petScale,capsuleScale).Quota;}
     public static RectangleF SpriteRect(bool expanded,float petScale=1,float capsuleScale=1){return new PetLayout(expanded,petScale,capsuleScale).Sprite;}
     static void Text(Graphics g,string text,Font font,Color color,RectangleF rectangle,StringAlignment align){using(var brush=new SolidBrush(color))using(var format=new StringFormat{Alignment=align,LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter,FormatFlags=StringFormatFlags.NoWrap})g.DrawString(text,font,brush,rectangle,format);}
-    public Bitmap Render(PetAtlas atlas,PetMotion motion,bool expanded,bool quotaVisible,PetQuotaSnapshot quota,string status,double clock,float scale,string activityLabel=null,bool activityBusy=false,double? animationClock=null,PetTokenSnapshot tokens=null,int tokenRange=0,bool resetTab=false,float petScale=1,float capsuleScale=1,bool refreshing=false,float panelReveal=-1,bool taskPanel=false,PetActivity activity=null,int taskIndex=0){
-        float reveal=panelReveal<0?(expanded?1:0):Math.Max(0,Math.Min(1,panelReveal));var layout=new PetLayout(expanded,petScale,capsuleScale,reveal,atlas.IsVideo);Size size=layout.Size;var image=new Bitmap((int)Math.Ceiling(size.Width*scale),(int)Math.Ceiling(size.Height*scale),PixelFormat.Format32bppPArgb);
+    public Bitmap Render(PetAtlas atlas,PetMotion motion,bool expanded,bool quotaVisible,PetQuotaSnapshot quota,string status,double clock,float scale,string activityLabel=null,bool activityBusy=false,double? animationClock=null,PetTokenSnapshot tokens=null,int tokenRange=0,bool resetTab=false,float petScale=1,float capsuleScale=1,bool refreshing=false,float panelReveal=-1,bool taskPanel=false,PetActivity activity=null,int taskIndex=0,bool bodyOnly=false){
+        float reveal=panelReveal<0?(expanded?1:0):Math.Max(0,Math.Min(1,panelReveal));var layout=new PetLayout(expanded,petScale,capsuleScale,reveal,atlas.IsVideo,bodyOnly);Size size=layout.Size;var image=new Bitmap((int)Math.Ceiling(size.Width*scale),(int)Math.Ceiling(size.Height*scale),PixelFormat.Format32bppPArgb);
         using(var g=Graphics.FromImage(image)){
             g.Clear(Color.Transparent);g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.TextRenderingHint=TextRenderingHint.AntiAliasGridFit;
             using(var number=new Font(numbers,16,FontStyle.Bold,GraphicsUnit.Pixel))using(var smallNumber=new Font(numbers,11,FontStyle.Bold,GraphicsUnit.Pixel))using(var label=new Font("Microsoft YaHei UI",10,FontStyle.Bold,GraphicsUnit.Pixel))using(var tiny=new Font("Microsoft YaHei UI",8.5F,FontStyle.Regular,GraphicsUnit.Pixel)){
@@ -110,15 +138,7 @@ internal sealed class PetPainter : IDisposable {
         var image=new Bitmap(Math.Max(1,(int)Math.Ceiling(280*scale)),Math.Max(1,(int)Math.Ceiling(228*scale)),PixelFormat.Format32bppPArgb);
         using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=TextRenderingHint.AntiAliasGridFit;using(var number=new Font(numbers,16,FontStyle.Bold,GraphicsUnit.Pixel))using(var small=new Font(numbers,11,FontStyle.Bold,GraphicsUnit.Pixel))using(var label=new Font("Microsoft YaHei UI",10,FontStyle.Bold,GraphicsUnit.Pixel))using(var tiny=new Font("Microsoft YaHei UI",8.5F,FontStyle.Regular,GraphicsUnit.Pixel)){if(tasks)DrawTasks(g,activity,index,small,label,tiny,clock);else DrawQuota(g,true,quota,status,number,small,label,tiny,activityLabel,busy,clock,tokens,range,reset,refreshing);}}return image;
     }
-    public Bitmap RenderSpeech(float scale,string text){
-        var image=new Bitmap((int)Math.Ceiling(280*scale),(int)Math.Ceiling(94*scale),PixelFormat.Format32bppPArgb);
-        using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=TextRenderingHint.ClearTypeGridFit;
-            using(var body=IconAssets.Round(new RectangleF(11,10,258,66),13)){using(var fill=new LinearGradientBrush(new PointF(0,10),new PointF(0,86),Color.FromArgb(139,181,232),Color.FromArgb(117,162,219))){g.FillPath(fill,body);g.FillPolygon(fill,new[]{new PointF(209,72),new PointF(226,86),new PointF(228,71)});}}
-            Heart(g,3,83,6,Color.FromArgb(139,177,225));Heart(g,269,7,7,Color.FromArgb(121,160,213));Heart(g,259,1,4,Color.FromArgb(168,197,236));
-            using(var font=new Font("Microsoft YaHei UI",14,FontStyle.Regular,GraphicsUnit.Pixel))using(var brush=new SolidBrush(Color.FromArgb(26,57,96)))using(var format=new StringFormat{Alignment=StringAlignment.Near,LineAlignment=StringAlignment.Center,Trimming=StringTrimming.EllipsisCharacter}){if(g.MeasureString(text,font).Width>229&&text.Length>12){int middle=text.Length/2,split=middle;for(int distance=0;distance<5;distance++){int candidate=middle+distance;if(candidate<text.Length-3&&"，。！？；".IndexOf(text[candidate])>=0){split=candidate+1;break;}candidate=middle-distance;if(candidate>3&&"，。！？；".IndexOf(text[candidate])>=0){split=candidate+1;break;}}text=text.Insert(split,"\n");}g.DrawString(text,font,brush,new RectangleF(25,17,229,52),format);}
-        }return image;
-    }
-    static void Heart(Graphics g,float x,float y,float size,Color color){using(var path=new GraphicsPath()){path.AddBezier(x+size*.5F,y+size*.25F,x,y-size*.2F,x-size*.3F,y+size*.4F,x+size*.5F,y+size);path.AddBezier(x+size*.5F,y+size,x+size*1.3F,y+size*.4F,x+size,y-size*.2F,x+size*.5F,y+size*.25F);using(var fill=new SolidBrush(color))g.FillPath(fill,path);}}
+    public Bitmap RenderCapsule(float scale,PetQuotaSnapshot quota,string status,string activityLabel,bool busy,double clock){var image=new Bitmap((int)Math.Ceiling(280*scale),(int)Math.Ceiling(54*scale),PixelFormat.Format32bppPArgb);using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=TextRenderingHint.AntiAliasGridFit;using(var number=new Font(numbers,16,FontStyle.Bold,GraphicsUnit.Pixel))using(var small=new Font(numbers,11,FontStyle.Bold,GraphicsUnit.Pixel))using(var label=new Font("Microsoft YaHei UI",10,FontStyle.Bold,GraphicsUnit.Pixel))using(var tiny=new Font("Microsoft YaHei UI",8.5F,FontStyle.Regular,GraphicsUnit.Pixel))DrawQuota(g,false,quota,status,number,small,label,tiny,activityLabel,busy,clock,null,0,false,false);}return image;}
     public static RectangleF PanelShape(RectangleF origin,float progress){float t=Math.Max(0,Math.Min(1,progress));return new RectangleF(origin.X+(6-origin.X)*t,origin.Y+(5-origin.Y)*t,origin.Width+(268-origin.Width)*t,origin.Height+(220-origin.Height)*t);}
     public Bitmap MorphPanel(Bitmap complete,float scale,RectangleF origin,float progress){if(progress>=1)return new Bitmap(complete);var image=new Bitmap(complete.Width,complete.Height,PixelFormat.Format32bppPArgb);var bounds=PanelShape(origin,progress);float content=Math.Max(0,Math.Min(1,(progress-.18F)/.72F));using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;using(var shape=IconAssets.Round(bounds,20-5*progress))using(var fill=new SolidBrush(Color.FromArgb(255,(int)((origin.Width<60?247:23)*(1-progress)+247*progress),(int)((origin.Width<60?251:43)*(1-progress)+250*progress),(int)((origin.Width<60?255:73)*(1-progress)+255*progress))))using(var border=new Pen(Color.FromArgb(160,167,198,238))){g.FillPath(fill,shape);g.SetClip(shape);float sx=bounds.Width/268F,sy=bounds.Height/220F;using(var attributes=new ImageAttributes()){var matrix=new ColorMatrix();matrix.Matrix33=content;attributes.SetColorMatrix(matrix);g.DrawImage(complete,new[]{new PointF(bounds.Left-6*sx,bounds.Top-5*sy),new PointF(bounds.Left+274*sx,bounds.Top-5*sy),new PointF(bounds.Left-6*sx,bounds.Top+223*sy)},new RectangleF(0,0,complete.Width,complete.Height),GraphicsUnit.Pixel,attributes);}g.ResetClip();g.DrawPath(border,shape);}}return image;}
     void DrawTasks(Graphics g,PetActivity activity,int index,Font number,Font label,Font tiny,double clock){
@@ -230,15 +250,16 @@ internal sealed class PetWindow : Form {
     readonly PetAtlas atlas;readonly PetPainter painter;readonly PetPreferences settings;readonly PetPack pack;
     readonly System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer{Interval=16};readonly Stopwatch watch=Stopwatch.StartNew();
     readonly ContextMenuStrip menu=new HubContextMenu{ShowImageMargin=false};
-    double last,checkedSurface,actionStarted;Rectangle previousBounds;IntPtr previousWindow,lastForeground;bool disposed,lastScope;float preferredScale,petFactor=1,capsuleFactor=1;
-    PetSurface surface;Bitmap presented;Point cursorStart;PointF positionStart;bool mouseHeld,bodyHeld,rightHeld,moved,expanded,taskPanel,resetTab;int tokenRange,taskIndex;float panelReveal,panelFrom;double panelStarted=-1;
+    readonly ToolStripMenuItem autonomyItem=new ToolStripMenuItem();
+    double last,checkedSurface,actionStarted,lastPresentedAt=-1;Rectangle previousBounds;IntPtr previousWindow,lastForeground,trustedWindow;uint trustedOwner;bool disposed,lastScope;float preferredScale,petFactor=1,capsuleFactor=1;
+    PetSurface surface;string desktopDevice;Bitmap presented;Point cursorStart;PointF positionStart;bool mouseHeld,bodyHeld,rightHeld,moved,expanded,taskPanel,resetTab,hudBelow,panelBelow;int tokenRange,taskIndex;float panelReveal,panelFrom;double panelStarted=-1;
     public readonly PetMotion Motion=new PetMotion(Environment.TickCount);
     readonly PetDragTracker dragTracker=new PetDragTracker();bool wasSliding;
-    readonly PetAnimationDirector director;readonly PetBehaviorProfile behavior;readonly PetOverlay popup=new PetOverlay(),speech=new PetOverlay(true);
-    int animationGeneration=-1,previousButtons,phraseIndex;string spokenStage="",speechText;double speechUntil,lastWorkSpeechAt=-30;
+    readonly PetAnimationDirector director;readonly PetBehaviorProfile behavior;readonly PetOverlay popup=new PetOverlay(),hud=new PetOverlay();bool draggingFromHud;
+    int animationGeneration=-1,previousButtons,phraseIndex;double lastClickSelection=-1000,lastMoveClock;
     public PetQuotaSnapshot Quota;public PetTokenSnapshot Tokens;public bool QuotaRefreshing;public string QuotaStatus="正在读取账号额度…";
     public PetActivity Activity=new PetActivity();
-    public Func<PetSurface> SurfaceProvider;public bool UseForegroundFilter=false,DismissOnOutsideClick=true;
+    public Func<PetSurface> SurfaceProvider;public bool UseForegroundFilter=false,DismissOnOutsideClick=false,TrackLiveSurface;
     public event Action OpenSettings,RefreshQuota,PreferenceChanged;
     public event Action<bool> ScopeRequested;
     public bool Expanded {get{return expanded;}}
@@ -247,88 +268,100 @@ internal sealed class PetWindow : Form {
     public float RenderScale {get;private set;}
     public float PetFactor {get{return petFactor;}}
     public float CapsuleFactor {get{return capsuleFactor;}}
-    public PetLayout Geometry {get{return new PetLayout(false,petFactor,capsuleFactor,0,atlas.IsVideo);}}
+    public PetLayout Geometry {get{return new PetLayout(false,petFactor,capsuleFactor,0,atlas.IsVideo,true);}}
+    public RectangleF VisibleBodyScreenBounds{get{return BodyRectangle(atlas.ContentBounds(director.Row),true);}}
+    RectangleF BodyRectangle(RectangleF normalized,bool screen){var sprite=Geometry.Sprite;return new RectangleF((screen?Left:0)+(sprite.X+normalized.X*sprite.Width)*RenderScale,(screen?Top:0)+(sprite.Y+normalized.Y*sprite.Height)*RenderScale,normalized.Width*sprite.Width*RenderScale,normalized.Height*sprite.Height*RenderScale);}
     public Rectangle AllowedBounds {get{return surface==null?Rectangle.Empty:surface.Bounds;}}
-    public static PetWindow Create(PetPack pack,PetPreferences settings,string root){
+    public static PetWindow Create(PetPack pack,PetPreferences settings,string root,PetAtlas prepared=null){
         IntPtr previous=IntPtr.Zero;try{previous=SetThreadDpiAwarenessContext(new IntPtr(-4));}catch(EntryPointNotFoundException){}
-        try{var window=new PetWindow(pack,settings,root);IntPtr handle=window.Handle;try{uint dpi=GetDpiForWindow(handle);if(dpi>0)window.preferredScale=window.RenderScale=dpi/96F;}catch(EntryPointNotFoundException){}window.ClientSize=window.PhysicalSize();return window;}
+        try{var window=new PetWindow(pack,settings,root,prepared);IntPtr handle=window.Handle;try{uint dpi=GetDpiForWindow(handle);if(dpi>0)window.preferredScale=window.RenderScale=dpi/96F;}catch(EntryPointNotFoundException){}window.ClientSize=window.PhysicalSize();return window;}
         finally{if(previous!=IntPtr.Zero)SetThreadDpiAwarenessContext(previous);}
     }
-    public PetWindow(PetPack pack,PetPreferences preferences,string root){
-        this.pack=pack;settings=preferences;behavior=settings.ForPet(pack.Id);director=new PetAnimationDirector(pack,behavior,Environment.TickCount);atlas=new PetAtlas(pack);painter=new PetPainter(root);Text="CodexHub · "+pack.Name;FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;TopMost=true;AutoScaleMode=AutoScaleMode.None;Cursor=Cursors.Hand;
+    public PetWindow(PetPack pack,PetPreferences preferences,string root,PetAtlas prepared=null){
+        this.pack=pack;settings=preferences;behavior=settings.ForPet(pack.Id);director=new PetAnimationDirector(pack,behavior,Environment.TickCount);atlas=prepared??new PetAtlas(pack);painter=new PetPainter(root);Text="CodexHub · "+pack.Name;FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;TopMost=true;AutoScaleMode=AutoScaleMode.None;Cursor=Cursors.Hand;
         lastScope=settings.CodexOnly;petFactor=settings.Scale*.014F;capsuleFactor=settings.CapsuleScale/100F;using(var g=Graphics.FromHwnd(IntPtr.Zero))preferredScale=RenderScale=g.DpiX/96F;
-        ClientSize=PhysicalSize();menu.BackColor=Color.FromArgb(27,32,37);menu.ForeColor=Color.FromArgb(231,240,238);
+        if(settings.PositionVersion<1){if(settings.X!=int.MinValue&&settings.Y!=int.MinValue){var old=new PetLayout(false,petFactor,capsuleFactor,0,atlas.IsVideo);settings.X+=(int)(old.Sprite.X*RenderScale);settings.Y+=(int)(old.Sprite.Y*RenderScale);}settings.PositionVersion=1;}
+        ClientSize=PhysicalSize();menu.SuspendLayout();menu.BackColor=Color.FromArgb(27,32,37);menu.ForeColor=Color.FromArgb(231,240,238);
         menu.Items.Add("查看状态",null,delegate{if(!expanded)ToggleExpanded();});
         menu.Items.Add("和"+pack.Name+"聊聊（离线）…",null,delegate{OfflineChat();});
-        menu.Items.Add("碎碎念 · 随时来一句",null,delegate{Whisper();});
-        menu.Items.Add("恢复自主走动",null,delegate{ResumeAutonomy();});
-        var range=new ToolStripMenuItem("桌面操作");ToolStripMenuItem inCodex=new ToolStripMenuItem("仅在 Codex 窗口内"),onDesktop=new ToolStripMenuItem("整个桌面（可跨屏拖动）");inCodex.Click+=delegate{if(ScopeRequested!=null)ScopeRequested(true);else SetScope(true);};onDesktop.Click+=delegate{if(ScopeRequested!=null)ScopeRequested(false);else SetScope(false);};range.DropDownItems.Add(inCodex);range.DropDownItems.Add(onDesktop);
-        range.DropDownItems.Add(new ToolStripSeparator());var roam=new ToolStripMenuItem("随机行走"){Checked=settings.Roaming,CheckOnClick=true};roam.Click+=delegate{settings.Roaming=roam.Checked;if(PreferenceChanged!=null)PreferenceChanged();};range.DropDownItems.Add(roam);range.DropDownItems.Add("刷新额度",null,delegate{if(RefreshQuota!=null)RefreshQuota();});menu.Items.Add(range);
-        var actions=new ToolStripMenuItem("手动动作");
+        autonomyItem.Click+=delegate{if(NeedsAutonomyResume)ResumeAutonomy();else{settings.Roaming=false;if(!Motion.Sliding&&!Motion.Dragging)Motion.Velocity=PointF.Empty;SyncAutonomyMenu();if(PreferenceChanged!=null)PreferenceChanged();}};menu.Items.Add(autonomyItem);SyncAutonomyMenu();
+        var range=new ToolStripMenuItem("桌面操作");range.DropDown.SuspendLayout();ToolStripMenuItem inCodex=new ToolStripMenuItem("仅在 Codex 窗口内"),onDesktop=new ToolStripMenuItem("整个桌面（可跨屏拖动）");inCodex.Click+=delegate{if(ScopeRequested!=null)ScopeRequested(true);else SetScope(true);};onDesktop.Click+=delegate{if(ScopeRequested!=null)ScopeRequested(false);else SetScope(false);};range.DropDownItems.Add(inCodex);range.DropDownItems.Add(onDesktop);
+        range.DropDownItems.Add(new ToolStripSeparator());var roam=new ToolStripMenuItem();roam.Click+=delegate{settings.Roaming=!settings.Roaming;SyncAutonomyMenu();if(PreferenceChanged!=null)PreferenceChanged();};range.DropDownItems.Add(roam);range.DropDownItems.Add("刷新额度",null,delegate{if(RefreshQuota!=null)RefreshQuota();});range.DropDown.ResumeLayout(false);menu.Items.Add(range);
+        var actions=new ToolStripMenuItem("手动动作");actions.DropDown.SuspendLayout();
         if(pack.Actions==null){string[] names={"待机","向右行走","向左行走","打招呼","跳跃","碰撞反馈","等待","工作","检查"};for(int i=0;i<names.Length;i++){int row=i;actions.DropDownItems.Add(names[i],null,delegate{Interact(row,false);});}}
-        else{var categorized=new HashSet<int>();foreach(var category in director.Spec.categories??new PetActionCategory[0]){var group=new ToolStripMenuItem(category.name);foreach(int index in category.actions){int row=9+index;categorized.Add(index);group.DropDownItems.Add(pack.Actions[index].name,null,delegate{Interact(row,false);});}if(group.DropDownItems.Count>0)actions.DropDownItems.Add(group);}var all=new ToolStripMenuItem(pack.Id=="bailong"?"白龙完整动作":"全部原始动作");for(int i=0;i<pack.Actions.Count;i++){int row=9+i;all.DropDownItems.Add(pack.Actions[i].name,null,delegate{Interact(row,false);});}actions.DropDownItems.Add(all);}
-        var events=new ToolStripMenuItem("额度回应（动作预览）");string[] bands={"充足 · 已用 0–19%","宽裕 · 已用 20–39%","过半 · 已用 40–59%","留意 · 已用 60–79%","告急 · 已用 80–99%","耗尽 · 已用 100%"};for(int i=0;i<6;i++){int band=i;events.DropDownItems.Add(bands[i],null,delegate{director.PreviewQuota(band);});}actions.DropDownItems.Add(events);menu.Items.Add(actions);
+        else{var categorized=new HashSet<int>();foreach(var category in director.Spec.categories??new PetActionCategory[0]){var group=new ToolStripMenuItem(category.name);group.DropDown.SuspendLayout();foreach(int index in category.actions){int row=9+index;categorized.Add(index);group.DropDownItems.Add(pack.Actions[index].name,null,delegate{Interact(row,false);});}group.DropDown.ResumeLayout(false);if(group.DropDownItems.Count>0)actions.DropDownItems.Add(group);}var all=new ToolStripMenuItem(pack.Id=="bailong"?"白龙完整动作":"全部原始动作");all.DropDown.SuspendLayout();for(int i=0;i<pack.Actions.Count;i++){int row=9+i;all.DropDownItems.Add(pack.Actions[i].name,null,delegate{Interact(row,false);});}all.DropDown.ResumeLayout(false);actions.DropDownItems.Add(all);}
+        var events=new ToolStripMenuItem("额度回应（动作预览）");events.DropDown.SuspendLayout();string[] bands={"充足 · 已用 0–19%","宽裕 · 已用 20–39%","过半 · 已用 40–59%","留意 · 已用 60–79%","告急 · 已用 80–99%","耗尽 · 已用 100%"};for(int i=0;i<6;i++){int band=i;events.DropDownItems.Add(bands[i],null,delegate{director.PreviewQuota(band);});}events.DropDown.ResumeLayout(false);actions.DropDownItems.Add(events);actions.DropDown.ResumeLayout(false);menu.Items.Add(actions);
         menu.Items.Add(new ToolStripSeparator());menu.Items.Add("桌宠设置…",null,delegate{if(OpenSettings!=null)OpenSettings();});
         menu.Items.Add("隐藏全部组件",null,delegate{settings.Enabled=false;if(PreferenceChanged!=null)PreferenceChanged();});menu.Items.Add("退出桌宠",null,delegate{settings.Enabled=false;if(PreferenceChanged!=null)PreferenceChanged();Hide();});
-        menu.Opening+=delegate{inCodex.Checked=settings.CodexOnly;onDesktop.Checked=!settings.CodexOnly;roam.Checked=settings.Roaming;};HubPopupMenu.Apply(menu);
-        popup.Clicked+=PanelClick;SurfaceProvider=CodexPetSurface.Find;timer.Tick+=delegate{Tick();};timer.Start();
-        if(behavior.NextWhisperUtc==DateTime.MinValue)behavior.NextWhisperUtc=DateTime.UtcNow.AddSeconds(behavior.WhisperSeconds);
+        menu.Opening+=delegate{expanded=false;panelReveal=0;panelStarted=-1;popup.Hide();inCodex.Checked=onDesktop.Checked=roam.Checked=false;inCodex.Text="仅在 Codex 窗口内"+(settings.CodexOnly?" · 当前":"");onDesktop.Text="整个桌面（可跨屏拖动）"+(!settings.CodexOnly?" · 当前":"");roam.Text=settings.Roaming?"暂停随机行走":"开启随机行走";SyncAutonomyMenu();};HubPopupMenu.Apply(menu);menu.ResumeLayout(false);
+        popup.Clicked+=PanelClick;hud.MouseDown+=HudMouseDown;hud.MouseMove+=delegate{DragTo(PetOverlay.Pointer);};hud.MouseUp+=HudMouseUp;hud.MouseCaptureChanged+=delegate{if(!hud.Capture&&mouseHeld&&draggingFromHud){mouseHeld=false;atlas.DragHeld=false;if(Motion.Dragging){Motion.Drop();director.EndDrag(watch.Elapsed.TotalSeconds);atlas.ReleaseDragFrame();Present();}}};SurfaceProvider=CodexPetSurface.Find;timer.Tick+=delegate{Tick();};timer.Start();
+        atlas.PrepareDrag(director.DragRow);
         Motion.Row=3;Motion.ReactionRemaining=1.3;
     }
     protected override bool ShowWithoutActivation {get{return true;}}
     protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x80000|0x80|0x08000000;return value;}}
     Size PhysicalSize(){var logical=Geometry.Size;return new Size((int)Math.Ceiling(logical.Width*RenderScale),(int)Math.Ceiling(logical.Height*RenderScale));}
-    public void SetScope(bool codexOnly){settings.X=(int)Motion.Position.X;settings.Y=(int)Motion.Position.Y;settings.CodexOnly=lastScope=codexOnly;checkedSurface=0;previousBounds=Rectangle.Empty;surface=null;if(PreferenceChanged!=null)PreferenceChanged();AdvanceOnce();}
-    void Tick(){
+    public void SetScope(bool codexOnly){settings.X=(int)Motion.Position.X;settings.Y=(int)Motion.Position.Y;settings.CodexOnly=lastScope=codexOnly;if(!codexOnly)desktopDevice=null;checkedSurface=0;previousBounds=Rectangle.Empty;surface=null;if(PreferenceChanged!=null)PreferenceChanged();AdvanceOnce();}
+    void Tick(){using(PetDpi.Enter())TickPhysical();}
+    void TickPhysical(){
         double now=watch.Elapsed.TotalSeconds,delta=last==0?.016:now-last;last=now;
         AdvancePanel(now);
         if(rightHeld&&(Control.MouseButtons&MouseButtons.Right)==0)rightHeld=false;Motion.Pressed=!Motion.Dragging&&((mouseHeld&&bodyHeld&&!moved)||rightHeld);Motion.StepPress(delta);
-        if(!settings.Enabled){if(Visible)Hide();popup.Hide();speech.Hide();return;}
-        if(lastScope!=settings.CodexOnly){lastScope=settings.CodexOnly;settings.X=(int)Motion.Position.X;settings.Y=(int)Motion.Position.Y;checkedSurface=0;previousBounds=Rectangle.Empty;surface=null;}
-        if(now-checkedSurface>.25||checkedSurface==0){
+        if(!settings.Enabled){atlas.SuspendVideo();if(Visible)Hide();popup.Hide();hud.Hide();return;}
+        if(lastScope!=settings.CodexOnly){lastScope=settings.CodexOnly;if(!lastScope)desktopDevice=null;settings.X=(int)Motion.Position.X;settings.Y=(int)Motion.Position.Y;checkedSurface=0;previousBounds=Rectangle.Empty;surface=null;}
+        if(now-checkedSurface>.25||checkedSurface==0||settings.CodexOnly&&TrackLiveSurface&&trustedWindow!=IntPtr.Zero){
             checkedSurface=now;
-            PetSurface current=settings.CodexOnly?SurfaceProvider():new PetSurface(Screen.FromPoint(Motion.Position.X==0&&Motion.Position.Y==0?Cursor.Position:Point.Round(Motion.Position)).WorkingArea,IntPtr.Zero);
-            if(current!=null&&settings.CodexOnly){var visible=Rectangle.Intersect(current.Bounds,Screen.FromRectangle(current.Bounds).WorkingArea);current=new PetSurface(visible,current.Window);}
-            if(current==null){surface=null;Motion.Sliding=false;Motion.Velocity=PointF.Empty;if(Visible)Hide();popup.Hide();speech.Hide();return;}
-            FitScale(current.Bounds);if(current.Bounds.Height<Height){surface=null;if(Visible)Hide();popup.Hide();speech.Hide();return;}
+            PetSurface current=settings.CodexOnly?SurfaceProvider():new PetSurface(GetDesktopArea(),IntPtr.Zero);
+            if(settings.CodexOnly&&TrackLiveSurface){if(current!=null&&current.Window!=IntPtr.Zero&&current.Window!=trustedWindow){trustedWindow=current.Window;trustedOwner=CodexPetSurface.Owner(trustedWindow);}if(trustedWindow!=IntPtr.Zero)current=CodexPetSurface.RefreshKnown(trustedWindow,trustedOwner);}
+            if(current!=null&&settings.CodexOnly){var visible=Rectangle.Intersect(current.Bounds,PetDisplays.At(current.Bounds).WorkingArea);current=visible.Width<32||visible.Height<32?null:new PetSurface(visible,current.Window);}
+            if(current==null){surface=null;Motion.Sliding=false;Motion.Velocity=PointF.Empty;atlas.SuspendVideo();if(Visible)Hide();popup.Hide();hud.Hide();return;}
+            FitScale(current.Bounds);
             surface=current;
             if(previousBounds==Rectangle.Empty){Motion.Position=settings.X!=int.MinValue&&settings.Y!=int.MinValue?new PointF(settings.X,settings.Y):new PointF(current.Bounds.Right-Width-22,current.Bounds.Bottom-Height-12);}
             else if(settings.CodexOnly&&previousWindow==current.Window){Motion.Position=new PointF(Motion.Position.X+current.Bounds.X-previousBounds.X,Motion.Position.Y+current.Bounds.Y-previousBounds.Y);}
             previousBounds=current.Bounds;previousWindow=current.Window;
         }
         if(surface==null)return;
+        atlas.ResumeVideo();
         FitScale(surface.Bounds);Rectangle motionBounds=MotionBounds(surface.Bounds);Motion.Place(Motion.Position,Size,motionBounds);
-        if(!HubPopupMenu.AnyOpen&&!expanded&&panelStarted<0)Motion.Update(delta,Size,motionBounds,settings.Roaming&&director.Stage==Activity.Stage&&director.CanWalk(now,atlas),Activity.Active);Location=Point.Round(Motion.Position);
-        if(!HubPopupMenu.AnyOpen&&!expanded)director.Tick(now,Motion,Activity.Stage,atlas,settings.Roaming);
-        if(behavior.WhisperEnabled&&DateTime.UtcNow>=behavior.NextWhisperUtc&&!Motion.Dragging&&!HubPopupMenu.AnyOpen&&!expanded)Whisper();
-        if(behavior.WorkEnabled&&Activity.Stage!=spokenStage&&(now-lastWorkSpeechAt>=15||Activity.Stage=="success"||Activity.Stage=="error"||Activity.Stage=="waiting")){spokenStage=Activity.Stage;string line=PetPhrasebook.Work(spokenStage,phraseIndex++);if(line!=null){Speak(line,10);lastWorkSpeechAt=now;}}
-        if(director.Sleeping&&now>=speechUntil){Speak("Z z z · 休息中",10);}
+        Motion.TravelScale=Math.Max(.6F,BodyRectangle(atlas.IdleContentBounds,false).Width/180F);Motion.AnimationControlled=atlas.IsVideo;Motion.AnimationDelta=0;Motion.AnimationEnded=false;
+        if(atlas.IsVideo&&director.Moving&&animationGeneration==director.Generation){var clip=pack.Actions[atlas.ActionIndex(director.Row)];Motion.AnimationDuration=Math.Max(.1,clip.durationMs/1000D-clip.moveLeadSeconds-clip.moveTailSeconds);double active=Math.Max(0,Math.Min(Motion.AnimationDuration,atlas.VideoPlaybackTime-clip.moveLeadSeconds));Motion.AnimationDelta=Math.Max(0,active-lastMoveClock);lastMoveClock=active;Motion.AnimationEnded=atlas.VideoFinished;}
+        if(!HubPopupMenu.AnyOpen&&!(mouseHeld&&!moved))Motion.Update(delta,Size,motionBounds,settings.Roaming&&director.Stage==Activity.Stage&&director.CanWalk(now,atlas),Activity.Active);Location=Point.Round(Motion.Position);
+        if(!HubPopupMenu.AnyOpen)director.Tick(now,Motion,Activity.Stage,atlas,settings.Roaming);
+        Motion.Place(Motion.Position,Size,MotionBounds(surface.Bounds));Location=Point.Round(Motion.Position);
+        atlas.DragHeld=Motion.Dragging;
+        atlas.MirrorMotion=atlas.IsVideo&&director.Moving&&pack.Actions[atlas.ActionIndex(director.Row)].moveFacesLeft&&Motion.Velocity.X>0;
         if(wasSliding&&!Motion.Sliding){settings.X=Left;settings.Y=Top;if(PreferenceChanged!=null)PreferenceChanged();}wasSliding=Motion.Sliding;
         if(!Visible)Show();MaintainTopmost();Present();PresentOverlays(now);
     }
     public void AdvanceOnce(){Tick();}
+    Rectangle GetDesktopArea(){var screen=PetDisplays.All.FirstOrDefault(s=>s.DeviceName==desktopDevice);if(screen==null){PointF position=settings.X!=int.MinValue&&previousBounds==Rectangle.Empty?new PointF(settings.X,settings.Y):Motion.Position;var body=Geometry.Sprite;screen=PetDisplays.At(Point.Round(new PointF(position.X+(body.X+body.Width/2)*RenderScale,position.Y+(body.Y+body.Height*.6F)*RenderScale)));desktopDevice=screen.DeviceName;}return screen.WorkingArea;}
     void MaintainTopmost(){if(HubPopupMenu.AnyOpen)return;IntPtr foreground=GetForegroundWindow();if(foreground==lastForeground)return;lastForeground=foreground;SetWindowPos(Handle,new IntPtr(-1),0,0,0,0,0x0013);}
     void FitScale(Rectangle bounds){
         if(preferredScale<=0||bounds.Width<1||bounds.Height<1)return;RenderScale=preferredScale;float width=(bounds.Width-1)/RenderScale,height=(bounds.Height-1)/RenderScale,header=54;
         capsuleFactor=Math.Max(.05F,Math.Min(settings.CapsuleScale/100F,Math.Min(width/280F,(height-24)/header)));
-        petFactor=Math.Max(.05F,Math.Min(settings.Scale*.014F,Math.Min(width/208F,(height-header*capsuleFactor-8)/(atlas.IsVideo?288F:208F))));
+        petFactor=Math.Max(.05F,Math.Min(settings.Scale*.014F,Math.Min(width/((atlas.IsVideo?512F:192F)*atlas.IdleContentBounds.Width),(height-8)/((atlas.IsVideo?288F:208F)*atlas.IdleContentBounds.Height))));
         Size next=PhysicalSize();if(next!=ClientSize){if(previousBounds!=Rectangle.Empty)Motion.Position=new PointF(Motion.Position.X-(next.Width-Width)/2F,Motion.Position.Y);ClientSize=next;}
     }
-    void Present(){
-        if(IsDisposed||!IsHandleCreated)return;double time=watch.Elapsed.TotalSeconds;int physical=Motion.Row;Motion.Row=director.Row;if(animationGeneration!=director.Generation){animationGeneration=director.Generation;actionStarted=time;atlas.BeginVideo(director.Row,animationGeneration);}var frame=painter.Render(atlas,Motion,false,settings.ShowQuota,Quota,QuotaStatus,time-actionStarted,RenderScale,Activity.Label,Activity.Active,time,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex);Motion.Row=physical;
+    void Present(){using(PetDpi.Enter())PresentPhysical();}
+    void PresentPhysical(){
+        if(surface!=null){var safe=PetMotion.Clamp(Motion.Position,Size,MotionBounds(surface.Bounds));if(safe!=Motion.Position){Motion.Position=safe;Location=Point.Round(safe);}}
+        if(IsDisposed||!IsHandleCreated)return;double time=watch.Elapsed.TotalSeconds;int physical=Motion.Row;Motion.Row=director.Row;if(animationGeneration!=director.Generation){animationGeneration=director.Generation;actionStarted=time;lastMoveClock=0;atlas.BeginVideo(director.Row,animationGeneration,director.DirectSwitch);}atlas.HoldLast=director.Sleeping;var frame=painter.Render(atlas,Motion,false,false,Quota,QuotaStatus,time-actionStarted,RenderScale,Activity.Label,Activity.Active,time,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex,true);Motion.Row=physical;
         IntPtr screen=GetDC(IntPtr.Zero),dc=CreateCompatibleDC(screen),bitmap=IntPtr.Zero,previous=IntPtr.Zero;
         try{bitmap=frame.GetHbitmap(Color.FromArgb(0));previous=SelectObject(dc,bitmap);var point=new NativePoint(Left,Top);var origin=new NativePoint(0,0);var size=new NativeSize(frame.Width,frame.Height);var blend=new Blend{Alpha=255,Format=1};if(!UpdateLayeredWindow(Handle,screen,ref point,ref size,dc,ref origin,0,ref blend,2))throw new Win32Exception();}
         finally{if(previous!=IntPtr.Zero)SelectObject(dc,previous);if(bitmap!=IntPtr.Zero)DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(IntPtr.Zero,screen);}
-        if(presented!=null)presented.Dispose();presented=frame;
+        if(presented!=null)presented.Dispose();presented=frame;lastPresentedAt=time;
     }
-    public Bitmap Snapshot(){int physical=Motion.Row;Motion.Row=director.Row;try{return painter.Render(atlas,Motion,false,settings.ShowQuota,Quota,QuotaStatus,watch.Elapsed.TotalSeconds-actionStarted,RenderScale,Activity.Label,Activity.Active,watch.Elapsed.TotalSeconds,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex);}finally{Motion.Row=physical;}}
+    public Bitmap Snapshot(){int physical=Motion.Row;Motion.Row=director.Row;try{return painter.Render(atlas,Motion,false,false,Quota,QuotaStatus,watch.Elapsed.TotalSeconds-actionStarted,RenderScale,Activity.Label,Activity.Active,watch.Elapsed.TotalSeconds,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex,true);}finally{Motion.Row=physical;}}
     public void ToggleExpanded(){OpenPanel(false);}
-    public void OpenPanel(bool tasks){bool closing=expanded&&taskPanel==tasks;expanded=!closing;taskPanel=tasks;panelFrom=panelReveal;panelStarted=watch.Elapsed.TotalSeconds;previousButtons=PetOverlay.Buttons;PresentOverlays(watch.Elapsed.TotalSeconds);}
+    public void OpenPanel(bool tasks){menu.Close();bool closing=expanded&&taskPanel==tasks;expanded=!closing;taskPanel=tasks;if(expanded){var body=BodyRectangle(atlas.IdleContentBounds,true);var area=OverlayArea();panelBelow=body.Top-10*RenderScale-225*RenderScale*capsuleFactor<area.Top;}panelFrom=panelReveal;panelStarted=watch.Elapsed.TotalSeconds;previousButtons=PetOverlay.Buttons;PresentOverlays(watch.Elapsed.TotalSeconds);}
     void AdvancePanel(double now){if(panelStarted<0)return;double t=Math.Max(0,Math.Min(1,(now-panelStarted)/.32)),ease=t<.5?4*t*t*t:1-Math.Pow(-2*t+2,3)/2;panelReveal=(float)(panelFrom+((expanded?1:0)-panelFrom)*ease);if(t>=1)panelStarted=-1;}
     public void Interact(int row,bool sound){double duration=director.Duration(row);Motion.Interact(row,duration);director.Manual(row,watch.Elapsed.TotalSeconds);actionStarted=watch.Elapsed.TotalSeconds;if(sound&&settings.Sound)PetSound.Play();Present();}
-    void ReactToClick(bool sound){Motion.ReactToClick();if(sound){director.Click(watch.Elapsed.TotalSeconds);if(settings.Sound)PetSound.Play();}Present();}
-    public void ResumeAutonomy(){settings.Roaming=true;Motion.ResumeAutonomy();director.Restore(watch.Elapsed.TotalSeconds);if(PreferenceChanged!=null)PreferenceChanged();}
-    Rectangle MotionBounds(Rectangle area){if(!atlas.IsVideo)return area;int inset=(int)Math.Floor(Math.Min(Geometry.QuotaOffset,160*petFactor)*RenderScale);area.Inflate(inset,0);return area;}
+    void ReactToClick(bool sound){Motion.ReactToClick();double now=watch.Elapsed.TotalSeconds;if(sound&&now-lastClickSelection>=Math.Min(.8,Math.Max(.25,SystemInformation.DoubleClickTime/1000D+.05))){lastClickSelection=now;director.Click(now);if(settings.Sound)PetSound.Play();}Present();}
+    bool NeedsAutonomyResume{get{return !settings.Roaming||director.ManualActive||director.Sleeping;}}
+    void SyncAutonomyMenu(){autonomyItem.Checked=false;autonomyItem.Text=NeedsAutonomyResume?director.Sleeping?"唤醒并恢复自主走动":"恢复自主走动":"暂停自主走动";}
+    public void ResumeAutonomy(){settings.Roaming=true;Motion.TravelScale=Math.Max(.6F,BodyRectangle(atlas.IdleContentBounds,false).Width/180F);Motion.ResumeAutonomy(true);double now=watch.Elapsed.TotalSeconds;director.Restore(now);director.Tick(now,Motion,Activity.Stage,atlas,true);SyncAutonomyMenu();Present();if(PreferenceChanged!=null)PreferenceChanged();}
+    Rectangle MotionBounds(Rectangle area){var silhouette=RectangleF.Union(atlas.IdleContentBounds,atlas.ContentBounds(director.Row));var body=BodyRectangle(silhouette,false);body.Inflate(8*RenderScale,8*RenderScale);int left=(int)Math.Floor(body.Left),top=(int)Math.Floor(body.Top),right=Width-(int)Math.Ceiling(body.Right),bottom=Height-(int)Math.Ceiling(body.Bottom);return new Rectangle(area.Left-left,area.Top-top,area.Width+left+right,area.Height+top+bottom);}
     void PanelClick(Point point){float scale=RenderScale*capsuleFactor,x=point.X/scale,y=point.Y/scale;
         if(y<36&&x>=240){OpenPanel(taskPanel);return;}
         if(taskPanel){if(y>=40&&y<=115)taskIndex++;return;}
@@ -336,41 +369,44 @@ internal sealed class PetWindow : Form {
         if(x>=145&&x<=264&&y>=77&&y<=98){resetTab=x>=205;return;}
         if(!resetTab&&x>=149&&x<=260&&y>=99&&y<=115){tokenRange=Math.Max(0,Math.Min(2,(int)((x-149)/37)));return;}
     }
-    void PresentOverlays(double now){if(surface==null||!Visible){popup.Hide();speech.Hide();return;}float scale=RenderScale*capsuleFactor;var area=Screen.FromRectangle(Bounds).WorkingArea;
+    void PresentOverlays(double now){using(PetDpi.Enter())PresentOverlaysPhysical(now);}
+    Rectangle OverlayArea(){var area=PetDisplays.At(Rectangle.Round(VisibleBodyScreenBounds)).WorkingArea;return settings.CodexOnly&&surface!=null?Rectangle.Intersect(area,surface.Bounds):area;}
+    void PresentOverlaysPhysical(double now){if(surface==null||!Visible){popup.Hide();hud.Hide();return;}float scale=RenderScale*capsuleFactor;var area=OverlayArea();var body=BodyRectangle(atlas.IdleContentBounds,true);float above=body.Top-10*RenderScale-47*scale;
+        if(panelReveal==0){if(!hudBelow&&above<area.Top)hudBelow=true;else if(hudBelow&&above>=area.Top+12*RenderScale)hudBelow=false;}
+        if(settings.ShowQuota){using(var frame=painter.RenderCapsule(scale,Quota,QuotaStatus,Activity.Label,Activity.Active,now)){int x=(int)(body.Left+body.Width/2-frame.Width/2),y=(int)(hudBelow?body.Bottom+10*RenderScale-7*scale:above);x=Math.Max(area.Left,Math.Min(area.Right-frame.Width,x));y=Math.Max(area.Top,Math.Min(area.Bottom-frame.Height,y));if(panelReveal<.99F)hud.Present(frame,new Point(x,y),1);else hud.Hide();}}else hud.Hide();
         if(panelReveal>0&&settings.ShowQuota){using(var frame=painter.RenderPanel(scale,taskPanel,Quota,QuotaStatus,Activity.Label,Activity.Active,now,Tokens,tokenRange,resetTab,QuotaRefreshing,Activity,taskIndex)){
-            int x=Left+(int)(Geometry.QuotaOffset*RenderScale),y=Top-(int)(174*scale);x=Math.Max(area.Left,Math.Min(area.Right-frame.Width,x));y=Math.Max(area.Top,Math.Min(area.Bottom-frame.Height,y));var origin=new RectangleF((Left+Geometry.QuotaOffset*RenderScale-x)/scale+(taskPanel?57:228),(Top-y)/scale+(taskPanel?8:7),taskPanel?165:40,taskPanel?37:40);using(var morph=painter.MorphPanel(frame,scale,origin,panelReveal))popup.Present(morph,new Point(x,y),1);}
-            int buttons=PetOverlay.Buttons;if(DismissOnOutsideClick&&(buttons&~previousButtons)!=0&&!popup.Bounds.Contains(PetOverlay.Pointer)&&!new Rectangle(Left+(int)(Geometry.Quota.Left*RenderScale),Top, (int)(Geometry.Quota.Width*RenderScale),(int)(54*scale)).Contains(PetOverlay.Pointer)&&!HubPopupMenu.AnyOpen){if(expanded)OpenPanel(taskPanel);}previousButtons=buttons;
+            int x=(int)(body.Left+body.Width/2-frame.Width/2),y=(int)(panelBelow?body.Bottom+10*RenderScale-5*scale:body.Top-10*RenderScale-225*scale);x=Math.Max(area.Left,Math.Min(area.Right-frame.Width,x));y=Math.Max(area.Top,Math.Min(area.Bottom-frame.Height,y));var origin=new RectangleF((hud.Left-x)/scale+(taskPanel?57:228),(hud.Top-y)/scale+(taskPanel?8:7),taskPanel?165:40,taskPanel?37:40);using(var morph=painter.MorphPanel(frame,scale,origin,panelReveal))popup.Present(morph,new Point(x,y),1);}
+            int buttons=PetOverlay.Buttons;if(DismissOnOutsideClick&&(buttons&~previousButtons)!=0&&!popup.Bounds.Contains(PetOverlay.Pointer)&&!hud.Bounds.Contains(PetOverlay.Pointer)&&!HubPopupMenu.AnyOpen){if(expanded)OpenPanel(taskPanel);}previousButtons=buttons;
         }else popup.Hide();
-        if(speechText!=null&&now<speechUntil&&!expanded&&!HubPopupMenu.AnyOpen){using(var frame=painter.RenderSpeech(scale,speechText)){int x=Left+(int)(Geometry.QuotaOffset*RenderScale),y=Top-frame.Height+(int)(5*scale);x=Math.Max(area.Left,Math.Min(area.Right-frame.Width,x));y=Math.Max(area.Top,Math.Min(area.Bottom-frame.Height,y));float opacity=(float)Math.Min(1,Math.Min((speechUntil-now)*4,(now-(speechUntil-10))*6));speech.Present(frame,new Point(x,y),Math.Max(.05F,opacity));}}else speech.Hide();
     }
-    public void NotifyQuota(PetQuotaSnapshot value){if(value==null||value.Stale)return;var windows=new[]{value.Short,value.Week}.Where(w=>w!=null&&w.Remaining.HasValue).ToArray();if(windows.Length>0)director.Quota(windows.Min(w=>w.Remaining.Value),watch.Elapsed.TotalSeconds);}
-    public void Whisper(){director.QueueWhisper();Speak(PetPhrasebook.Whisper(pack.Id,phraseIndex++),10);behavior.NextWhisperUtc=DateTime.UtcNow.AddSeconds(behavior.WhisperSeconds);if(PreferenceChanged!=null)PreferenceChanged();}
-    public void RandomAction(){if(pack.Actions!=null){var pools=director.Spec.categories??new PetActionCategory[0];int[] rows=pools.SelectMany(p=>p.actions).Distinct().ToArray();if(rows.Length>0){Interact(9+rows[new Random().Next(rows.Length)],false);return;}}Interact(3,false);}
+    public void NotifyQuota(PetQuotaSnapshot value){if(value==null||value.Stale){director.QuotaUnknown();return;}var primary=value.Short!=null&&value.Short.Remaining.HasValue?value.Short:value.Week;if(primary!=null&&primary.Remaining.HasValue)director.Quota(primary.Remaining.Value,watch.Elapsed.TotalSeconds);else director.QuotaUnknown();}
+    public void RandomAction(){director.Click(watch.Elapsed.TotalSeconds);Present();}
     public void Greet(){if(pack.Actions!=null){int index=pack.Actions.FindIndex(a=>a.name.Contains("挥手")||a.name.Contains("招手")||a.name.Contains("打招呼"));if(index>=0){Interact(9+index,true);return;}}Interact(3,true);}
-    void Speak(string text,double seconds){speechText=text;speechUntil=watch.Elapsed.TotalSeconds+seconds;}
-    void OfflineChat(){using(var dialog=new PetOfflineChat(pack.Name,text=>{string reply=PetPhrasebook.Reply(text,pack.Id,phraseIndex++);Speak(reply,10);director.QueueWhisper();return reply;}))dialog.ShowDialog(this);}
-    protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(e.Button==MouseButtons.Right){rightHeld=true;Motion.Pressed=true;Motion.StepPress(.016);ReactToClick(false);menu.Show(this,e.Location);return;}if(e.Button!=MouseButtons.Left)return;mouseHeld=true;moved=false;Motion.Sliding=false;Motion.Velocity=PointF.Empty;cursorStart=Cursor.Position;positionStart=Motion.Position;dragTracker.Reset(cursorStart,watch.Elapsed.TotalSeconds);bodyHeld=Motion.Pressed=!settings.ShowQuota||!Geometry.Quota.Contains(e.X/RenderScale,e.Y/RenderScale);Capture=true;}
-    protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);DragTo(Cursor.Position);}
-    internal void DragTo(Point cursor){if(!mouseHeld)return;int dx=cursor.X-cursorStart.X,dy=cursor.Y-cursorStart.Y;if(Math.Abs(dx)+Math.Abs(dy)<4&&!moved)return;moved=true;
-        Rectangle bounds=settings.CodexOnly?(surface==null?Rectangle.Empty:surface.Bounds):Screen.FromPoint(cursor).WorkingArea;FitScale(bounds);if(bounds.Width<Width||bounds.Height<Height)return;
-        if(!settings.CodexOnly)surface=new PetSurface(bounds,IntPtr.Zero);dragTracker.Add(cursor,watch.Elapsed.TotalSeconds);Motion.Pressed=false;Motion.PressScale=1;Motion.Drag(new PointF(positionStart.X+dx,positionStart.Y+dy),Size,MotionBounds(bounds));Location=Point.Round(Motion.Position);Present();
+    void OfflineChat(){using(var dialog=new PetOfflineChat(pack.Name,text=>PetPhrasebook.Reply(text,pack.Id,phraseIndex++)))dialog.ShowDialog();}
+    void PointerDown(MouseEventArgs e,bool fromHud){if(e.Button==MouseButtons.Right){rightHeld=true;Motion.Pressed=true;Motion.StepPress(.016);ReactToClick(false);menu.Show(Cursor.Position);return;}if(e.Button!=MouseButtons.Left)return;draggingFromHud=fromHud;mouseHeld=true;moved=false;Motion.Sliding=false;Motion.Velocity=PointF.Empty;cursorStart=PetOverlay.Pointer;positionStart=Motion.Position;dragTracker.Reset(cursorStart,watch.Elapsed.TotalSeconds);bodyHeld=Motion.Pressed=!fromHud;if(fromHud)hud.Capture=true;else Capture=true;}
+    void HudMouseDown(object sender,MouseEventArgs e){PointerDown(e,true);}
+    void HudMouseUp(object sender,MouseEventArgs e){PointerUp(e,true);}
+    protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);PointerDown(e,false);}
+    protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);DragTo(PetOverlay.Pointer);}
+    internal void DragTo(Point cursor){using(PetDpi.Enter())DragPhysical(cursor);}
+    void DragPhysical(Point cursor){if(!mouseHeld)return;int dx=cursor.X-cursorStart.X,dy=cursor.Y-cursorStart.Y;if(Math.Abs(dx)+Math.Abs(dy)<4&&!moved)return;bool first=!moved;moved=true;
+        var monitor=PetDisplays.At(cursor);Rectangle bounds=settings.CodexOnly?(surface==null?Rectangle.Empty:surface.Bounds):monitor.WorkingArea;if(bounds.IsEmpty)return;FitScale(bounds);
+        if(!settings.CodexOnly){desktopDevice=monitor.DeviceName;surface=new PetSurface(bounds,IntPtr.Zero);}double now=watch.Elapsed.TotalSeconds;dragTracker.Add(cursor,now);Motion.Pressed=false;Motion.PressScale=1;Motion.Drag(new PointF(positionStart.X+dx,positionStart.Y+dy),Size,MotionBounds(bounds));director.StartDrag(now);atlas.DragHeld=true;Point previous=Location;Location=Point.Round(Motion.Position);int shiftX=Left-previous.X,shiftY=Top-previous.Y;if(hud.Visible)hud.Location=new Point(hud.Left+shiftX,hud.Top+shiftY);if(popup.Visible)popup.Location=new Point(popup.Left+shiftX,popup.Top+shiftY);if(first||now-lastPresentedAt>=1D/90){Present();PresentOverlays(now);}
     }
-    protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(e.Button!=MouseButtons.Left||!mouseHeld)return;mouseHeld=false;Capture=false;if(moved){Motion.Drop(dragTracker.Release(Cursor.Position,watch.Elapsed.TotalSeconds));if(!Motion.Sliding&&pack.Actions==null)ReactToClick(false);settings.X=Left;settings.Y=Top;if(PreferenceChanged!=null)PreferenceChanged();}
-        else if(settings.ShowQuota&&Geometry.Quota.Contains(e.X/RenderScale,e.Y/RenderScale)){
-            PointF point=Geometry.CapsulePoint(new PointF(e.X/RenderScale,e.Y/RenderScale));float x=point.X,y=point.Y;
-            if(x<54){if(OpenSettings!=null)OpenSettings();}else if(x<224)OpenPanel(true);else ToggleExpanded();
-        }
+    void PointerUp(MouseEventArgs e,bool fromHud){if(e.Button!=MouseButtons.Left||!mouseHeld)return;mouseHeld=false;Capture=false;hud.Capture=false;atlas.DragHeld=false;if(moved){Motion.Drop(dragTracker.Release(PetOverlay.Pointer,watch.Elapsed.TotalSeconds));director.EndDrag(watch.Elapsed.TotalSeconds,Motion.Sliding);atlas.ReleaseDragFrame();Present();PresentOverlays(watch.Elapsed.TotalSeconds);settings.X=Left;settings.Y=Top;if(PreferenceChanged!=null)PreferenceChanged();}
+        else if(fromHud){float x=e.X/(RenderScale*capsuleFactor);if(x<54){if(OpenSettings!=null)OpenSettings();}else if(x<224)OpenPanel(true);else ToggleExpanded();}
         else ReactToClick(true);
     }
-    protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture&&mouseHeld){mouseHeld=false;if(Motion.Dragging)Motion.Drop();}}
-    protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);if(e.Button==MouseButtons.Left&&(!settings.ShowQuota||!Geometry.Quota.Contains(e.X/RenderScale,e.Y/RenderScale)))ReactToClick(true);}
+    protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);PointerUp(e,false);}
+    protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture&&mouseHeld&&!draggingFromHud){mouseHeld=false;atlas.DragHeld=false;if(Motion.Dragging){Motion.Drop();director.EndDrag(watch.Elapsed.TotalSeconds);atlas.ReleaseDragFrame();Present();}}}
+    protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);if(e.Button==MouseButtons.Left)ReactToClick(true);}
     protected override void WndProc(ref Message message){
-        if(message.Msg==0x02E0){preferredScale=RenderScale=(message.WParam.ToInt64()&0xffff)/96F;if(surface!=null)FitScale(surface.Bounds);ClientSize=PhysicalSize();if(surface!=null)Motion.Place(Motion.Position,Size,surface.Bounds);Present();return;}
+        if(message.Msg==0x02E0){preferredScale=RenderScale=(message.WParam.ToInt64()&0xffff)/96F;if(surface!=null)FitScale(surface.Bounds);ClientSize=PhysicalSize();if(surface!=null)Motion.Place(Motion.Position,Size,MotionBounds(surface.Bounds));Present();return;}
         if(message.Msg==0x21){message.Result=(IntPtr)3;return;}
         if(message.Msg==0x84&&presented!=null){int x=unchecked((short)(long)message.LParam)-Left,y=unchecked((short)((long)message.LParam>>16))-Top;if(x<0||y<0||x>=presented.Width||y>=presented.Height||presented.GetPixel(x,y).A<16){message.Result=(IntPtr)(-1);return;}}
         base.WndProc(ref message);
     }
-    protected override void Dispose(bool disposing){if(disposing&&!disposed){disposed=true;timer.Stop();timer.Dispose();popup.Dispose();speech.Dispose();menu.Dispose();atlas.Dispose();painter.Dispose();if(presented!=null){presented.Dispose();presented=null;}}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing&&!disposed){disposed=true;timer.Stop();timer.Dispose();popup.Dispose();hud.Dispose();menu.Dispose();atlas.Dispose();painter.Dispose();if(presented!=null){presented.Dispose();presented=null;}}base.Dispose(disposing);}
 }
 internal static class PetSound {
     static int playing;

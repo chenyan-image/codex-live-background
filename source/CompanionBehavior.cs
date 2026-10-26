@@ -5,47 +5,58 @@ using System.IO;
 using System.Linq;
 
 internal sealed class PetBehaviorProfile {
-    public bool WhisperEnabled=true,WorkEnabled=true,QuotaEnabled=true;
-    public int WhisperSeconds=300,SleepSeconds=300,IdleWeight=10,TurnWeight=5,MoveWeight=5;
+    public bool WhisperEnabled=false,WorkEnabled=true,QuotaEnabled=true,WorkSpeechEnabled=false;
+    public int WhisperSeconds=600,SleepSeconds=300,IdleWeight=10,TurnWeight=5,MoveWeight=5,Version;
     public Dictionary<string,int> CategoryWeights=new Dictionary<string,int>();
-    public DateTime NextWhisperUtc;
-    public void Normalize(){WhisperSeconds=Math.Max(30,Math.Min(86400,WhisperSeconds));IdleWeight=Limit(IdleWeight);TurnWeight=Limit(TurnWeight);MoveWeight=Limit(MoveWeight);if(CategoryWeights==null)CategoryWeights=new Dictionary<string,int>();foreach(string key in CategoryWeights.Keys.ToArray())CategoryWeights[key]=Limit(CategoryWeights[key]);}
+    public DateTime NextWhisperUtc=DateTime.MinValue;
+    public void Normalize(){WhisperEnabled=WorkSpeechEnabled=false;Version=3;IdleWeight=Limit(IdleWeight);TurnWeight=Limit(TurnWeight);MoveWeight=Limit(MoveWeight);if(CategoryWeights==null)CategoryWeights=new Dictionary<string,int>();foreach(string key in CategoryWeights.Keys.ToArray())CategoryWeights[key]=Limit(CategoryWeights[key]);}
     static int Limit(int value){return Math.Max(0,Math.Min(100,value));}
 }
 internal sealed class PetActionCategory {public string name{get;set;}public int weight{get;set;}public int[] actions{get;set;}public bool noMirror{get;set;}}
 internal sealed class PetBehaviorSpec {
-    public int[] idle{get;set;}public int[] turn{get;set;}public int[] move{get;set;}public int[] click{get;set;}public int[] drag{get;set;}public int[] whisper{get;set;}public int[] sleep{get;set;}
+    public int[] idle{get;set;}public int[] turn{get;set;}public int[] move{get;set;}public int[] click{get;set;}public int[] drag{get;set;}public int[] whisper{get;set;}public int[] sleep{get;set;}public int[] collision{get;set;}public int[] lowQuotaPool{get;set;}public bool lowQuotaOnly{get;set;}
     public int[][] quota{get;set;}public int[][] work{get;set;}public PetActionCategory[] categories{get;set;}
-    public void Validate(int count){foreach(var pool in new[]{idle,turn,move,click,drag,whisper,sleep}.Concat(quota??new int[0][]).Concat(work??new int[0][]).Concat((categories??new PetActionCategory[0]).Select(v=>v.actions))){if(pool==null)continue;if(pool.Length>128||pool.Any(i=>i<0||i>=count))throw new InvalidDataException("宠物事件动作映射无效。");}if(quota!=null&&quota.Length!=6||work!=null&&work.Length!=6)throw new InvalidDataException("宠物事件需要六个档位。");}
+    public void Validate(int count){foreach(var pool in new[]{idle,turn,move,click,drag,whisper,sleep,collision,lowQuotaPool}.Concat(quota??new int[0][]).Concat(work??new int[0][]).Concat((categories??new PetActionCategory[0]).Select(v=>v.actions))){if(pool==null)continue;if(pool.Length>128||pool.Any(i=>i<0||i>=count))throw new InvalidDataException("宠物事件动作映射无效。");}if(quota!=null&&quota.Length!=6||work!=null&&work.Length!=6)throw new InvalidDataException("宠物事件需要六个档位。");}
 }
 // One controller for all image/video formats. Pools contain native action rows;
 // names and mappings belong to the pack, never to a hard-coded pet type.
 internal sealed class PetAnimationDirector {
-    readonly PetPack pack;readonly PetBehaviorProfile profile;readonly Random random;readonly PetBehaviorSpec spec;readonly Dictionary<string,int> previous=new Dictionary<string,int>();
-    readonly Queue<int> workChain=new Queue<int>();string kind="",stage="",queuedKind;int queuedRow=-1,lastPhysics=-1,plannedRow=-1;double started,workSince,lastWorkAt,lastQuota=-1800;public int Row{get;private set;}public double Time{get;private set;}public int Generation{get;private set;}
+    readonly PetPack pack;readonly PetBehaviorProfile profile;readonly Random random;readonly PetBehaviorSpec spec;readonly Dictionary<string,int> previous=new Dictionary<string,int>();readonly Dictionary<int,int> played=new Dictionary<int,int>();int lastPlayed=-1;
+    readonly Queue<int> workChain=new Queue<int>();string kind="",stage="",queuedKind;bool dragHeld,directSwitch;int queuedRow=-1,lastPhysics=-1,plannedRow=-1,lastCollisionCount;double started,workSince,lastWorkAt,lastQuota=-1800;public int Row{get;private set;}public double Time{get;private set;}public int Generation{get;private set;}
     public bool Sleeping{get{return kind=="sleep";}}
+    public bool ManualActive{get{return kind=="manual"||kind=="click";}}
+    public bool CollisionActive{get{return kind=="collision"&&Time<Duration(Row);}}
+    public bool Moving{get{return kind=="physics"&&lastPhysics==12;}}
+    public bool DirectSwitch{get{return directSwitch;}}
+    public int DragRow{get{return ToRow(spec.drag!=null&&spec.drag.Length>0?spec.drag[0]:pack.Actions==null?0:pack.RowMap[0]);}}
     public string Stage{get{return stage;}}
-    public bool CanWalk(double now,PetAtlas atlas){bool phaseOnly=queuedKind=="work"&&(stage=="thinking"||stage=="working"||stage=="result");return !Sleeping&&(kind=="physics"||kind=="move"||workChain.Count==0&&(queuedRow<0||phaseOnly)&&(atlas.IsVideo?atlas.VideoFinished:now-started>=Duration(Row)));}
+    public bool CanWalk(double now,PetAtlas atlas){bool phaseOnly=queuedKind=="work"&&(stage=="thinking"||stage=="working"||stage=="result");return !Sleeping&&!CollisionActive&&(kind=="physics"||kind=="move"||workChain.Count==0&&(queuedRow<0||phaseOnly)&&(atlas.IsVideo?atlas.VideoFinished:now-started>=Duration(Row)));}
     public PetAnimationDirector(PetPack pack,PetBehaviorProfile profile,int seed){this.pack=pack;this.profile=profile;random=new Random(seed);spec=pack.Behavior??Fallback(pack);Row=Pick("idle",spec.idle,0);}
     public PetBehaviorSpec Spec{get{return spec;}}
     static int Native(PetPack p,int row){return p.Actions==null?row:9+p.RowMap[row];}
     static PetBehaviorSpec Fallback(PetPack p){
-        Func<int,int[]> row=i=>new[]{p.Actions==null?i:p.RowMap[i]};var s=new PetBehaviorSpec{idle=row(0),turn=row(8),move=row(1).Concat(row(2)).Distinct().ToArray(),click=row(3),drag=row(0),whisper=row(3),quota=new[]{row(3),row(0),row(0),row(6),row(5),row(6)},work=new[]{row(7),row(7),row(8),row(6),row(3),row(5)},categories=new PetActionCategory[0]};
+        Func<int,int[]> row=i=>new[]{p.Actions==null?i:p.RowMap[i]};var s=new PetBehaviorSpec{idle=row(0),turn=row(8),move=row(1).Concat(row(2)).Distinct().ToArray(),click=row(3),drag=row(0),collision=row(5),whisper=row(3),quota=new[]{row(3),row(0),row(0),row(6),row(5),row(6)},work=new[]{row(7),row(7),row(8),row(6),row(3),row(5)},categories=new PetActionCategory[0]};
         s.sleep=row(6);if(p.Actions!=null){s.sleep=Find(p,new[]{"睡","困倦"},s.sleep);s.drag=Find(p,new[]{"拖拽"},s.drag);s.work=new[]{Find(p,new[]{"收到任务","思考"},s.work[0]),Find(p,new[]{"处理任务","敲键盘","工作"},s.work[1]),Find(p,new[]{"整理归档","整理"},s.work[2]),Find(p,new[]{"翻阅工作","等待"},s.work[3]),Find(p,new[]{"庆祝","完成"},s.work[4]),Find(p,new[]{"生气","道歉"},s.work[5])};s.categories=new[]{new PetActionCategory{name="日常动作",weight=20,actions=Enumerable.Range(0,p.Actions.Count).Where(i=>!s.idle.Contains(i)&&!s.move.Contains(i)&&!s.work.SelectMany(v=>v).Contains(i)&&!s.sleep.Contains(i)).ToArray()}};}else s.categories=new[]{new PetActionCategory{name="日常动作",weight=30,actions=new[]{3,4,6,8}}};
         return s;
     }
     static int[] Find(PetPack pack,string[] terms,int[] fallback){var indices=pack.Actions.Select((a,i)=>new{a,i}).Where(v=>terms.Any(term=>v.a.name.Contains(term))).Select(v=>v.i).ToArray();return indices.Length>0?indices:fallback;}
     int ToRow(int index){return pack.Actions==null?index:9+index;}
-    int Pick(string key,int[] pool,int fallback){if(pool==null||pool.Length==0)return fallback;int old;previous.TryGetValue(key,out old);var choices=pool.Where(v=>pool.Length==1||v!=old).ToArray();int value=choices[random.Next(choices.Length)];previous[key]=value;return ToRow(value);}
+    int Priority(int index){int result=0;foreach(var category in spec.categories??new PetActionCategory[0])if(category.actions.Contains(index)){int weight;result+=profile.CategoryWeights.TryGetValue(category.name,out weight)?weight:category.weight;}return Math.Max(1,result);}
+    int Pick(string key,int[] pool,int fallback){if(pool==null||pool.Length==0)return fallback;int old;if(!previous.TryGetValue(key,out old))old=-1;var choices=pool.Distinct().Where(v=>pool.Length==1||v!=lastPlayed).ToArray();if(choices.Length==0)choices=pool.Distinct().ToArray();int least=choices.Min(v=>played.ContainsKey(v)?played[v]:0);choices=choices.Where(v=>(played.ContainsKey(v)?played[v]:0)==least).ToArray();if(choices.Length>1&&choices.Contains(old))choices=choices.Where(v=>v!=old).ToArray();int value=choices[random.Next(choices.Length)];if(key=="auto-catalog"){int roll=random.Next(choices.Sum(i=>Priority(i)));foreach(int choice in choices){roll-=Priority(choice);if(roll<0){value=choice;break;}}}previous[key]=value;return ToRow(value);}
     int[] StagePool(string value){int i=value=="thinking"?0:value=="working"?1:value=="result"?2:value=="waiting"?3:value=="success"?4:value=="error"?5:-1;return i<0?null:spec.work[i];}
-    void Begin(int row,string next,double now){if(kind!="work"&&next=="work")workSince=now;Row=row;kind=next;started=now;Time=0;plannedRow=-1;Generation++;}
-    public void Restore(double now){queuedRow=-1;workChain.Clear();stage="";lastWorkAt=now;Begin(Pick("idle",spec.idle,0),"idle",now);}
-    public void Manual(int row,double now){queuedRow=-1;Begin(row,"manual",now);}
-    public void QueueWhisper(){queuedRow=Pick("whisper",spec.whisper,Row);queuedKind="whisper";}
-    public void Click(double now){Begin(Pick("click",spec.click,Row),"click",now);}
+    int MoveRow(PetMotion motion){int direction=motion.Velocity.X>=0?1:2;if(pack.Actions==null)return direction;int mapped=pack.RowMap[direction];return spec.move!=null&&spec.move.Length<=2&&spec.move.Contains(mapped)?ToRow(mapped):Pick("move",spec.move,Native(pack,direction));}
+    void Begin(int row,string next,double now){directSwitch=kind=="drag"||kind=="collision"||next=="drag"||next=="collision";if(kind!="work"&&next=="work")workSince=now;Row=row;lastPlayed=pack.Actions==null?row:row<9?pack.RowMap[row]:row-9;int count;played.TryGetValue(lastPlayed,out count);played[lastPlayed]=count+1;kind=next;started=now;Time=0;plannedRow=-1;Generation++;}
+    public void Restore(double now){queuedRow=-1;workChain.Clear();stage="";lastPhysics=-1;dragHeld=false;lastWorkAt=now;Begin(Pick("idle",spec.idle,0),"idle",now);}
+    public void Manual(int row,double now){queuedRow=-1;lastWorkAt=now;dragHeld=false;Begin(row,"manual",now);}
+    public void StartDrag(double now){dragHeld=true;lastWorkAt=now;if(kind=="drag")return;lastPhysics=10;Begin(DragRow,"drag",now);}
+    public void EndDrag(double now,bool sliding=false){dragHeld=false;lastWorkAt=now;lastPhysics=sliding?13:-1;Begin(Pick("idle",spec.idle,0),"idle",now);}
+    bool lowQuota;public bool LowQuotaEligible{get{return lowQuota;}}
+    public int[] ClickPool{get{return Enumerable.Range(0,pack.Actions==null?9:pack.Actions.Count).Where(i=>!spec.lowQuotaOnly||lowQuota||spec.lowQuotaPool==null||!spec.lowQuotaPool.Contains(i)).ToArray();}}
+    public void Click(double now){dragHeld=false;lastPhysics=-1;lastWorkAt=now;Begin(Pick("all-clicks",ClickPool,Row),"click",now);}
     public static int QuotaBand(double remaining){double used=100-Math.Max(0,Math.Min(100,remaining));return used>=100?5:Math.Min(4,(int)(used/20));}
     int quotaBand=-1;
-    public void Quota(double remaining,double now,bool preview=false){int band=QuotaBand(remaining);if(!preview&&(!profile.QuotaEnabled||band==quotaBand&&now-lastQuota<1800))return;quotaBand=band;lastQuota=now;queuedRow=Pick("quota"+band,spec.quota[band],Row);queuedKind="quota";}
+    public void QuotaUnknown(){lowQuota=false;}
+    public void Quota(double remaining,double now,bool preview=false){bool before=lowQuota;lowQuota=remaining<10;int band=QuotaBand(remaining);if(spec.lowQuotaOnly&&!preview){if(!lowQuota||!profile.QuotaEnabled||before&&now-lastQuota<120)return;lastQuota=now;queuedRow=Pick("low-quota",spec.lowQuotaPool,Row);queuedKind="quota";return;}if(!preview&&(!profile.QuotaEnabled||band==quotaBand&&now-lastQuota<1800))return;quotaBand=band;lastQuota=now;queuedRow=Pick("quota"+band,spec.quota[band],Row);queuedKind="quota";}
     public void PreviewQuota(int band){queuedRow=Pick("quota"+band,spec.quota[Math.Max(0,Math.Min(5,band))],Row);queuedKind="quota";}
     public double Duration(int row){return pack.Actions==null?.8:pack.Actions[row<9?pack.RowMap[row]:row-9].durationMs/1000D;}
     public void Tick(double now,PetMotion motion,string currentStage,PetAtlas atlas,bool roaming){
@@ -58,23 +69,28 @@ internal sealed class PetAnimationDirector {
             if(starting||terminal){if(workChain.Count<4)workChain.Enqueue(selected);if(terminal&&queuedKind=="work")queuedRow=-1;}
             else{queuedRow=selected;queuedKind="work";}
         }}
-        int physics=motion.Dragging?10:motion.CollisionDirection>=0?11:motion.Velocity!=PointF.Empty?12:-1;
-        if(physics>=0){if(physics!=lastPhysics){int row=physics==10?Pick("drag",spec.drag,Native(pack,0)):physics==11?Native(pack,5):Pick("move",spec.move,Native(pack,1));Begin(row,"physics",now);}lastPhysics=physics;if(physics==11)return;}
+        int physics=motion.Dragging||dragHeld?10:motion.CollisionDirection>=0?11:motion.Sliding?13:motion.Velocity!=PointF.Empty?12:-1;
+        if(physics==10){StartDrag(now);return;}
+        if(CollisionActive&&physics!=10&&(physics!=11||motion.CollisionCount==lastCollisionCount))return;
+        if(physics==13){if(lastPhysics!=13)Begin(Pick("idle",spec.idle,0),"idle",now);lastPhysics=13;return;}
+        if(physics>=0){if(physics!=lastPhysics||physics==11&&motion.CollisionCount!=lastCollisionCount){int row=physics==10?Pick("drag",spec.drag,Native(pack,0)):physics==11?Pick("collision",spec.collision,Native(pack,5)):MoveRow(motion);if(physics==11)lastCollisionCount=motion.CollisionCount;Begin(row,physics==11&&spec.collision!=null&&spec.collision.Length>0?"collision":"physics",now);}lastPhysics=physics;if(physics==11)return;}
         else if(lastPhysics>=0)lastPhysics=-1;
         bool done=video?videoFinished:Time>=Duration(Row);
         if(video&&!done&&Time>Duration(Row)-1&&plannedRow<0){plannedRow=workChain.Count>0?workChain.Peek():queuedRow>=0?queuedRow:profile.WorkEnabled&&StagePool(stage)!=null?Pick("work-"+stage,StagePool(stage),Row):Pick("idle",spec.idle,Row);if(prefetch!=null)prefetch(plannedRow);}
         if(!done)return;
-        if(physics>=0){Begin(physics==10?Pick("drag",spec.drag,Row):Pick("move",spec.move,Row),"physics",now);return;}
+        if(physics>=0){Begin(physics==10?Pick("drag",spec.drag,Row):MoveRow(motion),"physics",now);return;}
         if(workChain.Count>0){Begin(workChain.Dequeue(),"work",now);return;}
         if(queuedRow>=0&&!(queuedKind=="work"&&kind=="work"&&now-workSince<2.4&&stage!="error"&&stage!="success"&&stage!="waiting")){int row=queuedRow;queuedRow=-1;Begin(row,queuedKind,now);return;}
         if(profile.WorkEnabled&&(stage=="thinking"||stage=="working"||stage=="waiting"||stage=="result")){Begin(Pick("work-"+stage,StagePool(stage),Row),"work",now);return;}
+        if(kind=="sleep")return; // Play once, then hold the sleeping pose until input or work wakes it.
         if(now-lastWorkAt>=Math.Max(30,profile.SleepSeconds)){Begin(Pick("sleep",spec.sleep??spec.idle,Row),"sleep",now);return;}
         if(kind=="idle"&&Time<8)return;
         if(kind!="idle"&&kind!="sleep"){Begin(Pick("idle",spec.idle,Row),"idle",now);return;}
-        var pools=new List<Tuple<string,int[],int>>{Tuple.Create("idle",spec.idle,profile.IdleWeight),Tuple.Create("turn",spec.turn,profile.TurnWeight)};
-        if(roaming)pools.Add(Tuple.Create("move",spec.move,profile.MoveWeight));
-        foreach(var c in spec.categories??new PetActionCategory[0]){int weight;int chosen=profile.CategoryWeights.TryGetValue(c.name,out weight)?weight:c.weight;pools.Add(Tuple.Create(c.name,c.actions,chosen));}
-        int total=pools.Where(p=>p.Item2!=null&&p.Item2.Length>0).Sum(p=>Math.Max(0,p.Item3)),roll=total==0?0:random.Next(total);foreach(var pool in pools){if(pool.Item2==null||pool.Item2.Length==0)continue;roll-=Math.Max(0,pool.Item3);if(roll<0){Begin(Pick(pool.Item1,pool.Item2,Row),pool.Item1,now);if(pool.Item1=="move")motion.Wander();return;}}Begin(Pick("idle",spec.idle,Row),"idle",now);
+        // Shared play counts cover clicks and idle actions. Exhaust less-played
+        // actions before reusing favorites; reactive/work states remain semantic.
+        var reserved=(spec.idle??new int[0]).Concat(spec.move??new int[0]).Concat(spec.drag??new int[0]).Concat(spec.sleep??new int[0]).Concat(spec.collision??new int[0]);
+        var disabled=(spec.categories??new PetActionCategory[0]).Where(c=>profile.CategoryWeights.ContainsKey(c.name)&&profile.CategoryWeights[c.name]==0).SelectMany(c=>c.actions);
+        int[] daily=ClickPool.Except(reserved).Except(disabled).ToArray();Begin(Pick("auto-catalog",daily,Pick("idle",spec.idle,Row)),daily.Length>0?"random":"idle",now);
     }
 }
 internal static class PetPhrasebook {

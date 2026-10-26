@@ -83,7 +83,7 @@ internal static class HubPopupMenu {
         readonly HashSet<ToolStripDropDown> styled=new HashSet<ToolStripDropDown>();readonly HashSet<ToolStripMenuItem> items=new HashSet<ToolStripMenuItem>();bool open,disposed;int previousButtons;
         public Session(ContextMenuStrip menu){root=menu;StyleTree(menu);menu.Opening+=delegate{StyleTree(root);};menu.Opened+=delegate{Begin();};menu.Closed+=delegate{End();};menu.VisibleChanged+=delegate{if(menu.Visible)Begin();else End();};menu.Disposed+=delegate{Dispose();};timer.Tick+=delegate{Poll();};}
         public void StyleTree(ToolStripDropDown menu){
-            if(disposed||menu.IsDisposed)return;menu.BackColor=Background;menu.ForeColor=Foreground;menu.Font=font;menu.Renderer=renderer;menu.AutoClose=true;menu.DropShadowEnabled=true;menu.Padding=new Padding(5,5,5,5);menu.ShowItemToolTips=false;
+            if(disposed||menu.IsDisposed)return;menu.SuspendLayout();try{menu.BackColor=Background;menu.ForeColor=Foreground;menu.Font=font;menu.Renderer=renderer;menu.AutoClose=true;menu.DropShadowEnabled=true;menu.Padding=new Padding(5,5,5,5);menu.ShowItemToolTips=false;
             var dropdown=menu as ToolStripDropDownMenu;if(dropdown!=null){dropdown.ShowImageMargin=false;dropdown.ShowCheckMargin=true;}
             if(styled.Add(menu)){menu.HandleCreated+=delegate{KeepBackground(menu);};menu.SizeChanged+=delegate{RoundWindow(menu);};menu.Opened+=delegate{KeepBackground(menu);RoundWindow(menu);};menu.ItemAdded+=delegate{StyleTree(menu);};}
             foreach(ToolStripItem item in menu.Items){item.ForeColor=Foreground;item.BackColor=Background;item.Font=font;
@@ -93,6 +93,7 @@ internal static class HubPopupMenu {
                 if(parent!=null&&parent.HasDropDownItems)StyleTree(parent.DropDown);
             }
             RoundWindow(menu);
+            }finally{menu.ResumeLayout(false);}
         }
         static void KeepBackground(ToolStripDropDown menu){if(menu.IsDisposed||!menu.IsHandleCreated)return;long style=GetWindowLongPtr(menu.Handle,-20).ToInt64();SetWindowLongPtr(menu.Handle,-20,new IntPtr((style|0x80|0x08000000)&~0x40000));}
         static void RoundWindow(ToolStripDropDown menu){if(menu.IsDisposed||menu.Width<2||menu.Height<2)return;using(var path=Round(new RectangleF(0,0,menu.Width,menu.Height),9)){var old=menu.Region;menu.Region=new Region(path);if(old!=null)old.Dispose();}}

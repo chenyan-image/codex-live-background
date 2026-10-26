@@ -12,7 +12,7 @@ using System.Web.Script.Serialization;
 internal sealed class PetPreferences {
     public bool Enabled=true,Roaming=true,Sound=true,CodexOnly=true,ShowQuota=true;
     public string SelectedId="deepseek";
-    public int Scale=100,CapsuleScale=100,X=int.MinValue,Y=int.MinValue;
+    public int Scale=100,CapsuleScale=100,X=int.MinValue,Y=int.MinValue,PositionVersion;
     public Dictionary<string,PetBehaviorProfile> Behaviors=new Dictionary<string,PetBehaviorProfile>();
     public PetBehaviorProfile ForPet(string id){if(Behaviors==null)Behaviors=new Dictionary<string,PetBehaviorProfile>();PetBehaviorProfile value;if(!Behaviors.TryGetValue(id,out value)||value==null)Behaviors[id]=value=new PetBehaviorProfile();value.Normalize();return value;}
     public static PetPreferences Load(string state){
@@ -25,6 +25,7 @@ internal sealed class PetPreferences {
 internal sealed class PetAction {
     public string id{get;set;}public string name{get;set;}public string file{get;set;}public int durationMs{get;set;}public int frames{get;set;}
     public int columns{get;set;}public int row{get;set;}public int cellWidth{get;set;}public int cellHeight{get;set;}public string[] files{get;set;}public int[] frameDurations{get;set;}public int[] frameIndices{get;set;}public bool flip{get;set;}public double fps{get;set;}
+    public double moveLeadSeconds{get;set;}public double moveTailSeconds{get;set;}public double dragStartSeconds{get;set;}public double dragHoldSeconds{get;set;}public bool moveFacesLeft{get;set;}
 }
 internal sealed class PetPack {
     public string Id,Name,Directory,AtlasFile,Author,Source;
@@ -48,6 +49,7 @@ internal sealed class PetPack {
                 string[] files=action.files??new[]{action.file};if(files.Length<1||files.Length>512||action.frames<1||action.frames>512||action.durationMs<1||action.durationMs>60000)throw new InvalidDataException("动作帧或时长无效。");
                 foreach(string frameFile in files)if(String.IsNullOrEmpty(frameFile)||frameFile!=Path.GetFileName(frameFile)||frameFile.IndexOfAny(new[]{'/','\\',':'})>=0||Path.GetExtension(frameFile).ToLowerInvariant()!=(format=="frame-set"?".png":format=="transparent-video-set"?".webm":".gif")||!File.Exists(Path.Combine(directory,frameFile))||new FileInfo(Path.Combine(directory,frameFile)).Length>32*1024*1024)throw new InvalidDataException("动作文件无效。");
                 if(format=="transparent-video-set"&&(action.cellWidth<1||action.cellWidth>1280||action.cellHeight<1||action.cellHeight>1280||action.fps<1||action.fps>60))throw new InvalidDataException("透明视频参数无效。");
+                if(new[]{action.moveLeadSeconds,action.moveTailSeconds,action.dragStartSeconds,action.dragHoldSeconds}.Any(n=>Double.IsNaN(n)||Double.IsInfinity(n)||n<0||n>=action.durationMs/1000D)||action.moveLeadSeconds+action.moveTailSeconds>=action.durationMs/1000D)throw new InvalidDataException("动作交互时间无效。");
                 if(action.frameDurations!=null&&(action.frameDurations.Length!=action.frames||action.frameDurations.Any(ms=>ms<10||ms>30000)))throw new InvalidDataException("动作帧时间无效。");
                 if(action.frameIndices!=null&&(action.frameIndices.Length!=action.frames||action.frameIndices.Any(i=>i<0||i>4095)))throw new InvalidDataException("动作帧序号无效。");
                 if(format=="frame-set"&&(action.columns<1||action.columns>32||action.row<0||action.row>127||action.cellWidth<1||action.cellWidth>1024||action.cellHeight<1||action.cellHeight>1024||(action.files!=null&&action.files.Length!=action.frames)))throw new InvalidDataException("动作图集布局无效。");
@@ -69,6 +71,8 @@ internal sealed partial class PetAtlas : IDisposable {
     public const int Columns=8,CellWidth=192,CellHeight=208;
     Bitmap bitmap,gif,currentPng;readonly PetPack animations;int currentAction=-1,lastGifFrame=-1;int[] gifDelays;
     readonly Dictionary<string,Bitmap> pngs=new Dictionary<string,Bitmap>(StringComparer.OrdinalIgnoreCase);readonly LinkedList<string> pngOrder=new LinkedList<string>();
+    readonly Dictionary<int,RectangleF> contentBounds=new Dictionary<int,RectangleF>();
+    public RectangleF IdleContentBounds{get;private set;}
     public Bitmap Bitmap {get{return videoFrame??currentPng??gif??bitmap;}}public readonly int Rows;
     public readonly int[] FrameCounts;
     public PetAtlas(PetPack pack):this(pack.AtlasFile,pack){}
@@ -76,8 +80,8 @@ internal sealed partial class PetAtlas : IDisposable {
     public PetAtlas(string path):this(path,null){}
     PetAtlas(string path,PetPack pack,bool preview=false){
         previewOnly=preview;
-        if(pack!=null&&pack.Format=="transparent-video-set"){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=pack.Actions[i<9?pack.RowMap[i]:i-9].frames;using(var source=Image.FromFile(path))bitmap=new Bitmap(source);return;}
-        if(pack!=null&&pack.Actions!=null){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=Math.Max(1,pack.Actions[i<9?pack.RowMap[i]:i-9].frames);Frame(0,0);return;}
+        if(pack!=null&&(pack.Format=="transparent-video-set"||preview&&pack.Actions!=null)){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=pack.Actions[i<9?pack.RowMap[i]:i-9].frames;using(var source=Image.FromFile(path))bitmap=new Bitmap(source);IdleContentBounds=MeasureBody(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));return;}
+        if(pack!=null&&pack.Actions!=null){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=Math.Max(1,pack.Actions[i<9?pack.RowMap[i]:i-9].frames);if(pack.Format=="animated-gif-set"){using(var poster=new Bitmap(path))IdleContentBounds=MeasureBody(poster,new Rectangle(0,0,poster.Width,poster.Height));}if(pack.Format=="frame-set"&&pack.ProceduralMotion)foreach(string file in pack.Actions.SelectMany(a=>a.files??new[]{a.file}).Distinct())Png(file);Frame(0,0);if(pack.Format!="animated-gif-set")IdleContentBounds=ContentBounds(0);return;}
         if(new FileInfo(path).Length>32*1024*1024)throw new InvalidDataException("宠物图集不能超过 32 MiB。");
         using(var source=Image.FromFile(path)){
             if(source.Width!=1536||(source.Height!=1872&&source.Height!=2288))throw new InvalidDataException("图集需要 1536×1872（v1）或 1536×2288（v2），每格 192×208。");
@@ -94,12 +98,16 @@ internal sealed partial class PetAtlas : IDisposable {
             }
         }finally{Bitmap.UnlockBits(data);}
         if(FrameCounts.Take(9).Any(x=>x==0)){Bitmap.Dispose();throw new InvalidDataException("图集的九种基础动作必须都有连续可见帧。");}
+        IdleContentBounds=ContentBounds(0);
     }
+    public RectangleF ContentBounds(int row){if(IsVideo||previewOnly&&animations!=null)return IdleContentBounds;int key=animations==null?row:ActionIndex(row);RectangleF value;if(contentBounds.TryGetValue(key,out value))return value;Rectangle frame=Frame(row,0);value=MeasureBody(Bitmap,frame);contentBounds[key]=value;return value;}
+    // Largest opaque component excludes detached sparkles and caption/VFX pixels.
+    static RectangleF MeasureBody(Bitmap source,Rectangle frame){using(var crop=new Bitmap(frame.Width,frame.Height,PixelFormat.Format32bppArgb)){using(var g=Graphics.FromImage(crop))g.DrawImage(source,new Rectangle(0,0,crop.Width,crop.Height),frame,GraphicsUnit.Pixel);var data=crop.LockBits(new Rectangle(0,0,crop.Width,crop.Height),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);try{int width=crop.Width,height=crop.Height;var bytes=new byte[data.Stride*height];Marshal.Copy(data.Scan0,bytes,0,bytes.Length);var seen=new bool[width*height];var queue=new int[seen.Length];int best=0,left=0,top=0,right=width,bottom=height;for(int at=0;at<seen.Length;at++){if(seen[at]||bytes[(at/width)*data.Stride+(at%width)*4+3]<96)continue;int count=1,read=0,minX=at%width,maxX=minX,minY=at/width,maxY=minY;seen[at]=true;queue[0]=at;while(read<count){int point=queue[read++],x=point%width,y=point/width;minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx<0||xx>=width||yy<0||yy>=height)continue;int next=yy*width+xx;if(seen[next]||bytes[yy*data.Stride+xx*4+3]<96)continue;seen[next]=true;queue[count++]=next;}}if(count>best){best=count;left=minX;right=maxX+1;top=minY;bottom=maxY+1;}}return new RectangleF(left/(float)width,top/(float)height,(right-left)/(float)width,(bottom-top)/(float)height);}finally{crop.UnlockBits(data);}}}
     public int ActionIndex(int row){return row<9?animations.RowMap[Math.Max(0,row)]:Math.Min(animations.Actions.Count-1,row-9);}
     Bitmap Png(string file){
         Bitmap value;if(pngs.TryGetValue(file,out value)){pngOrder.Remove(file);pngOrder.AddLast(file);return value;}
         using(var source=Image.FromFile(Path.Combine(animations.Directory,file))){if(source.Width>8192||source.Height>16384||(long)source.Width*source.Height>24000000)throw new InvalidDataException("动作图集尺寸超限。");value=new Bitmap(source.Width,source.Height,PixelFormat.Format32bppArgb);using(var g=Graphics.FromImage(value))g.DrawImageUnscaled(source,0,0);}
-        while(pngOrder.Count>=3){string oldest=pngOrder.First.Value;pngOrder.RemoveFirst();pngs[oldest].Dispose();pngs.Remove(oldest);}pngs.Add(file,value);pngOrder.AddLast(file);return value;
+        while(pngOrder.Count>=(animations.ProceduralMotion?64:3)){string oldest=pngOrder.First.Value;pngOrder.RemoveFirst();pngs[oldest].Dispose();pngs.Remove(oldest);}pngs.Add(file,value);pngOrder.AddLast(file);return value;
     }
     public Rectangle Frame(int row,int frame){
         row=Math.Max(0,Math.Min(Rows-1,row));frame=Math.Max(0,frame);
@@ -118,8 +126,12 @@ internal sealed partial class PetAtlas : IDisposable {
         if(delays==null)return (int)(Math.Max(0,seconds)*1000/Math.Max(1,durationMs/(double)Math.Max(1,frames)))%Math.Max(1,frames);
         double time=Math.Max(0,seconds)*1000%delays.Sum();for(int i=0;i<delays.Length;i++){if(time<delays[i])return i;time-=delays[i];}return delays.Length-1;
     }
+    public bool HoldLast,MirrorMotion;
     public void Draw(Graphics graphics,RectangleF destination,int row,double time){
-        if(IsVideo){DrawVideo(graphics,destination,row,time);return;}
+        if(previewOnly&&animations==null){row=0;time=0;}
+        if(HoldLast)time=Math.Min(time,animations==null?.699:Math.Max(0,animations.Actions[ActionIndex(row)].durationMs/1000D-.001));
+        if(previewOnly&&animations!=null){if(IsVideo)graphics.DrawImage(bitmap,destination,new RectangleF(IdleContentBounds.X*bitmap.Width,IdleContentBounds.Y*bitmap.Height,IdleContentBounds.Width*bitmap.Width,IdleContentBounds.Height*bitmap.Height),GraphicsUnit.Pixel);else graphics.DrawImage(bitmap,destination);return;}
+        if(IsVideo){var state=graphics.Save();if(MirrorMotion){graphics.TranslateTransform(destination.Left+destination.Right,0);graphics.ScaleTransform(-1,1);}DrawVideo(graphics,destination,row,time);graphics.Restore(state);return;}
         int frame=(int)(Math.Max(0,time)*10);if(animations!=null){int index=ActionIndex(row);var action=animations.Actions[index];if(animations.Format!="frame-set"&&index!=currentAction)Frame(row,0);frame=SampleFrame(time,action.frames,action.durationMs,animations.Format=="frame-set"?action.frameDurations:gifDelays);}
         var source=Frame(row,frame);if(animations!=null&&animations.ProceduralMotion){float sway=(float)Math.Sin(time*2.2)*1.2F;destination.X+=sway;destination.Y+=(float)Math.Sin(time*1.6)*.8F;}
         var saved=graphics.Save();if(animations!=null&&animations.Actions[ActionIndex(row)].flip){graphics.TranslateTransform(destination.Left+destination.Right,0);graphics.ScaleTransform(-1,1);}graphics.DrawImage(Bitmap,destination,source,GraphicsUnit.Pixel);graphics.Restore(saved);
@@ -137,16 +149,20 @@ internal sealed class PetMotion {
     public PointF Position;public PointF Velocity;
     public bool Dragging,Sliding,ClickResponse;public int Row,CollisionDirection=-1;public double ReactionRemaining,ReactionDuration=1.3;
     public float PressScale=1;public bool Pressed;
-    double decision=7;bool walking;public int CollisionCount;
+    double decision=7,walkDistance;bool walking,recoiling;public int CollisionCount;
+    public bool Walking{get{return walking&&!Sliding&&!Dragging;}}
+    public float TravelScale=1;public bool AnimationControlled;public double AnimationDelta,AnimationDuration=6;public bool AnimationEnded;
     public PetMotion(int seed){random=new Random(seed);}
     public static PointF Clamp(PointF p,Size size,Rectangle bounds){return new PointF(Math.Max(bounds.Left,Math.Min(bounds.Right-size.Width,p.X)),Math.Max(bounds.Top,Math.Min(bounds.Bottom-size.Height,p.Y)));}
     public void Place(PointF p,Size size,Rectangle bounds){Position=Clamp(p,size,bounds);}
-    public void Interact(int row,double duration=1.3){Sliding=false;ClickResponse=false;Row=Math.Max(0,Math.Min(255,row));ReactionDuration=ReactionRemaining=Math.Max(.3,Math.Min(60,duration));CollisionDirection=-1;decision=1.5;Velocity=PointF.Empty;}
+    public void Interact(int row,double duration=1.3){Sliding=recoiling=walking=false;ClickResponse=false;Row=Math.Max(0,Math.Min(255,row));ReactionDuration=ReactionRemaining=Math.Max(.3,Math.Min(60,duration));CollisionDirection=-1;decision=12+random.NextDouble()*12;Velocity=PointF.Empty;}
     public void ReactToClick(){int pose=Row;Interact(pose,.65);ClickResponse=true;}
     public void StepPress(double delta){float target=Pressed?.94F:1F;PressScale+=(target-PressScale)*(float)(1-Math.Exp(-Math.Max(0,Math.Min(.1,delta))*(Pressed?28:18)));if(Math.Abs(target-PressScale)<.0001F)PressScale=target;}
-    public void Drag(PointF p,Size size,Rectangle bounds){Dragging=true;Sliding=false;ClickResponse=false;Velocity=PointF.Empty;Position=Clamp(p,size,bounds);Row=0;CollisionDirection=-1;ReactionRemaining=0;}
+    public void Drag(PointF p,Size size,Rectangle bounds){Dragging=true;Sliding=recoiling=walking=false;ClickResponse=false;Velocity=PointF.Empty;Position=Clamp(p,size,bounds);Row=0;CollisionDirection=-1;ReactionRemaining=0;}
     public void Drop(){Dragging=false;Interact(3);}
-    public void ResumeAutonomy(){Dragging=Sliding=ClickResponse=false;walking=false;Velocity=PointF.Empty;ReactionRemaining=0;CollisionDirection=-1;Row=0;decision=6+random.NextDouble()*6;}
+    void StartWalk(){double angle=random.NextDouble()*Math.PI*2;decision=2.8+random.NextDouble()*1.4;walkDistance=(200+random.NextDouble()*160)*Math.Max(.5,TravelScale);double speed=walkDistance/decision;walking=true;Velocity=new PointF((float)(Math.Cos(angle)*speed),(float)(Math.Sin(angle)*speed*.55));Row=Velocity.X>=0?1:2;}
+    void EndWalk(){walking=false;Velocity=PointF.Empty;Row=0;decision=12+random.NextDouble()*12;}
+    public void ResumeAutonomy(bool immediate=false){Dragging=Sliding=ClickResponse=recoiling=false;walking=false;Velocity=PointF.Empty;ReactionRemaining=0;CollisionDirection=-1;Row=0;decision=6+random.NextDouble()*6;if(immediate)StartWalk();}
     public void Wander(){if(Dragging||Sliding||ReactionRemaining>0||decision>0)return;walking=false;decision=0;}
     public void Update(double delta,Size size,Rectangle bounds,bool roaming,bool working){Step(delta,size,bounds,roaming);if(working&&!Dragging&&!Sliding&&Velocity==PointF.Empty&&ReactionRemaining<=0)Row=7;}
     public void Drop(PointF velocity){double speed=Math.Sqrt(velocity.X*velocity.X+velocity.Y*velocity.Y);if(speed<75){Drop();return;}Dragging=false;Sliding=true;ClickResponse=Pressed=false;PressScale=1;CollisionDirection=-1;ReactionRemaining=0;double factor=Math.Min(1,1800/speed);Velocity=new PointF((float)(velocity.X*factor),(float)(velocity.Y*factor));Row=Velocity.X>=0?1:2;decision=1.5;}
@@ -158,25 +174,25 @@ internal sealed class PetMotion {
         if(edge>=0){Row=5;CollisionDirection=edge;ReactionDuration=ReactionRemaining=.85;CollisionCount++;}
         else if(ReactionRemaining>0){ReactionRemaining=Math.Max(0,ReactionRemaining-delta);if(ReactionRemaining==0)CollisionDirection=-1;}
         else Row=Velocity.X>=0?1:2;
-        if(Velocity.X*Velocity.X+Velocity.Y*Velocity.Y<25*25){Sliding=false;Velocity=PointF.Empty;decision=1.1;if(ReactionRemaining<=0)Row=0;}
+        if(Velocity.X*Velocity.X+Velocity.Y*Velocity.Y<25*25){Sliding=false;Velocity=PointF.Empty;decision=12+random.NextDouble()*12;if(ReactionRemaining<=0)Row=0;}
     }
     public void Step(double delta,Size size,Rectangle bounds,bool roaming){
         delta=Math.Max(0,Math.Min(.1,delta));Position=Clamp(Position,size,bounds);if(Dragging)return;
         if(Sliding){Slide(delta,size,bounds);return;}
-        if(ReactionRemaining>0){ReactionRemaining=Math.Max(0,ReactionRemaining-delta);if(ReactionRemaining>0)return;CollisionDirection=-1;ClickResponse=false;}
-        decision-=delta;
+        if(ReactionRemaining>0){if(recoiling){double decay=Math.Exp(-8*delta),travel=(1-decay)/8;Position=Clamp(new PointF(Position.X+Velocity.X*(float)travel,Position.Y+Velocity.Y*(float)travel),size,bounds);Velocity=new PointF(Velocity.X*(float)decay,Velocity.Y*(float)decay);}ReactionRemaining=Math.Max(0,ReactionRemaining-delta);if(ReactionRemaining>0)return;if(recoiling){recoiling=false;Velocity=PointF.Empty;}CollisionDirection=-1;ClickResponse=false;}
+        if(!AnimationControlled||!walking)decision-=delta;
         if(!roaming){walking=false;Velocity=PointF.Empty;Row=0;return;}
+        if(AnimationControlled&&walking&&AnimationEnded){EndWalk();return;}
         if(decision<=0){
-            walking=!walking;
-            if(!walking){Velocity=PointF.Empty;Row=0;decision=12+random.NextDouble()*12;}
-            else{double angle=random.NextDouble()*Math.PI*2,speed=24+random.NextDouble()*12;Velocity=new PointF((float)(Math.Cos(angle)*speed),(float)(Math.Sin(angle)*speed*.6));decision=1.5+random.NextDouble()*1.8;}
+            if(walking)EndWalk();else StartWalk();
         }
         if(Velocity==PointF.Empty)return;
+        if(AnimationControlled){double length=Math.Sqrt(Velocity.X*Velocity.X+Velocity.Y*Velocity.Y);if(length>0){float factor=(float)(walkDistance/Math.Max(.1,AnimationDuration)/length);Velocity=new PointF(Velocity.X*factor,Velocity.Y*factor);}delta=Math.Max(0,Math.Min(.1,AnimationDelta));}
         var next=new PointF(Position.X+Velocity.X*(float)delta,Position.Y+Velocity.Y*(float)delta);
         bool hitX=next.X<bounds.Left||next.X+size.Width>bounds.Right,hitY=next.Y<bounds.Top||next.Y+size.Height>bounds.Bottom;
         int edge=hitX?(next.X<bounds.Left?0:1):hitY?(next.Y<bounds.Top?2:3):-1;
         Position=Clamp(next,size,bounds);
-        if(edge>=0){Velocity=new PointF(hitX?-Velocity.X:Velocity.X,hitY?-Velocity.Y:Velocity.Y);Row=5;CollisionDirection=edge;ReactionDuration=ReactionRemaining=.85;CollisionCount++;decision=Math.Max(.8,decision);}
+        if(edge>=0){EndWalk();recoiling=true;float kick=120*Math.Max(.5F,TravelScale);Velocity=new PointF(hitX?(edge==0?kick:-kick):0,hitY?(next.Y<bounds.Top?kick:-kick):0);Row=5;CollisionDirection=edge;ReactionDuration=ReactionRemaining=.85;CollisionCount++;}
         else Row=Velocity.X>=0?1:2;
     }
 }

@@ -682,8 +682,8 @@
     },
     {
       "path": "deepseek-fat-fish/pet.json",
-      "bytes": 28814,
-      "sha256": "a84ae42ceef6f6426199fd977bb05a3dafdb2ee3da9b9385612fd734081c8aa1"
+      "bytes": 29245,
+      "sha256": "2de03cbedbfc8e8a09f3a5ac3fd2ba6ca1b9e53eb815dfc92e496d011f689989"
     },
     {
       "path": "deepseek-fat-fish/pic/cursor-grab.png",
@@ -767,8 +767,8 @@
     },
     {
       "path": "deepseek/pet.json",
-      "bytes": 9014,
-      "sha256": "a2cb9abd1f87946beea4d10f2ffe8c1b718bb9c511184905de7e507f70eb7791"
+      "bytes": 9434,
+      "sha256": "133c03ac0e7bfc1bb8c22d39c2db8b0b5ceda8246403a3ad3d66c51bd7b672cf"
     },
     {
       "path": "deepseek/poster.png",

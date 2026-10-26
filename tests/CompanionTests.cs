@@ -28,6 +28,8 @@ internal static class CompanionTests {
     [STAThread] static int Main(string[] args){
         if(args.Length==1&&args[0]=="--job-child"){Thread.Sleep(30000);return 0;}
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);string report=args[0],root=args[1],state=Path.Combine(Path.GetDirectoryName(report),"state");Directory.CreateDirectory(state);
+        if(args.Length>2&&args[2]=="--switch-proof")return PetPreview3Tests.RunSwitch(root,report,args.Length>3?args[3]:root);
+        if(args.Length>2&&args[2]=="--preview3-proof")return PetPreview3Tests.Run(root,report,args.Length>3?args[3]:null);
         if(args.Length>2&&(args[2]=="--behavior-proof"||args[2]=="--video-proof"))return PetBehaviorTests.Run(root,report,args[2]=="--video-proof",args.Length>3?args[3]:null);
         if(args.Length>2&&args[2]=="--render-docs"){
             try{using(var form=(Form)Activator.CreateInstance(typeof(Manager),Private,null,new object[]{false},null)){typeof(Manager).GetMethod("Navigate",Private).Invoke(form,new object[]{"pets"});form.CreateControl();form.PerformLayout();using(var image=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(image,new Rectangle(Point.Empty,form.Size));image.Save(Path.Combine(Path.GetDirectoryName(report),"pet-page.png"));}Need(!form.Visible&&TaskbarCandidates()==0,"Documentation render displayed a window");}File.WriteAllText(report,new JavaScriptSerializer().Serialize(new{pass=true,checks,windowsShown=false}));return 0;}catch(Exception error){File.WriteAllText(report,new JavaScriptSerializer().Serialize(new{pass=false,error=error.ToString()}));return 1;}
