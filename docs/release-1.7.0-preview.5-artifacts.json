@@ -38,5 +38,21 @@
       "bytes": 314,
       "sha256": "aeba5e49300cf6a4a3ca1f4b07b9938d0bad98c9ae2faf6a6dc99fd1211451a1"
     }
-  ]
+  ],
+  "published": true,
+  "releaseUrl": "https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.5",
+  "githubAssetDigestsMatch": true,
+  "publishedUpdateVerified": {
+    "pass": true,
+    "version": "1.7.0.7",
+    "tag": "v1.7.0-preview.5",
+    "bytes": 1875773,
+    "sha256": "bde7a804ebff049c9533cb4ff6463dce960b2ffff1f26fba2793f63cadb411df",
+    "files": 110,
+    "publishedArchiveVerified": true,
+    "currentVersionNoUpdate": true,
+    "softwareApplied": false
+  },
+  "mainReadmeCommit": "0b5fa8b629543affd9d2e295acef39c0bb3f7943",
+  "publicHomepageImagesVerified": 9
 }
