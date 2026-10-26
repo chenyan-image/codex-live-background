@@ -84,17 +84,18 @@ internal sealed class PetAtlas : IDisposable {
 internal sealed class PetMotion {
     readonly Random random;
     public PointF Position;public PointF Velocity;
-    public bool Dragging;public int Row,CollisionDirection=-1;public double ReactionRemaining,ReactionDuration=1.3;
+    public bool Dragging,ClickResponse;public int Row,CollisionDirection=-1;public double ReactionRemaining,ReactionDuration=1.3;
     double decision=1;public int CollisionCount;
     public PetMotion(int seed){random=new Random(seed);}
     public static PointF Clamp(PointF p,Size size,Rectangle bounds){return new PointF(Math.Max(bounds.Left,Math.Min(bounds.Right-size.Width,p.X)),Math.Max(bounds.Top,Math.Min(bounds.Bottom-size.Height,p.Y)));}
     public void Place(PointF p,Size size,Rectangle bounds){Position=Clamp(p,size,bounds);}
-    public void Interact(int row,double duration=1.3){Row=Math.Max(0,Math.Min(127,row));ReactionDuration=ReactionRemaining=Math.Max(.3,Math.Min(12,duration));CollisionDirection=-1;decision=1.5;Velocity=PointF.Empty;}
-    public void Drag(PointF p,Size size,Rectangle bounds){Dragging=true;Velocity=PointF.Empty;Position=Clamp(p,size,bounds);Row=0;ReactionRemaining=0;}
+    public void Interact(int row,double duration=1.3){ClickResponse=false;Row=Math.Max(0,Math.Min(127,row));ReactionDuration=ReactionRemaining=Math.Max(.3,Math.Min(12,duration));CollisionDirection=-1;decision=1.5;Velocity=PointF.Empty;}
+    public void ReactToClick(){int pose=Row;Interact(pose,.65);ClickResponse=true;}
+    public void Drag(PointF p,Size size,Rectangle bounds){Dragging=true;ClickResponse=false;Velocity=PointF.Empty;Position=Clamp(p,size,bounds);Row=0;ReactionRemaining=0;}
     public void Drop(){Dragging=false;Interact(3);}
     public void Step(double delta,Size size,Rectangle bounds,bool roaming){
         delta=Math.Max(0,Math.Min(.1,delta));Position=Clamp(Position,size,bounds);if(Dragging)return;
-        if(ReactionRemaining>0){ReactionRemaining=Math.Max(0,ReactionRemaining-delta);if(ReactionRemaining>0)return;CollisionDirection=-1;}
+        if(ReactionRemaining>0){ReactionRemaining=Math.Max(0,ReactionRemaining-delta);if(ReactionRemaining>0)return;CollisionDirection=-1;ClickResponse=false;}
         decision-=delta;
         if(!roaming){Velocity=PointF.Empty;Row=0;return;}
         if(decision<=0){

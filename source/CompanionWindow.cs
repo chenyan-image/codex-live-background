@@ -93,8 +93,10 @@ internal sealed class PetPainter : IDisposable {
                 var sprite=layout.Sprite;float progress=motion.CollisionDirection>=0?(float)(motion.ReactionRemaining/.55):0;
                 if(progress>0){float squash=(float)Math.Sin((1-progress)*Math.PI)*.16F;if(motion.CollisionDirection<2){sprite.X+=sprite.Width*squash/2;sprite.Width*=1-squash;sprite.Y-=sprite.Height*squash*.2F;sprite.Height*=1+squash*.2F;}else{sprite.Y+=sprite.Height*squash;sprite.Height*=1-squash;sprite.X-=sprite.Width*squash*.15F;sprite.Width*=1+squash*.3F;}}
                 if(motion.Row==4&&motion.ReactionRemaining>0)sprite.Y-=(float)Math.Sin((1-motion.ReactionRemaining/motion.ReactionDuration)*Math.PI)*14*layout.PetScale;
+                if(motion.ClickResponse&&motion.ReactionRemaining>0)sprite.X+=(float)Math.Sin((1-motion.ReactionRemaining/motion.ReactionDuration)*Math.PI*4)*2*layout.PetScale;
                 atlas.Draw(g,sprite,motion.Row,clock);
                 if(progress>0)Collision(g,layout.Sprite,motion.CollisionDirection,1-progress);
+                if(motion.ClickResponse&&motion.ReactionRemaining>0)Collision(g,layout.Sprite,2,(float)(1-motion.ReactionRemaining/motion.ReactionDuration));
             }
         }return image;
     }
@@ -262,13 +264,14 @@ internal sealed class PetWindow : Form {
         var previous=Geometry;expanded=!expanded;if(surface!=null)FitScale(surface.Bounds);else ClientSize=PhysicalSize();var next=Geometry;Motion.Position=new PointF(Motion.Position.X,Motion.Position.Y+(previous.Sprite.Y-next.Sprite.Y)*RenderScale);if(surface!=null)Motion.Place(Motion.Position,Size,surface.Bounds);Location=Point.Round(Motion.Position);Present();
     }
     public void Interact(int row,bool sound){double duration=pack.Actions!=null?pack.Actions[row<9?pack.RowMap[row]:row-9].durationMs/1000D:1.3;Motion.Interact(row,duration);if(sound&&settings.Sound)PetSound.Play();Present();}
+    void ReactToClick(bool sound){if(pack.Actions!=null){Interact(3,sound);return;}Motion.ReactToClick();if(sound&&settings.Sound)PetSound.Play();Present();}
     protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);if(e.Button==MouseButtons.Right){menu.Show(this,e.Location);return;}if(e.Button!=MouseButtons.Left)return;mouseHeld=true;moved=false;cursorStart=Cursor.Position;positionStart=Motion.Position;Capture=true;}
     protected override void OnMouseMove(MouseEventArgs e){base.OnMouseMove(e);DragTo(Cursor.Position);}
     internal void DragTo(Point cursor){if(!mouseHeld)return;int dx=cursor.X-cursorStart.X,dy=cursor.Y-cursorStart.Y;if(Math.Abs(dx)+Math.Abs(dy)<4&&!moved)return;moved=true;
         Rectangle bounds=settings.CodexOnly?(surface==null?Rectangle.Empty:surface.Bounds):Screen.FromPoint(cursor).WorkingArea;FitScale(bounds);if(bounds.Width<Width||bounds.Height<Height)return;
         if(!settings.CodexOnly)surface=new PetSurface(bounds,IntPtr.Zero);Motion.Drag(new PointF(positionStart.X+dx,positionStart.Y+dy),Size,bounds);if(pack.Actions!=null)Motion.Row=4;Location=Point.Round(Motion.Position);Present();
     }
-    protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(e.Button!=MouseButtons.Left||!mouseHeld)return;mouseHeld=false;Capture=false;if(moved){Motion.Drop();settings.X=Left;settings.Y=Top;if(PreferenceChanged!=null)PreferenceChanged();}
+    protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(e.Button!=MouseButtons.Left||!mouseHeld)return;mouseHeld=false;Capture=false;if(moved){Motion.Drop();if(pack.Actions==null)ReactToClick(false);settings.X=Left;settings.Y=Top;if(PreferenceChanged!=null)PreferenceChanged();}
         else if(settings.ShowQuota&&Geometry.Quota.Contains(e.X/RenderScale,e.Y/RenderScale)){
             PointF point=Geometry.CapsulePoint(new PointF(e.X/RenderScale,e.Y/RenderScale));float x=point.X,y=point.Y;
             if(expanded&&x>=214&&x<=239&&y<36){if(RefreshQuota!=null)RefreshQuota();}
@@ -277,9 +280,10 @@ internal sealed class PetWindow : Form {
             else if(expanded&&x>=145&&x<=264&&y>=77&&y<=181){}
             else if(!expanded&&x<54){if(OpenSettings!=null)OpenSettings();}else ToggleExpanded();
         }
+        else ReactToClick(false);
     }
     protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture&&mouseHeld){mouseHeld=false;if(Motion.Dragging)Motion.Drop();}}
-    protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);if(e.Button==MouseButtons.Left&&(!settings.ShowQuota||!Geometry.Quota.Contains(e.X/RenderScale,e.Y/RenderScale)))Interact(3,true);}
+    protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);if(e.Button==MouseButtons.Left&&(!settings.ShowQuota||!Geometry.Quota.Contains(e.X/RenderScale,e.Y/RenderScale)))ReactToClick(true);}
     protected override void WndProc(ref Message message){
         if(message.Msg==0x02E0){preferredScale=RenderScale=(message.WParam.ToInt64()&0xffff)/96F;if(surface!=null)FitScale(surface.Bounds);ClientSize=PhysicalSize();if(surface!=null)Motion.Place(Motion.Position,Size,surface.Bounds);Present();return;}
         if(message.Msg==0x21){message.Result=(IntPtr)3;return;}
