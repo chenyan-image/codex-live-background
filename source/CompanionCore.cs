@@ -11,16 +11,20 @@ using System.Web.Script.Serialization;
 
 internal sealed class PetPreferences {
     public bool Enabled=true,Roaming=true,Sound=true,CodexOnly=true,ShowQuota=true;
+    public bool FollowCodex;
+    public string HubColor="#4E8FE4",CapsuleColor="#4E8FE4",RingColor="#4E8FE4";
+    public int CapsuleOpacity=94;
     public string SelectedId="deepseek";
     public int Scale=100,CapsuleScale=100,X=int.MinValue,Y=int.MinValue,PositionVersion;
     public Dictionary<string,PetBehaviorProfile> Behaviors=new Dictionary<string,PetBehaviorProfile>();
     public PetBehaviorProfile ForPet(string id){if(Behaviors==null)Behaviors=new Dictionary<string,PetBehaviorProfile>();PetBehaviorProfile value;if(!Behaviors.TryGetValue(id,out value)||value==null)Behaviors[id]=value=new PetBehaviorProfile();value.Normalize();return value;}
     public static PetPreferences Load(string state){
         string file=Path.Combine(state,"pet-settings.json");if(!File.Exists(file))return new PetPreferences();
-        try{if(new FileInfo(file).Length>65536)throw new InvalidDataException();var value=new JavaScriptSerializer().Deserialize<PetPreferences>(File.ReadAllText(file));if(value==null)throw new InvalidDataException();value.Scale=Math.Max(70,Math.Min(150,value.Scale));value.CapsuleScale=Math.Max(70,Math.Min(150,value.CapsuleScale));return value;}
+        try{if(new FileInfo(file).Length>65536)throw new InvalidDataException();string text=File.ReadAllText(file);var json=new JavaScriptSerializer();var value=json.Deserialize<PetPreferences>(text);if(value==null)throw new InvalidDataException();if(!json.Deserialize<Dictionary<string,object>>(text).ContainsKey("HubColor"))value.HubColor=value.RingColor;value.Scale=Math.Max(70,Math.Min(150,value.Scale));value.CapsuleScale=Math.Max(70,Math.Min(150,value.CapsuleScale));value.CapsuleOpacity=Math.Max(0,Math.Min(100,value.CapsuleOpacity));value.HubColor=NormalizeColor(value.HubColor);value.CapsuleColor=NormalizeColor(value.CapsuleColor);value.RingColor=NormalizeColor(value.RingColor);return value;}
         catch{File.Copy(file,file+".damaged-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"),false);return new PetPreferences();}
     }
     public void Save(string state){Directory.CreateDirectory(state);string file=Path.Combine(state,"pet-settings.json"),temp=file+".tmp";File.WriteAllText(temp,new JavaScriptSerializer().Serialize(this),new UTF8Encoding(false));if(File.Exists(file))File.Replace(temp,file,file+".bak");else File.Move(temp,file);}
+    public static string NormalizeColor(string value){return value!=null&&System.Text.RegularExpressions.Regex.IsMatch(value,"^#[0-9a-fA-F]{6}$")?value.ToUpperInvariant():"#4E8FE4";}
 }
 internal sealed class PetAction {
     public string id{get;set;}public string name{get;set;}public string file{get;set;}public int durationMs{get;set;}public int frames{get;set;}

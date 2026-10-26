@@ -97,7 +97,7 @@ function Remove-BackgroundLegacyMsi {
 function Get-BackgroundOwnedProcesses {
  param([string[]]$Roots,[string]$StateRoot,[int[]]$ExcludeIds)
  Initialize-DreamSkinNativeInspection
- foreach($item in @(Get-CimInstance Win32_Process -Filter "Name='CodexLiveBackground.exe' OR Name='CodexDreamSkinManager.exe' OR Name='DreamSkinPortHook.exe' OR Name='node.exe' OR Name='ffmpeg.exe' OR Name='ffprobe.exe' OR Name='powershell.exe'")){
+ foreach($item in @(Get-CimInstance Win32_Process -Filter "Name='CodexHubUpdater.exe' OR Name='CodexLiveBackground.exe' OR Name='CodexDreamSkinManager.exe' OR Name='DreamSkinPortHook.exe' OR Name='node.exe' OR Name='ffmpeg.exe' OR Name='ffprobe.exe' OR Name='powershell.exe'")){
   $id=[int]$item.ProcessId;if($id -in $ExcludeIds){continue};$owned=$false
   try{if(-not [CodexDreamSkin.NativeInspection]::CurrentUser($id)){continue};$path=[CodexDreamSkin.NativeInspection]::ProcessPath($id)
    foreach($root in @($Roots)+@((Join-Path $StateRoot 'startup'),(Join-Path $StateRoot 'runtime'))){$prefix=[IO.Path]::GetFullPath($root).TrimEnd('\')+'\';if($path.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){$owned=$true;break};if($item.Name -ieq 'powershell.exe'){foreach($relative in @('control.ps1','native-actions.ps1','startup\monitor-skin.ps1','monitor-skin.ps1','register-port.ps1')){if(Test-DreamSkinCommandLineToken -CommandLine "$($item.CommandLine)" -Token (Join-Path $root $relative)){$owned=$true;break}}}}
@@ -127,6 +127,12 @@ function Get-BackgroundPlan {
  try{$stream=[IO.FileStream]::new($probe,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None,4096,[IO.FileOptions]::DeleteOnClose);$stream.Dispose()}catch [UnauthorizedAccessException]{$authorization=$true}
  [pscustomobject]@{root=[IO.Path]::GetFullPath($InstallRoot);roots=@($owned);products=@($products);requiresAuthorization=$authorization;baseVersion='1.5.4'}
 }
+function Remove-BackgroundFollowRegistration {
+ param([string[]]$Roots,[string]$StateRoot)
+ $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+ $value=(Get-ItemProperty -LiteralPath $key -Name CodexHubFollow -ErrorAction SilentlyContinue).CodexHubFollow
+ foreach($root in $Roots){$expected='"'+(Join-Path $root 'CodexHubUpdater.exe')+'" --follow "'+[IO.Path]::GetFullPath($StateRoot)+'"';if($value -and "$value" -ieq $expected){Remove-ItemProperty -LiteralPath $key -Name CodexHubFollow -ErrorAction Stop;break}}
+}
 function Stop-BackgroundIntegrations {
  param([string[]]$Roots,[string]$StateRoot,[string]$PackageRoot,[switch]$Uninstall,[int[]]$ExcludeIds)
  $task=Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
@@ -136,6 +142,7 @@ function Stop-BackgroundIntegrations {
  $candidates=@();if($startup){$candidates+=@($startup)};$candidates+=@($valid|Where-Object{Test-Path -LiteralPath $_})
  $first=$true;foreach($serviceRoot in @($candidates|Select-Object -Unique)){$install=if(Test-DreamSkinPathEqual -Left $serviceRoot -Right $legacy){$PackageRoot}else{Split-Path -Parent $serviceRoot};Remove-DreamBackgroundService -InstallRoot $install -StateRoot $StateRoot -PackageRoot $PackageRoot -StartupRoot $serviceRoot -ForUpgrade:((-not $Uninstall) -or (-not $first)) -AllowDisconnected -GraceSeconds 2;$first=$false}
  Restore-DreamBackgroundShortcuts -StateRoot $StateRoot
+ Remove-BackgroundFollowRegistration -Roots $Roots -StateRoot $StateRoot
  Stop-BackgroundOwnedProcesses -Roots $Roots -StateRoot $StateRoot -ExcludeIds $ExcludeIds
 }
 function Write-BackgroundNativeRegistration {
@@ -148,6 +155,17 @@ function Write-BackgroundNativeRegistration {
 function Remove-BackgroundNativeRegistration {
  param([string]$Root)
  foreach($key in @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\CodexLiveBackground','HKCU:\Software\CodexLiveBackground')){if(Test-Path -LiteralPath $key){$data=Get-ItemProperty -LiteralPath $key;$path=if($data.InstallLocation){$data.InstallLocation}else{$data.InstallRoot};if($path -and (Test-DreamSkinPathEqual -Left $path -Right $Root)){Remove-Item -LiteralPath $key -Recurse -Force -ErrorAction Stop}}}
+}
+function Write-BackgroundFollowRegistration {
+ param([string]$Root,[string]$StateRoot)
+ $helper=Join-Path $Root 'CodexHubUpdater.exe';$preferences=Join-Path $StateRoot 'pet-settings.json'
+ if(-not(Test-Path -LiteralPath $helper -PathType Leaf) -or -not(Test-Path -LiteralPath $preferences -PathType Leaf)){return}
+ $data=[IO.File]::ReadAllText($preferences)|ConvertFrom-Json;if($data.FollowCodex -ne $true){return}
+ $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run';$expected='"'+$helper+'" --follow "'+[IO.Path]::GetFullPath($StateRoot)+'"'
+ $old=(Get-ItemProperty -LiteralPath $key -Name CodexHubFollow -ErrorAction SilentlyContinue).CodexHubFollow
+ if($old -and "$old" -ine $expected){throw '自动启停登记不属于当前安装，未覆盖。'}
+ $null=New-Item -Path $key -Force;$null=New-ItemProperty -LiteralPath $key -Name CodexHubFollow -Value $expected -PropertyType String -Force
+ $null=Start-Process -FilePath $helper -ArgumentList ('--follow "'+[IO.Path]::GetFullPath($StateRoot)+'"') -WorkingDirectory $Root -WindowStyle Hidden
 }
 function Invoke-BackgroundNativeAction {
  param([ValidateSet('Install','Uninstall')][string]$Action,[string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[string]$SetupExecutable,[string]$OperationRoot,[int]$ManagerPid)
@@ -178,6 +196,7 @@ function Invoke-BackgroundNativeAction {
  Write-BackgroundNativeRegistration -Root $InstallRoot -Version $manifest.version
  [Console]::Out.WriteLine('正在启用并验证背景服务，请稍候…');Invoke-BackgroundNativeActivate -Root $InstallRoot -ManagerPid $ManagerPid
  $marker=Join-Path $InstallRoot '.codex-background-install.json';$record=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;$record.pending=$false;[IO.File]::WriteAllText($marker,($record|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+ Write-BackgroundFollowRegistration -Root $InstallRoot -StateRoot $StateRoot
  [Console]::Out.WriteLine('安装完成。请从桌面唯一的管理器图标打开软件。')
 }
 function Remove-BackgroundDesktopEntries {
