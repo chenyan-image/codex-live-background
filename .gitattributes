@@ -25,4 +25,4 @@ LICENSE text eol=lf
 *.webm binary
 
 # Pet manifests, original notices and media keep their recorded source hashes.
-source/assets/pets/** -text
+source/assets/pets/** -text whitespace=cr-at-eol
