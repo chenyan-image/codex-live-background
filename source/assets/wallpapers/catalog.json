@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "flower-peach",
+      "name": "花桃全屏",
+      "file": "flower-peach.jpg",
+      "thumbnail": "flower-peach.jpg",
+      "note": "内置图片 · 场景预览",
+      "workshopId": "3552423078",
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3552423078",
+      "bytes": 678206,
+      "sha256": "dccae672d5fa11045747b572f3a251cb612a7f97f856cea40028afe3a0ccb12a",
+      "thumbnailBytes": 678206,
+      "thumbnailSha256": "dccae672d5fa11045747b572f3a251cb612a7f97f856cea40028afe3a0ccb12a"
+    },
+    {
+      "id": "ayaka",
+      "name": "Kamisato Ayaka 神里绫华",
+      "file": "ayaka.jpg",
+      "thumbnail": "ayaka.jpg",
+      "note": "内置图片 · 场景预览",
+      "workshopId": "3301717199",
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3301717199",
+      "bytes": 551263,
+      "sha256": "e1e216370d21f8c9babf7ff85b77e55c2917688c3118654b5609cfe798019326",
+      "thumbnailBytes": 551263,
+      "thumbnailSha256": "e1e216370d21f8c9babf7ff85b77e55c2917688c3118654b5609cfe798019326"
+    },
+    {
+      "id": "dresden-moonlight",
+      "name": "月光下的德累斯顿",
+      "file": "dresden-moonlight.gif",
+      "thumbnail": "dresden-moonlight.gif",
+      "note": "内置动图 · 场景预览 GIF",
+      "workshopId": "3200802205",
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=3200802205",
+      "bytes": 931808,
+      "sha256": "ec2f0158a878e3bbc2dbdb9968f2cf7b9515376d65b1387db367759f116d875e",
+      "thumbnailBytes": 931808,
+      "thumbnailSha256": "ec2f0158a878e3bbc2dbdb9968f2cf7b9515376d65b1387db367759f116d875e"
+    },
+    {
+      "id": "rain-sakura",
+      "name": "雨樱【Rain Sakura】- 4K",
+      "file": "rain-sakura.mp4",
+      "thumbnail": "rain-sakura-preview.jpg",
+      "note": "内置 4K 原视频 · 3840×2160 / 30 FPS / 86.7 秒",
+      "workshopId": "2970331102",
+      "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=2970331102",
+      "bytes": 101871488,
+      "sha256": "504295c9d67fb9f6069cb1c0b59d78306f8173dd1599d1caac59f34609d97106",
+      "thumbnailBytes": 24754,
+      "thumbnailSha256": "86e624301d9a02749d9960d1a1d5b487acedfb1d53f20b4eaa4a3596c9de0e52"
+    }
+  ]
+}

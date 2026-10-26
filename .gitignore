@@ -60,3 +60,7 @@ Desktop.ini
 
 # Pinned MIT production pet media; never include arbitrary local wallpapers.
 !/source/assets/pets/deepseek-fat-fish/*.webm
+
+# User-selected bundled wallpaper media; catalog records origins and hashes.
+!/source/assets/wallpapers/*.webm
+!/source/assets/wallpapers/rain-sakura.mp4

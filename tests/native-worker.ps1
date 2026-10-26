@@ -6,7 +6,7 @@ $package=Join-Path $sandbox package;$root=Join-Path $sandbox 'custom app';$state
 $null=New-Item -ItemType Directory -Path $package,$state -Force
 $namespace='Software\CodexBackgroundNativeTests\'+[guid]::NewGuid().ToString('N')
 $utf8=[Text.UTF8Encoding]::new($true)
-foreach($name in @('native-actions.ps1','native-lifecycle.ps1','service-removal.ps1','service-compatibility.ps1','shortcuts.ps1','uninstall-data.ps1','legacy-msi-products.json','legacy-managers.json')){Copy-Item -LiteralPath (Join-Path $repo ('source\'+$name)) -Destination $package}
+foreach($name in @('native-actions.ps1','native-lifecycle.ps1','service-removal.ps1','service-compatibility.ps1','shortcuts.ps1','uninstall-data.ps1','upgrade.ps1','legacy-msi-products.json','legacy-managers.json')){Copy-Item -LiteralPath (Join-Path $repo ('source\'+$name)) -Destination $package}
 $common=Join-Path $package 'engine\scripts';$null=New-Item -ItemType Directory -Path $common -Force
 foreach($name in @('common-windows.ps1','config-utf8.ps1')){Copy-Item -LiteralPath (Join-Path $repo ('engine\scripts\'+$name)) -Destination $common}
 # Keep the production file, process and registry operations. Isolate only discovery,
@@ -23,7 +23,7 @@ $workerCode=Join-Path $sandbox Worker.cs;[IO.File]::WriteAllText($workerCode,'us
 & (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe') /nologo /target:winexe ('/out:'+(Join-Path $package CodexLiveBackground.exe)) $workerCode
 if($LASTEXITCODE -ne 0){throw 'Fixture compile failed'}
 $files=@(Get-ChildItem -LiteralPath $package -Recurse -File|ForEach-Object{@{path=$_.FullName.Substring($package.Length+1).Replace('\','/');bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName).Hash}})
-[IO.File]::WriteAllText((Join-Path $package manifest.json),(@{version='1.7.0.1';files=$files}|ConvertTo-Json -Depth 5))
+[IO.File]::WriteAllText((Join-Path $package manifest.json),(@{version='1.7.0.2';files=$files}|ConvertTo-Json -Depth 5))
 $zip=Join-Path $sandbox fixture.zip;Add-Type -AssemblyName System.IO.Compression.FileSystem;[IO.Compression.ZipFile]::CreateFromDirectory($package,$zip)
 $setup=Join-Path $sandbox FixtureSetup.exe
 & (Join-Path $repo 'source\build-setup.ps1') -PackageZip $zip -OutputFile $setup -IconFile $IconFile
@@ -34,7 +34,7 @@ function Run-Worker([string]$Action){
  $p=Start-Process $setup -ArgumentList ('--worker "'+(Join-Path $operation request.json)+'" "'+$sid+'"') -WindowStyle Hidden -PassThru
  if(-not $p.WaitForExit(60000)){throw 'Fixture worker timed out'}
  $result=Get-Content (Join-Path $operation result.json) -Raw|ConvertFrom-Json
- if(-not $result.pass){throw ($result.error+"`n"+(Get-Content (Join-Path $operation worker.log) -Raw))}
+ if(-not $result.pass){$workerLog=Join-Path $operation worker.log;$details=if(Test-Path -LiteralPath $workerLog){Get-Content -LiteralPath $workerLog -Raw}else{''};throw ($result.error+"`n"+$details)}
  Copy-Item -LiteralPath (Join-Path $operation result.json) -Destination (Join-Path $sandbox ($Action+'-result.json'))
  if(-not $operation.StartsWith(([IO.Path]::GetTempPath()+'CodexBackgroundOperation-'),[StringComparison]::OrdinalIgnoreCase)){throw 'Operation boundary mismatch'}
  Remove-Item -LiteralPath $operation -Recurse -Force
@@ -43,7 +43,7 @@ $manager=$null
 try{
  Run-Worker Install
  $key='HKCU:\'+$namespace+'\Uninstall';$registration=Get-ItemProperty -LiteralPath $key
- if($registration.DisplayVersion -ne '1.7.0.1' -or $registration.InstallLocation -ne $root){throw 'Real registry registration mismatch'}
+ if($registration.DisplayVersion -ne '1.7.0.2' -or $registration.InstallLocation -ne $root){throw 'Real registry registration mismatch'}
  if((Get-FileHash -LiteralPath (Join-Path $root '卸载 CodexHub.exe')).Hash -ne (Get-FileHash $setup).Hash){throw 'Standalone uninstaller copy mismatch'}
  $null=New-Item -ItemType Directory -Path (Join-Path $state cdp-profile),(Join-Path $state runtime) -Force
  [IO.File]::WriteAllText((Join-Path $state 'cdp-profile\Login Data'),'keep');[IO.File]::WriteAllText((Join-Path $state 'runtime\cache.txt'),'generated')

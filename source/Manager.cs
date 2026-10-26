@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.1")]
-[assembly: AssemblyFileVersion("1.7.0.1")]
+[assembly: AssemblyVersion("1.7.0.2")]
+[assembly: AssemblyFileVersion("1.7.0.2")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}

@@ -66,7 +66,8 @@ foreach ($file in @('control.ps1','native-actions.ps1','native-lifecycle.ps1','l
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
 foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','CompanionCore.cs','WindowResize.cs','CompanionBehavior.cs','CompanionVideo.cs','CompanionOverlay.cs','CompanionSettings.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','HubPopupMenu.cs','BuiltinWallpapers.cs','Setup.cs','build-setup.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets') -Destination (Join-Path $sourceOut 'assets') -Recurse
+$assetOut=Join-Path $sourceOut 'assets';$null=New-Item -ItemType Directory -Path $assetOut
+Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'assets') | Where-Object Name -ne 'wallpapers' | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $assetOut -Recurse}
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
 Copy-Item -LiteralPath (Join-Path $PortSource 'DreamSkinPortHook.cs'),(Join-Path $PortSource 'ShellIdentity.cs'),(Join-Path $PortSource 'register-port.ps1') -Destination $port
@@ -88,9 +89,11 @@ $managerSources=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryCon
 & $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" ("/resource:"+(Join-Path $PSScriptRoot 'assets\brand\codexhub.png')+",CodexHub.Brand") ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexLiveBackground.exe" ("/resource:"+(Join-Path $PSScriptRoot 'assets\sounds\click.wav')+",CodexHub.ClickSound") /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll @managerSources
 if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
 $wallpaperBuilder=Join-Path $out 'GenerateWallpapers.exe'
-& $csc /nologo /target:winexe /main:BuiltinWallpapers /codepage:65001 "/out:$wallpaperBuilder" /r:System.Drawing.dll (Join-Path $PSScriptRoot 'BuiltinWallpapers.cs')
+& $csc /nologo /target:winexe /main:BuiltinWallpapers /codepage:65001 "/out:$wallpaperBuilder" /r:System.Web.Extensions.dll (Join-Path $PSScriptRoot 'BuiltinWallpapers.cs')
 if($LASTEXITCODE -ne 0){throw 'Wallpaper artwork compilation failed.'}
-$art=Start-Process -FilePath $wallpaperBuilder -ArgumentList ('"'+(Join-Path $out 'wallpapers')+'"') -WindowStyle Hidden -Wait -PassThru
+$wallpaperSource=Join-Path $PSScriptRoot 'assets\wallpapers'
+if(-not(Test-Path -LiteralPath (Join-Path $wallpaperSource 'catalog.json'))){$wallpaperSource=Join-Path (Split-Path -Parent $PSScriptRoot) 'wallpapers'}
+$art=Start-Process -FilePath $wallpaperBuilder -ArgumentList ('"'+(Join-Path $out 'wallpapers')+'" "'+$wallpaperSource+'"') -WindowStyle Hidden -Wait -PassThru
 if($art.ExitCode -ne 0){throw 'Wallpaper artwork generation failed.'}
 Remove-Item -LiteralPath $wallpaperBuilder -Force
 & $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$port\DreamSkinPortHook.exe" (Join-Path $port 'DreamSkinPortHook.cs') (Join-Path $port 'ShellIdentity.cs')
@@ -102,7 +105,7 @@ foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
 }
 if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\manager.png')){
   $null=New-Item -ItemType Directory -Path (Join-Path $out 'docs') -Force
-  foreach($name in @('manager.png','wallpaper-engine.png','icon.png','windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.png','pet-quota.png','pet-dials.png','pet-tasks.png','pet-popup-morph.png','pet-offline-bubble.png','pet-collision.png','pet-animation.gif','desktop-pets.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
+  foreach($name in @('manager.png','wallpaper-engine.png','icon.png','windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.png','pet-quota.png','pet-dials.png','pet-tasks.png','pet-popup-morph.png','pet-collision.png','pet-animation.gif','desktop-pets.md','release-1.7.0-preview.3.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
 }
 $thirdParty = Join-Path $out 'THIRD_PARTY'
 New-Item -ItemType Directory -Path $thirdParty | Out-Null
@@ -124,8 +127,8 @@ This distribution adds a Windows launcher, startup-port guard, no-close behavior
 visible-thread selector repairs, and theme recovery to the MIT-licensed engine.
 Source: https://github.com/xxloocee/Codex-Dream-Skin-Manager
 Upstream: https://github.com/Fei-Away/Codex-Dream-Skin (MIT)
-No user Workshop media or original engine preset media are included. Six small original backgrounds are generated by the build.
-Two engine JPEG placeholders are locally generated neutral gradients. Six additional original wallpaper illustrations are generated by BuiltinWallpapers.cs. Official Codex icons are read from the local installed app and are not redistributed.
+No original engine preset media are included. The six former generated backgrounds have been removed.
+Two engine JPEG placeholders are locally generated neutral gradients. Four user-selected Wallpaper Engine media items are copied from the validated catalog. Sources and rights are described in wallpapers/NOTICE.md; those media are not covered by the code MIT license. Official Codex icons are read from the local installed app and are not redistributed.
 The OpenAI application, trademarks and accounts are not included.
 '@ | Set-Content -LiteralPath (Join-Path $thirdParty 'MODIFICATIONS.txt') -Encoding UTF8
 # Windows PowerShell 5.1 requires BOM for scripts containing Chinese strings.
@@ -138,12 +141,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.1';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.2';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.7.0.1';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.7.0.2';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

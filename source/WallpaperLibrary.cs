@@ -19,6 +19,8 @@ internal sealed class LibraryIndex {
     public List<string> SteamRoots=new List<string>();
     public bool MigratedCurrentTheme;
 }
+internal sealed class BuiltinWallpaperCatalog {public BuiltinWallpaperItem[] items{get;set;}}
+internal sealed class BuiltinWallpaperItem {public string id{get;set;}public string name{get;set;}public string file{get;set;}public string thumbnail{get;set;}public string note{get;set;}}
 internal sealed class WallpaperLibrary {
     public const int MaxNameCodePoints=4096;
     const int MaxIndexBytes=64*1024*1024;
@@ -52,7 +54,7 @@ internal sealed class WallpaperLibrary {
     public List<WallpaperEntry> Snapshot(){lock(gate)return new List<WallpaperEntry>(index.Entries);}
     public bool CurrentThemeMigrated {get{lock(gate)return index.MigratedCurrentTheme;}}
     public void FinishCurrentThemeMigration(){lock(gate){index.MigratedCurrentTheme=true;Save();}}
-    public void RemapBuiltins(IEnumerable<WallpaperEntry> builtins){lock(gate){bool changed=false;foreach(var current in builtins){var saved=index.Entries.FirstOrDefault(x=>x.Source=="builtin"&&x.Id==current.Id);if(saved!=null&&!String.Equals(saved.Path,current.Path,StringComparison.OrdinalIgnoreCase)){saved.Path=current.Path;saved.Thumbnail=current.Thumbnail;saved.Kind=current.Kind;saved.Note=current.Note;changed=true;}}if(changed)Save();}}
+    public void RemapBuiltins(IEnumerable<WallpaperEntry> builtins){lock(gate){var currentList=builtins.ToArray();var ids=new HashSet<string>(currentList.Select(v=>v.Id),StringComparer.OrdinalIgnoreCase);bool changed=index.Entries.RemoveAll(v=>v.Source=="builtin"&&!ids.Contains(v.Id))>0;foreach(var current in currentList){var saved=index.Entries.FirstOrDefault(x=>x.Source=="builtin"&&x.Id==current.Id);if(saved!=null&&(saved.Path!=current.Path||saved.Thumbnail!=current.Thumbnail||saved.Kind!=current.Kind||saved.Note!=current.Note||saved.Name!=current.Name)){saved.Path=current.Path;saved.Thumbnail=current.Thumbnail;saved.Kind=current.Kind;saved.Note=current.Note;saved.Name=current.Name;changed=true;}}if(changed)Save();}}
     public List<string> SteamRoots(){lock(gate)return new List<string>(index.SteamRoots);}
     public void AddSteamRoot(string root){root=System.IO.Path.GetFullPath(root);lock(gate){if(!index.SteamRoots.Contains(root,StringComparer.OrdinalIgnoreCase))index.SteamRoots.Add(root);Save();}}
     public static string Identity(string path){using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(System.IO.Path.GetFullPath(path).ToUpperInvariant()))).Replace("-","").ToLowerInvariant();}
@@ -77,9 +79,8 @@ internal sealed class WallpaperLibrary {
     }
     public static List<WallpaperEntry> Builtins(string root){
         var result=new List<WallpaperEntry>();string folder=System.IO.Path.Combine(root,"wallpapers");
-        string[] ids={"midnight-ridge","quiet-moon","forest-mist","blue-tide","amber-dunes","star-atlas"};
-        string[] names={"午夜山脊","静海月色","雾林深处","深蓝潮汐","琥珀沙丘","暗夜星图"};
-        for(int i=0;i<ids.Length;i++){string path=System.IO.Path.Combine(folder,ids[i]+".jpg");if(File.Exists(path))result.Add(new WallpaperEntry{Id="builtin-"+ids[i],Name=names[i],Path=path,Thumbnail=path,Source="builtin",Kind="image",Note="内置原创背景 · 2560 × 1440"});}
+        string catalog=System.IO.Path.Combine(folder,"catalog.json");if(!File.Exists(catalog))return result;if(new FileInfo(catalog).Length>65536)throw new InvalidDataException("内置壁纸清单过大。");var data=new JavaScriptSerializer().Deserialize<BuiltinWallpaperCatalog>(File.ReadAllText(catalog));if(data==null||data.items==null||data.items.Length>32)throw new InvalidDataException("内置壁纸清单无效。");
+        foreach(var item in data.items){if(item==null||String.IsNullOrWhiteSpace(item.id)||!Regex.IsMatch(item.id,@"^[a-z0-9-]{1,80}$")||new[]{item.file,item.thumbnail}.Any(n=>String.IsNullOrWhiteSpace(n)||n!=System.IO.Path.GetFileName(n)||n.IndexOfAny(new[]{'/','\\',':'})>=0))throw new InvalidDataException("内置壁纸路径无效。");string path=System.IO.Path.Combine(folder,item.file),thumbnail=System.IO.Path.Combine(folder,item.thumbnail);if(File.Exists(path)&&File.Exists(thumbnail)&&MediaKind(path)!=null)result.Add(new WallpaperEntry{Id="builtin-"+item.id,Name=ValidateName(item.name),Path=path,Thumbnail=thumbnail,Source="builtin",Kind=MediaKind(path),Note=item.note});}
         return result;
     }
 }

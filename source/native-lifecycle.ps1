@@ -1,5 +1,6 @@
 ﻿$script:NativeBackgroundId='codex-live-background/exe'
 $script:BackgroundRuntimeFiles=@('installed.json','startup\startup.log','startup\guard-state.json','startup\monitor-state.json','startup\stop-guard','startup\registration.json','startup\skin-startup.log')
+$script:BackgroundRetiredFiles=@('wallpapers\amber-dunes.jpg','wallpapers\blue-tide.jpg','wallpapers\forest-mist.jpg','wallpapers\midnight-ridge.jpg','wallpapers\quiet-moon.jpg','wallpapers\star-atlas.jpg','wallpapers\README.txt')
 function Get-BackgroundSafePath {
  param([string]$Root,[string]$Relative)
  if(-not $Relative -or [IO.Path]::IsPathRooted($Relative) -or $Relative.Contains(':')){throw '程序文件清单路径无效。'}
@@ -18,7 +19,7 @@ function Assert-BackgroundInstallPath {
 function Get-BackgroundOwnedFiles {
  param([string]$Root)
  $manifest=Join-Path $Root 'manifest.json';$marker=Join-Path $Root '.codex-background-install.json'
- if(Test-Path -LiteralPath $marker){$data=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;if($data.productId -cne $script:NativeBackgroundId -or -not(Test-DreamSkinPathEqual -Left $data.root -Right $Root)){throw '安装标记归属不匹配。'};$trusted=[IO.File]::ReadAllText((Join-Path $script:NativePackageRoot 'manifest.json'))|ConvertFrom-Json;$allowed=@($trusted.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','卸载 CodexHub.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles;foreach($file in $data.files){if($file -notin $allowed){throw '安装标记包含未经核验的文件，已停止。'}};return @($data.files)}
+ if(Test-Path -LiteralPath $marker){$data=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;if($data.productId -cne $script:NativeBackgroundId -or -not(Test-DreamSkinPathEqual -Left $data.root -Right $Root)){throw '安装标记归属不匹配。'};$trusted=[IO.File]::ReadAllText((Join-Path $script:NativePackageRoot 'manifest.json'))|ConvertFrom-Json;$allowed=@($trusted.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','卸载 CodexHub.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles+$script:BackgroundRetiredFiles;foreach($file in $data.files){if($file -notin $allowed){throw '安装标记包含未经核验的文件，已停止。'}};return @($data.files)}
  $exe=Join-Path $Root 'CodexLiveBackground.exe';$catalog=Join-Path $PSScriptRoot 'legacy-managers.json'
  if((Test-Path -LiteralPath $exe) -and (Test-Path -LiteralPath $catalog)){$hash=(Get-FileHash -LiteralPath $exe).Hash;$known=([IO.File]::ReadAllText($catalog)|ConvertFrom-Json).releases|Where-Object{$_.sha256 -ceq $hash}|Select-Object -First 1;if($known){return @($known.files)+@('CodexLiveBackground.exe','manifest.json')+$script:BackgroundRuntimeFiles}}
  return @()
@@ -115,10 +116,10 @@ function Stop-BackgroundOwnedProcesses {
 function Get-BackgroundPlan {
  param([string]$InstallRoot,[string]$PackageRoot)
  Assert-BackgroundInstallPath $InstallRoot
- $registered=(Get-ItemProperty -LiteralPath 'HKCU:\Software\CodexLiveBackground' -Name InstallRoot -ErrorAction SilentlyContinue).InstallRoot
- $fallback=if($registered){$registered}else{Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'}
+ $registered=@(Get-DreamBackgroundRegisteredInstallRoots|Select-Object -Unique)
+ $fallback=if($registered.Count){$registered[0]}else{Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'}
  $products=@(Get-BackgroundLegacyMsi -CatalogPath (Join-Path $PackageRoot 'legacy-msi-products.json') -FallbackRoot $fallback)
- $roots=@($InstallRoot,$fallback,(Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'),(Join-Path $env:LOCALAPPDATA 'Programs\CodexDreamSkinManager'))+@($products|ForEach-Object{$_.Root})
+ $roots=@($InstallRoot,$fallback,(Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'),(Join-Path $env:LOCALAPPDATA 'Programs\CodexDreamSkinManager'))+@($registered)+@($products|ForEach-Object{$_.Root})
  $owned=@();foreach($root in @($roots|Select-Object -Unique)){if(-not(Test-Path -LiteralPath $root)){continue};if(@(Get-BackgroundOwnedFiles -Root $root).Count -or @($products|Where-Object{$_.Root -ieq $root}).Count){$owned+=@($root)}elseif((Test-DreamSkinPathEqual -Left $root -Right $InstallRoot) -and @(Get-ChildItem -LiteralPath $root -Force).Count){throw '所选文件夹不是已识别的软件目录，请选择新的专用文件夹。'}}
  $authorization=$products.Count -gt 0
  $parent=[IO.Path]::GetFullPath($InstallRoot);while(-not(Test-Path -LiteralPath $parent)){$parent=Split-Path -Parent $parent;if(-not $parent){throw '安装磁盘不可用。'}}
@@ -129,7 +130,7 @@ function Get-BackgroundPlan {
 function Stop-BackgroundIntegrations {
  param([string[]]$Roots,[string]$StateRoot,[string]$PackageRoot,[switch]$Uninstall,[int[]]$ExcludeIds)
  $task=Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
- $legacy=Join-Path $StateRoot 'startup';$startup=if($task){Split-Path -Parent "$($task.Actions[0].Execute)"}elseif(Test-Path -LiteralPath $legacy){$legacy}else{$null}
+ $legacy=Join-Path $StateRoot 'startup';$startup=if($task){Resolve-DreamBackgroundUpgradeStartup -Task $task -Installs @($Roots|ForEach-Object{[pscustomobject]@{Root=$_}}) -StateRoot $StateRoot -PackageRoot $PackageRoot}elseif(Test-Path -LiteralPath $legacy){$legacy}else{$null}
  $valid=@($legacy)+@($Roots|ForEach-Object{Join-Path $_ 'startup'})
  if($startup -and -not @($valid|Where-Object{Test-DreamSkinPathEqual -Left $_ -Right $startup}).Count){throw '同名启动服务不在已识别路径内，未移除。'}
  $candidates=@();if($startup){$candidates+=@($startup)};$candidates+=@($valid|Where-Object{Test-Path -LiteralPath $_})

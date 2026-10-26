@@ -4,7 +4,7 @@
   $expected = [IO.Path]::GetFullPath((Join-Path $StartupRoot 'DreamSkinPortHook.exe'))
   $actions = @($Task.Actions)
   if ($actions.Count -ne 1 -or
-      [IO.Path]::GetFullPath("$($actions[0].Execute)") -ine $expected -or
+      [IO.Path]::GetFullPath("$($actions[0].Execute)".Trim().Trim('"')) -ine $expected -or
       "$($actions[0].Arguments)".Trim() -cne '--guard') {
     throw '同名计划任务不属于兼容的 Dream Skin 启动入口，已保留原任务。请检查任务计划程序中的 CodexDreamSkinPort。'
   }
