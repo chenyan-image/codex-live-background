@@ -1,0 +1,42 @@
+{
+  "version": "1.7.0.7",
+  "tag": "v1.7.0-preview.5",
+  "platform": "windows-x64",
+  "installerVerified": true,
+  "msiWrapped": false,
+  "updateSoftwareFiles": 110,
+  "bundledPetAnimations": 106,
+  "bundledWallpaperVideos": 0,
+  "remoteWallpaperVideos": 1,
+  "localInstalledVersion": "1.7.0.7",
+  "preservedStaticFiles": 247,
+  "codexAndServiceRestarted": false,
+  "isolatedUpdatePreservesSettingsBytes": true,
+  "liveSettingsComparisonInconclusiveBecauseOfConcurrentUserChanges": true,
+  "screenshotSessionRestoredUserSettings": true,
+  "followAppearanceChecks": 64,
+  "followRegistrationChecks": 10,
+  "importUpdateChecks": 32,
+  "nativeLifecycleChecks": 12,
+  "nativeWorkerChecks": 6,
+  "restoreLatencyGateMs": 150,
+  "restoreLatencyFullyResolved": false,
+  "manifestFiles": 364,
+  "files": [
+    {
+      "name": "CodexHub-1.7.0-preview.5-Setup.exe",
+      "bytes": 172813824,
+      "sha256": "85783498aadfc343f1037057570ead00b8af5ac23b0e47e2458ea3043df67646"
+    },
+    {
+      "name": "CodexHub-1.7.0-preview.5-Update.zip",
+      "bytes": 1875773,
+      "sha256": "bde7a804ebff049c9533cb4ff6463dce960b2ffff1f26fba2793f63cadb411df"
+    },
+    {
+      "name": "CodexHub-Update.json",
+      "bytes": 314,
+      "sha256": "aeba5e49300cf6a4a3ca1f4b07b9938d0bad98c9ae2faf6a6dc99fd1211451a1"
+    }
+  ]
+}
