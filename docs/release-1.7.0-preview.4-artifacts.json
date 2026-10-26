@@ -1,0 +1,39 @@
+{
+  "version": "1.7.0.4",
+  "tag": "v1.7.0-preview.4",
+  "platform": "windows-x64",
+  "installerVerified": true,
+  "msiWrapped": false,
+  "updateSoftwareFiles": 107,
+  "bundledPetAnimations": 106,
+  "bundledWallpaperVideos": 0,
+  "remoteWallpaperVideos": 1,
+  "localInstalledVersion": "1.7.0.4",
+  "preservedStaticFiles": 247,
+  "codexAndServiceRestarted": false,
+  "privateWorkingSetMiBBefore": 92.1,
+  "privateWorkingSetMiBAfter": 50.6,
+  "memoryNumbersAreLocalMeasurements": true,
+  "files": [
+    {
+      "name": "CodexHub-1.7.0-preview.4-Setup.exe",
+      "bytes": 172770816,
+      "sha256": "f09db0c85ff87ecac7733a1986b297dd70d13e25dcac2d24cb58a6b7954eed88"
+    },
+    {
+      "name": "CodexHub-1.7.0-preview.4-Update.zip",
+      "bytes": 1855780,
+      "sha256": "577122777d312f2440b13548232df03d4b2854d83ddaa8a72301bd875e0ee5d8"
+    },
+    {
+      "name": "CodexHub-Update.json",
+      "bytes": 314,
+      "sha256": "125d7ceaf0231dcd42bd0d138e94f316cd5905fe971800899836070c07db7908"
+    },
+    {
+      "name": "rain-sakura.mp4",
+      "bytes": 101871488,
+      "sha256": "504295c9d67fb9f6069cb1c0b59d78306f8173dd1599d1caac59f34609d97106"
+    }
+  ]
+}
