@@ -9,7 +9,7 @@
 | 月光下的德累斯顿 | 原项目动态预览 GIF | [3200802205](https://steamcommunity.com/sharedfiles/filedetails/?id=3200802205) |
 | 雨樱【Rain Sakura】- 4K | 完整 H.264 原片，3840×2160、30 FPS、86.7 秒、101871488 字节 | [2970331102](https://steamcommunity.com/sharedfiles/filedetails/?id=2970331102) |
 
-四项均包含在安装目录中，其他电脑无需原电脑的 Steam 路径。《雨樱》按用户选择保留完整 4K 原片，没有改为精简版；图库缩略图取项目预览 GIF 的第一帧。三个场景项目使用已提供的图片或 GIF 预览，不执行 scene.pkg。
+安装包提供四项预览，其他电脑无需原电脑的 Steam 路径。《雨樱》仅附静态封面，应用时从 GitHub 发行页下载完整 4K 原片并校验；已经存在的有效原片直接复用。宠物动画仍随包提供，不受壁纸按需下载影响。三个场景项目使用已提供的图片或 GIF 预览，不执行 scene.pkg。
 
 这些是用户指定的第三方素材，原始来源和 SHA256 记录于 source/assets/wallpapers/catalog.json 及对应 NOTICE；不纳入软件代码的 MIT 授权。
 
