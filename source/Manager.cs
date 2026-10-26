@@ -213,6 +213,7 @@ internal sealed partial class Manager : Form {
         trayMenu=new ContextMenuStrip{BackColor=Color.FromArgb(27,32,37),ForeColor=Ink,ShowImageMargin=false};
         trayMenu.Items.Add("打开管理器",null,delegate{RestoreWindow();});trayMenu.Items.Add(new ToolStripSeparator());
         trayMenu.Items.Add("退出管理器",null,delegate{if(!IsDisposed&&!Disposing)BeginInvoke((MethodInvoker)delegate{exitRequested=true;Close();});});
+        HubPopupMenu.Apply(trayMenu);
         trayImage=(Icon)Icon.Clone();tray=new NotifyIcon{Icon=trayImage,Text="CodexHub",ContextMenuStrip=trayMenu,Visible=true};
         tray.DoubleClick+=delegate{RestoreWindow();};
     }

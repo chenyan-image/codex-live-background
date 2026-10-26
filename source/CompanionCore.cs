@@ -12,10 +12,10 @@ using System.Web.Script.Serialization;
 internal sealed class PetPreferences {
     public bool Enabled=true,Roaming=true,Sound=true,CodexOnly=true,ShowQuota=true;
     public string SelectedId="deepseek";
-    public int Scale=100,X=int.MinValue,Y=int.MinValue;
+    public int Scale=100,CapsuleScale=100,X=int.MinValue,Y=int.MinValue;
     public static PetPreferences Load(string state){
         string file=Path.Combine(state,"pet-settings.json");if(!File.Exists(file))return new PetPreferences();
-        try{if(new FileInfo(file).Length>65536)throw new InvalidDataException();var value=new JavaScriptSerializer().Deserialize<PetPreferences>(File.ReadAllText(file));if(value==null)throw new InvalidDataException();value.Scale=Math.Max(70,Math.Min(150,value.Scale));return value;}
+        try{if(new FileInfo(file).Length>65536)throw new InvalidDataException();var value=new JavaScriptSerializer().Deserialize<PetPreferences>(File.ReadAllText(file));if(value==null)throw new InvalidDataException();value.Scale=Math.Max(70,Math.Min(150,value.Scale));value.CapsuleScale=Math.Max(70,Math.Min(150,value.CapsuleScale));return value;}
         catch{File.Copy(file,file+".damaged-"+DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"),false);return new PetPreferences();}
     }
     public void Save(string state){Directory.CreateDirectory(state);string file=Path.Combine(state,"pet-settings.json"),temp=file+".tmp";File.WriteAllText(temp,new JavaScriptSerializer().Serialize(this),new UTF8Encoding(false));if(File.Exists(file))File.Replace(temp,file,file+".bak");else File.Move(temp,file);}
@@ -90,7 +90,7 @@ internal sealed class PetMotion {
     public static PointF Clamp(PointF p,Size size,Rectangle bounds){return new PointF(Math.Max(bounds.Left,Math.Min(bounds.Right-size.Width,p.X)),Math.Max(bounds.Top,Math.Min(bounds.Bottom-size.Height,p.Y)));}
     public void Place(PointF p,Size size,Rectangle bounds){Position=Clamp(p,size,bounds);}
     public void Interact(int row,double duration=1.3){Row=Math.Max(0,Math.Min(127,row));ReactionDuration=ReactionRemaining=Math.Max(.3,Math.Min(12,duration));CollisionDirection=-1;decision=1.5;Velocity=PointF.Empty;}
-    public void Drag(PointF p,Size size,Rectangle bounds){Dragging=true;Velocity=PointF.Empty;Position=Clamp(p,size,bounds);Row=4;ReactionRemaining=0;}
+    public void Drag(PointF p,Size size,Rectangle bounds){Dragging=true;Velocity=PointF.Empty;Position=Clamp(p,size,bounds);Row=0;ReactionRemaining=0;}
     public void Drop(){Dragging=false;Interact(3);}
     public void Step(double delta,Size size,Rectangle bounds,bool roaming){
         delta=Math.Max(0,Math.Min(.1,delta));Position=Clamp(Position,size,bounds);if(Dragging)return;

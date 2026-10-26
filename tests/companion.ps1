@@ -1,7 +1,7 @@
 ﻿param([Parameter(Mandatory=$true)][string]$PackageRoot,[switch]$LiveQuota,[switch]$LiveActivity,[switch]$LiveTokens,[switch]$LiveRemielle,[switch]$LiveSurface,[string]$DragonDirectory)
 $ErrorActionPreference='Stop'
 $repo=Split-Path -Parent $PSScriptRoot;$out=Join-Path $PSScriptRoot ('output\companion-'+[guid]::NewGuid().ToString('N'));$null=New-Item -ItemType Directory -Path $out
-$files=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','CompanionCore.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs')|ForEach-Object{Join-Path $repo ('source\'+$_)}
+$files=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','CompanionCore.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','HubPopupMenu.cs')|ForEach-Object{Join-Path $repo ('source\'+$_)}
 $exe=Join-Path $PackageRoot CompanionTests.exe;$report=Join-Path $out result.json
 if(Test-Path -LiteralPath $exe){throw 'Companion test executable already exists'}
 & (Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe') /nologo /target:winexe /main:CompanionTests /platform:x64 /codepage:65001 ("/out:$exe") /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll $files (Join-Path $PSScriptRoot CompanionTests.cs)
