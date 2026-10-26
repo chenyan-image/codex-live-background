@@ -9,7 +9,7 @@ using System.Web.Script.Serialization;
 using Microsoft.Win32;
 
 internal sealed class WallpaperEntry {
-    public string Id,Name,Path,Thumbnail,Source,Kind,LastUsedUtc,AddedUtc,Note;
+    public string Id,Name,Path,Thumbnail,Source,Kind,LastUsedUtc,AddedUtc,Note;public BuiltinRemoteAsset Remote;
     public bool Available {get{return File.Exists(Path);}}
     public bool Animated {get{return Kind=="video"||Kind=="gif";}}
 }
@@ -20,7 +20,8 @@ internal sealed class LibraryIndex {
     public bool MigratedCurrentTheme;
 }
 internal sealed class BuiltinWallpaperCatalog {public BuiltinWallpaperItem[] items{get;set;}}
-internal sealed class BuiltinWallpaperItem {public string id{get;set;}public string name{get;set;}public string file{get;set;}public string thumbnail{get;set;}public string note{get;set;}}
+internal sealed class BuiltinWallpaperItem {public string id{get;set;}public string name{get;set;}public string file{get;set;}public string thumbnail{get;set;}public string note{get;set;}public BuiltinRemoteAsset remote{get;set;}}
+internal sealed class BuiltinRemoteAsset {public string file{get;set;}public string url{get;set;}public long bytes{get;set;}public string sha256{get;set;}}
 internal sealed class WallpaperLibrary {
     public const int MaxNameCodePoints=4096;
     const int MaxIndexBytes=64*1024*1024;
@@ -36,7 +37,8 @@ internal sealed class WallpaperLibrary {
     readonly string file;readonly object gate=new object();
     LibraryIndex index=new LibraryIndex();
     public string Warning="";
-    public WallpaperLibrary(string directory){file=System.IO.Path.Combine(directory,"wallpaper-library.json");Load();}
+    public WallpaperLibrary(string directory){file=System.IO.Path.Combine(directory,"wallpaper-library.json");Load();if(index.Entries.RemoveAll(IsRetiredSeed)>0){index.MigratedCurrentTheme=true;Save();}}
+    public static bool IsRetiredSeed(WallpaperEntry entry){return entry!=null&&entry.Source=="recovered"&&entry.Name=="纸上微光"&&System.IO.Path.GetFileName(entry.Path).Equals("dream-reference.jpg",StringComparison.OrdinalIgnoreCase)&&System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(entry.Path)).Equals("active-theme",StringComparison.OrdinalIgnoreCase);}
     void Load(){
         if(!File.Exists(file))return;
         try{
@@ -54,7 +56,12 @@ internal sealed class WallpaperLibrary {
     public List<WallpaperEntry> Snapshot(){lock(gate)return new List<WallpaperEntry>(index.Entries);}
     public bool CurrentThemeMigrated {get{lock(gate)return index.MigratedCurrentTheme;}}
     public void FinishCurrentThemeMigration(){lock(gate){index.MigratedCurrentTheme=true;Save();}}
-    public void RemapBuiltins(IEnumerable<WallpaperEntry> builtins){lock(gate){var currentList=builtins.ToArray();var ids=new HashSet<string>(currentList.Select(v=>v.Id),StringComparer.OrdinalIgnoreCase);bool changed=index.Entries.RemoveAll(v=>v.Source=="builtin"&&!ids.Contains(v.Id))>0;foreach(var current in currentList){var saved=index.Entries.FirstOrDefault(x=>x.Source=="builtin"&&x.Id==current.Id);if(saved!=null&&(saved.Path!=current.Path||saved.Thumbnail!=current.Thumbnail||saved.Kind!=current.Kind||saved.Note!=current.Note||saved.Name!=current.Name)){saved.Path=current.Path;saved.Thumbnail=current.Thumbnail;saved.Kind=current.Kind;saved.Note=current.Note;saved.Name=current.Name;changed=true;}}if(changed)Save();}}
+    public void RemapBuiltins(IEnumerable<WallpaperEntry> builtins){lock(gate){
+        var currentList=builtins.ToArray();var ids=new HashSet<string>(currentList.Select(v=>v.Id),StringComparer.OrdinalIgnoreCase);bool changed=index.Entries.RemoveAll(v=>v.Source=="builtin"&&!ids.Contains(v.Id))>0;
+        foreach(var current in currentList){var saved=index.Entries.FirstOrDefault(x=>x.Source=="builtin"&&x.Id==current.Id);if(saved==null)continue;bool retainVideo=current.Remote!=null&&saved.Kind=="video"&&saved.Available;string path=retainVideo?saved.Path:current.Path,kind=retainVideo?saved.Kind:current.Kind;bool remoteChanged=(saved.Remote==null)!=(current.Remote==null)||(saved.Remote!=null&&current.Remote!=null&&saved.Remote.url!=current.Remote.url);
+            if(saved.Path!=path||saved.Thumbnail!=current.Thumbnail||saved.Kind!=kind||saved.Note!=current.Note||saved.Name!=current.Name||remoteChanged){saved.Path=path;saved.Thumbnail=current.Thumbnail;saved.Kind=kind;saved.Note=current.Note;saved.Name=current.Name;saved.Remote=current.Remote;changed=true;}}
+        if(changed)Save();
+    }}
     public List<string> SteamRoots(){lock(gate)return new List<string>(index.SteamRoots);}
     public void AddSteamRoot(string root){root=System.IO.Path.GetFullPath(root);lock(gate){if(!index.SteamRoots.Contains(root,StringComparer.OrdinalIgnoreCase))index.SteamRoots.Add(root);Save();}}
     public static string Identity(string path){using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(System.IO.Path.GetFullPath(path).ToUpperInvariant()))).Replace("-","").ToLowerInvariant();}
@@ -69,6 +76,11 @@ internal sealed class WallpaperLibrary {
             index.Entries.Add(entry);Save();return entry;
         }
     }
+    public WallpaperEntry AddLocalBatch(IEnumerable<string> paths){
+        var incoming=paths.Select(path=>System.IO.Path.GetFullPath(path)).Distinct(StringComparer.OrdinalIgnoreCase).Select(path=>new WallpaperEntry{Id=Identity(path),Path=path,Name=ValidateName(System.IO.Path.GetFileNameWithoutExtension(path)),Source="local",Kind=MediaKind(path),Note="本地文件引用；不会复制或删除原文件",AddedUtc=DateTime.UtcNow.ToString("o")}).ToArray();
+        if(incoming.Any(item=>item.Kind==null))throw new InvalidDataException("仅支持视频、GIF 和图片。");
+        lock(gate){var added=incoming.Where(item=>!index.Entries.Any(old=>old.Id==item.Id)).ToArray();if(index.Entries.Count+added.Length>2000)throw new InvalidDataException("壁纸记录已满，请移除不再需要的记录。");index.Entries.AddRange(added);try{if(added.Length>0)Save();}catch{foreach(var item in added)index.Entries.Remove(item);throw;}return incoming.Length==0?null:index.Entries.First(item=>item.Id==incoming.Last().Id);}
+    }
     public void Applied(WallpaperEntry entry){string name=ValidateName(entry.Name);lock(gate){var saved=index.Entries.FirstOrDefault(x=>x.Id==entry.Id);if(saved==null){if(index.Entries.Count>=2000)throw new InvalidDataException("壁纸记录已满。");index.Entries.Add(entry);saved=entry;}saved.Name=name;saved.LastUsedUtc=DateTime.UtcNow.ToString("o");Save();}}
     public void RememberPreview(WallpaperEntry entry,string thumbnail){lock(gate){entry.Thumbnail=thumbnail;Save();}}
     public void Forget(string id){lock(gate){index.Entries.RemoveAll(x=>x.Id==id);Save();}}
@@ -80,7 +92,7 @@ internal sealed class WallpaperLibrary {
     public static List<WallpaperEntry> Builtins(string root){
         var result=new List<WallpaperEntry>();string folder=System.IO.Path.Combine(root,"wallpapers");
         string catalog=System.IO.Path.Combine(folder,"catalog.json");if(!File.Exists(catalog))return result;if(new FileInfo(catalog).Length>65536)throw new InvalidDataException("内置壁纸清单过大。");var data=new JavaScriptSerializer().Deserialize<BuiltinWallpaperCatalog>(File.ReadAllText(catalog));if(data==null||data.items==null||data.items.Length>32)throw new InvalidDataException("内置壁纸清单无效。");
-        foreach(var item in data.items){if(item==null||String.IsNullOrWhiteSpace(item.id)||!Regex.IsMatch(item.id,@"^[a-z0-9-]{1,80}$")||new[]{item.file,item.thumbnail}.Any(n=>String.IsNullOrWhiteSpace(n)||n!=System.IO.Path.GetFileName(n)||n.IndexOfAny(new[]{'/','\\',':'})>=0))throw new InvalidDataException("内置壁纸路径无效。");string path=System.IO.Path.Combine(folder,item.file),thumbnail=System.IO.Path.Combine(folder,item.thumbnail);if(File.Exists(path)&&File.Exists(thumbnail)&&MediaKind(path)!=null)result.Add(new WallpaperEntry{Id="builtin-"+item.id,Name=ValidateName(item.name),Path=path,Thumbnail=thumbnail,Source="builtin",Kind=MediaKind(path),Note=item.note});}
+        foreach(var item in data.items){if(item==null||String.IsNullOrWhiteSpace(item.id)||!Regex.IsMatch(item.id,@"^[a-z0-9-]{1,80}$")||new[]{item.file,item.thumbnail}.Any(n=>String.IsNullOrWhiteSpace(n)||n!=System.IO.Path.GetFileName(n)||n.IndexOfAny(new[]{'/','\\',':'})>=0))throw new InvalidDataException("内置壁纸路径无效。");string path=System.IO.Path.Combine(folder,item.file),thumbnail=System.IO.Path.Combine(folder,item.thumbnail);if(File.Exists(path)&&File.Exists(thumbnail)&&MediaKind(path)!=null)result.Add(new WallpaperEntry{Id="builtin-"+item.id,Name=ValidateName(item.name),Path=path,Thumbnail=thumbnail,Source="builtin",Kind=MediaKind(path),Note=item.note,Remote=item.remote});}
         return result;
     }
 }

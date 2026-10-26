@@ -907,18 +907,8 @@
     },
     {
       "path": "sources.json",
-      "bytes": 7621,
-      "sha256": "98f0fe60adbb632594e987db70ed34ba40d4e26a49eab22a2f0471a247c8436e"
-    },
-    {
-      "path": "xiaolemi/pet.json",
-      "bytes": 56,
-      "sha256": "336b05a2a215c0b79452b530170851bd673dc5b7ec5489563d230d1e2303f4c4"
-    },
-    {
-      "path": "xiaolemi/source.json",
-      "bytes": 404,
-      "sha256": "e0561c017d58d4915ec92ebdcbf08d910be40b9ef12a37ee18ca50d409ff88a9"
+      "bytes": 7286,
+      "sha256": "9de1f64b6f033b50eb8d47db296881adacd6c2a3f14291ad24a7c44fb9a20b13"
     }
   ]
 }

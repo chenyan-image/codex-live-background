@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
 // The quota CLI and image-conversion children belong to this manager only.
+internal static class ImportWork {public static void Start(Action action){new Thread(new ThreadStart(action)){IsBackground=true,Priority=ThreadPriority.BelowNormal,Name="CodexHub material import"}.Start();}}
 // Closing the job also handles an interrupted manager or forced uninstall.
 internal sealed class PetProcessScope : IDisposable {
     [StructLayout(LayoutKind.Sequential)]struct Basic {public long ProcessTime,JobTime;public uint Flags;public UIntPtr Min,Max;public uint Processes;public UIntPtr Affinity;public uint Priority,Scheduling;}
@@ -21,10 +22,10 @@ internal sealed class PetProcessScope : IDisposable {
     [DllImport("kernel32.dll")]static extern bool AssignProcessToJobObject(IntPtr job,IntPtr process);
     [DllImport("kernel32.dll")]static extern bool CloseHandle(IntPtr handle);
     IntPtr job;public readonly Process Process;
-    public PetProcessScope(ProcessStartInfo info){
+    public PetProcessScope(ProcessStartInfo info,bool background=false){
         job=CreateJobObject(IntPtr.Zero,null);if(job==IntPtr.Zero)throw new IOException("无法隔离宠物组件进程。");var limits=new Limits();limits.Basic.Flags=0x2000;
         if(!SetInformationJobObject(job,9,ref limits,Marshal.SizeOf(limits))){CloseHandle(job);job=IntPtr.Zero;throw new IOException("无法管理宠物组件进程。");}
-        Process=new Process{StartInfo=info};try{Process.Start();if(!AssignProcessToJobObject(job,Process.Handle))throw new IOException("无法关联宠物组件进程。");}catch{try{if(Process.Id>0&&!Process.HasExited)Process.Kill();}catch{}Dispose();throw;}
+        Process=new Process{StartInfo=info};try{Process.Start();if(background)Process.PriorityClass=ProcessPriorityClass.BelowNormal;if(!AssignProcessToJobObject(job,Process.Handle))throw new IOException("无法关联宠物组件进程。");}catch{try{if(Process.Id>0&&!Process.HasExited)Process.Kill();}catch{}Dispose();throw;}
     }
     public void Cancel(){IntPtr handle=Interlocked.Exchange(ref job,IntPtr.Zero);if(handle!=IntPtr.Zero)CloseHandle(handle);}
     public void Dispose(){Cancel();if(Process!=null)Process.Dispose();}

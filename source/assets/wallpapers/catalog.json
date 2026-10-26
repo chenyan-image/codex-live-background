@@ -43,15 +43,21 @@
     {
       "id": "rain-sakura",
       "name": "雨樱【Rain Sakura】- 4K",
-      "file": "rain-sakura.mp4",
+      "file": "rain-sakura-preview.jpg",
       "thumbnail": "rain-sakura-preview.jpg",
-      "note": "内置 4K 原视频 · 3840×2160 / 30 FPS / 86.7 秒",
+      "note": "静态封面 · 应用时下载完整 4K 原视频",
       "workshopId": "2970331102",
       "source": "https://steamcommunity.com/sharedfiles/filedetails/?id=2970331102",
-      "bytes": 101871488,
-      "sha256": "504295c9d67fb9f6069cb1c0b59d78306f8173dd1599d1caac59f34609d97106",
+      "bytes": 24754,
+      "sha256": "86e624301d9a02749d9960d1a1d5b487acedfb1d53f20b4eaa4a3596c9de0e52",
       "thumbnailBytes": 24754,
-      "thumbnailSha256": "86e624301d9a02749d9960d1a1d5b487acedfb1d53f20b4eaa4a3596c9de0e52"
+      "thumbnailSha256": "86e624301d9a02749d9960d1a1d5b487acedfb1d53f20b4eaa4a3596c9de0e52",
+      "remote": {
+        "file": "rain-sakura.mp4",
+        "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.4/rain-sakura.mp4",
+        "bytes": 101871488,
+        "sha256": "504295c9d67fb9f6069cb1c0b59d78306f8173dd1599d1caac59f34609d97106"
+      }
     }
   ]
 }

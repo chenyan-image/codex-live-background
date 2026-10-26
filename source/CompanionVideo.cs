@@ -47,8 +47,8 @@ internal sealed class PetVideoStream : IDisposable {
             if(next.Index>target&&lastShown>=0){pending=next;break;}if(selected!=null)Recycle(selected.Pixels);selected=next;lastShown=next.Index;
         }return selected!=null;
     }
-    public void Recycle(byte[] buffer){if(!disposed&&recycled.Count<6)recycled.Enqueue(buffer);}
-    public void Dispose(){if(disposed)return;disposed=true;cancel.Cancel();lock(gate){if(scope!=null)scope.Cancel();}pending=null;}
+    public void Recycle(byte[] buffer){if(!disposed&&recycled.Count<3)recycled.Enqueue(buffer);}
+    public void Dispose(){if(disposed)return;disposed=true;cancel.Cancel();lock(gate){if(scope!=null)scope.Cancel();}pending=null;Frame frame;byte[] pixels;while(frames.TryTake(out frame)){}while(recycled.TryDequeue(out pixels)){} }
 }
 internal sealed partial class PetAtlas {
     PetVideoStream video,prepared,dragPrepared;Bitmap videoFrame,previousVideo;bool previewOnly;int preparedRow=-1,dragRow=-1,videoGeneration=-1;double videoOrigin=-1,blendOrigin=-1,suspendedAt=-1;readonly Stopwatch videoClock=Stopwatch.StartNew();
@@ -60,11 +60,12 @@ internal sealed partial class PetAtlas {
     public bool IsVideo{get{return animations!=null&&animations.Format=="transparent-video-set";}}
     public bool VideoFinished{get{return !IsVideo||video!=null&&(video.Ended||!String.IsNullOrEmpty(video.Error));}}
     public string VideoError{get{return video==null?null:video.Error;}}
+    double playbackOffset;
     string Decoder{get{return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,@"engine\runtime\ffmpeg\ffmpeg.exe");}}
-    PetVideoStream Stream(int row){var a=animations.Actions[ActionIndex(row)];return new PetVideoStream(Decoder,Path.Combine(animations.Directory,a.file),a.cellWidth,a.cellHeight,a.fps,row==dragRow?a.dragStartSeconds:0);}
-    public void BeginVideo(int row,int generation,bool direct=false){if(!IsVideo||previewOnly||generation==videoGeneration)return;videoGeneration=generation;
+    PetVideoStream Stream(int row,bool movement=false){var a=animations.Actions[ActionIndex(row)];return new PetVideoStream(Decoder,Path.Combine(animations.Directory,a.file),a.cellWidth,a.cellHeight,a.fps,row==dragRow?a.dragStartSeconds:movement?a.moveLeadSeconds:0);}
+    public void BeginVideo(int row,int generation,bool direct=false,bool movement=false){if(!IsVideo||previewOnly||generation==videoGeneration)return;videoGeneration=generation;playbackOffset=row==dragRow?animations.Actions[ActionIndex(row)].dragStartSeconds:movement?animations.Actions[ActionIndex(row)].moveLeadSeconds:0;
         if(previousVideo!=null)previousVideo.Dispose();previousVideo=direct||videoFrame==null?null:new Bitmap(videoFrame);
-        if(video!=null)video.Dispose();video=row==dragRow&&dragPrepared!=null?dragPrepared:prepared!=null&&preparedRow==row?prepared:Stream(row);if(video==dragPrepared)dragPrepared=null;if(video!=prepared&&prepared!=null)prepared.Dispose();prepared=null;preparedRow=-1;currentAction=ActionIndex(row);videoOrigin=blendOrigin=-1;VideoPlaybackTime=0;if(row!=dragRow)PrepareDrag(dragRow);
+        if(video!=null)video.Dispose();video=row==dragRow&&dragPrepared!=null?dragPrepared:!movement&&prepared!=null&&preparedRow==row?prepared:Stream(row,movement);if(video==dragPrepared)dragPrepared=null;if(video!=prepared&&prepared!=null)prepared.Dispose();prepared=null;preparedRow=-1;currentAction=ActionIndex(row);videoOrigin=blendOrigin=-1;VideoPlaybackTime=0;if(row!=dragRow)PrepareDrag(dragRow);
     }
     public void PrepareDrag(int row){if(!IsVideo||previewOnly||row<0)return;dragRow=row;if(dragPrepared==null)dragPrepared=Stream(row);}
     public void PrepareVideo(int row){if(!IsVideo||previewOnly||preparedRow==row)return;if(prepared!=null)prepared.Dispose();preparedRow=row;prepared=Stream(row);}
@@ -72,14 +73,14 @@ internal sealed partial class PetAtlas {
         if(previewOnly){g.DrawImage(bitmap,destination,new RectangleF(200,50,240,285),GraphicsUnit.Pixel);return;}
         if(video==null||ActionIndex(row)!=currentAction)BeginVideo(row,videoGeneration+1);
         double now=videoClock.Elapsed.TotalSeconds;if(videoOrigin<0&&video.Ready)videoOrigin=now;
-        var action=animations.Actions[ActionIndex(row)];double offset=row==dragRow?action.dragStartSeconds:0,elapsed=Math.Max(0,now-videoOrigin);if(row==dragRow&&DragHeld)elapsed=Math.Min(Math.Max(0,action.dragHoldSeconds-offset),elapsed*3.5);
+        var action=animations.Actions[ActionIndex(row)];double offset=playbackOffset,elapsed=Math.Max(0,now-videoOrigin);if(row==dragRow&&DragHeld)elapsed=Math.Min(Math.Max(0,action.dragHoldSeconds-offset),elapsed*3.5);
         PetVideoStream.Frame frame;if(videoOrigin>=0&&video.TryFrame(elapsed,out frame,row==dragRow&&DragHeld?4:2)){
             if(videoFrame==null||videoFrame.Width!=video.Width||videoFrame.Height!=video.Height){if(videoFrame!=null)videoFrame.Dispose();videoFrame=new Bitmap(video.Width,video.Height,PixelFormat.Format32bppArgb);}
             var bits=videoFrame.LockBits(new Rectangle(0,0,video.Width,video.Height),ImageLockMode.WriteOnly,PixelFormat.Format32bppArgb);try{Marshal.Copy(frame.Pixels,0,bits.Scan0,frame.Pixels.Length);}finally{videoFrame.UnlockBits(bits);video.Recycle(frame.Pixels);}if(blendOrigin<0)blendOrigin=now;
         }
         VideoPlaybackTime=videoOrigin<0?0:offset+Math.Min(elapsed,video.ShownSeconds);
         if(videoFrame==null){g.DrawImage(bitmap,destination);return;}
-        float alpha=blendOrigin<0?0:Math.Min(1,(float)((now-blendOrigin)/.12));if(previousVideo!=null&&alpha<1)g.DrawImage(previousVideo,destination);
+        float alpha=blendOrigin<0?0:Math.Min(1,(float)((now-blendOrigin)/.12));if(previousVideo!=null&&alpha>=1){previousVideo.Dispose();previousVideo=null;}if(previousVideo!=null&&alpha<1)g.DrawImage(previousVideo,destination);
         if(alpha<1&&previousVideo!=null){using(var attributes=new ImageAttributes()){var matrix=new ColorMatrix();matrix.Matrix33=alpha;attributes.SetColorMatrix(matrix);g.DrawImage(videoFrame,new[]{new PointF(destination.Left,destination.Top),new PointF(destination.Right,destination.Top),new PointF(destination.Left,destination.Bottom)},new RectangleF(0,0,videoFrame.Width,videoFrame.Height),GraphicsUnit.Pixel,attributes);}}else g.DrawImage(videoFrame,destination);
     }
     void DisposeVideo(){if(video!=null)video.Dispose();if(prepared!=null)prepared.Dispose();if(dragPrepared!=null)dragPrepared.Dispose();if(videoFrame!=null)videoFrame.Dispose();if(previousVideo!=null)previousVideo.Dispose();video=prepared=dragPrepared=null;videoFrame=previousVideo=null;}

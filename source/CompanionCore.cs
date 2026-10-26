@@ -42,6 +42,7 @@ internal sealed class PetPack {
         string file=Path.Combine(directory,sprite);if(!optional&&(!File.Exists(file)||Path.GetExtension(file).ToLowerInvariant()!=".png"))throw new InvalidDataException("宠物尚未转换为可读的 PNG 图集。");
         string name=WallpaperLibrary.ValidateName(Text(json,"displayName",Path.GetFileName(directory)));
         var pack=new PetPack{Id=Path.GetFileName(directory),Name=name,Directory=directory,AtlasFile=file,Builtin=builtin,Author="本地导入",Source="",Optional=optional,Format=format,ProceduralMotion=json.ContainsKey("proceduralMotion")&&Object.Equals(json["proceduralMotion"],true)};
+        if(pack.Id=="deepseek"&&(pack.Name=="鲸鱼娘 · DeepSeek"||pack.Name=="鲸鱼娘·DeepSeek"))pack.Name="鲸鱼娘";
         if(format=="animated-gif-set"||format=="frame-set"||format=="transparent-video-set"){
             object value;if(!json.TryGetValue("actions",out value))throw new InvalidDataException("缺少动作列表。");pack.Actions=new JavaScriptSerializer().Deserialize<List<PetAction>>(new JavaScriptSerializer().Serialize(value));
             if(pack.Actions==null||pack.Actions.Count<1||pack.Actions.Count>128)throw new InvalidDataException("动作数量无效。");
@@ -63,8 +64,8 @@ internal sealed class PetPack {
     public static List<PetPack> Discover(string root,string state){
         var result=new List<PetPack>();foreach(var pair in new[]{Tuple.Create(Path.Combine(root,@"source\assets\pets"),true),Tuple.Create(Path.Combine(state,"pets"),false)}){
             if(!System.IO.Directory.Exists(pair.Item1))continue;
-            foreach(string path in System.IO.Directory.GetDirectories(pair.Item1).OrderBy(x=>x,StringComparer.OrdinalIgnoreCase))try{result.Add(Read(path,pair.Item2));}catch(IOException){}catch(ArgumentException){}catch(InvalidOperationException){}
-        }return result.GroupBy(pack=>pack.Id,StringComparer.OrdinalIgnoreCase).Select(group=>group.OrderByDescending(pack=>pack.Available).First()).OrderBy(pack=>pack.Optional?4:pack.Id=="deepseek"?0:pack.Id=="deepseek-fat-fish"?1:pack.Id.StartsWith("dyber-")?2:3).ThenBy(pack=>pack.Name,StringComparer.CurrentCulture).ToList();
+            foreach(string path in System.IO.Directory.GetDirectories(pair.Item1).Where(p=>System.IO.Path.GetFileName(p)!="xiaolemi").OrderBy(x=>x,StringComparer.OrdinalIgnoreCase))try{result.Add(Read(path,pair.Item2));}catch(InvalidDataException){}catch(IOException){}catch(ArgumentException){}catch(InvalidOperationException){}
+        }return result.Where(pack=>pack.Id!="xiaolemi").GroupBy(pack=>pack.Id,StringComparer.OrdinalIgnoreCase).Select(group=>group.OrderByDescending(pack=>pack.Available).First()).OrderBy(pack=>pack.Optional?4:pack.Id=="deepseek"?0:pack.Id=="deepseek-fat-fish"?1:pack.Id.StartsWith("dyber-")?2:3).ThenBy(pack=>pack.Name,StringComparer.CurrentCulture).ToList();
     }
 }
 internal sealed partial class PetAtlas : IDisposable {
@@ -81,7 +82,7 @@ internal sealed partial class PetAtlas : IDisposable {
     PetAtlas(string path,PetPack pack,bool preview=false){
         previewOnly=preview;
         if(pack!=null&&(pack.Format=="transparent-video-set"||preview&&pack.Actions!=null)){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=pack.Actions[i<9?pack.RowMap[i]:i-9].frames;using(var source=Image.FromFile(path))bitmap=new Bitmap(source);IdleContentBounds=MeasureBody(bitmap,new Rectangle(0,0,bitmap.Width,bitmap.Height));return;}
-        if(pack!=null&&pack.Actions!=null){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=Math.Max(1,pack.Actions[i<9?pack.RowMap[i]:i-9].frames);if(pack.Format=="animated-gif-set"){using(var poster=new Bitmap(path))IdleContentBounds=MeasureBody(poster,new Rectangle(0,0,poster.Width,poster.Height));}if(pack.Format=="frame-set"&&pack.ProceduralMotion)foreach(string file in pack.Actions.SelectMany(a=>a.files??new[]{a.file}).Distinct())Png(file);Frame(0,0);if(pack.Format!="animated-gif-set")IdleContentBounds=ContentBounds(0);return;}
+        if(pack!=null&&pack.Actions!=null){animations=pack;Rows=9+pack.Actions.Count;FrameCounts=new int[Rows];for(int i=0;i<Rows;i++)FrameCounts[i]=Math.Max(1,pack.Actions[i<9?pack.RowMap[i]:i-9].frames);if(pack.Format=="animated-gif-set"){using(var poster=new Bitmap(path))IdleContentBounds=MeasureBody(poster,new Rectangle(0,0,poster.Width,poster.Height));}Frame(0,0);if(pack.Format!="animated-gif-set")IdleContentBounds=ContentBounds(0);return;}
         if(new FileInfo(path).Length>32*1024*1024)throw new InvalidDataException("宠物图集不能超过 32 MiB。");
         using(var source=Image.FromFile(path)){
             if(source.Width!=1536||(source.Height!=1872&&source.Height!=2288))throw new InvalidDataException("图集需要 1536×1872（v1）或 1536×2288（v2），每格 192×208。");
@@ -107,7 +108,10 @@ internal sealed partial class PetAtlas : IDisposable {
     Bitmap Png(string file){
         Bitmap value;if(pngs.TryGetValue(file,out value)){pngOrder.Remove(file);pngOrder.AddLast(file);return value;}
         using(var source=Image.FromFile(Path.Combine(animations.Directory,file))){if(source.Width>8192||source.Height>16384||(long)source.Width*source.Height>24000000)throw new InvalidDataException("动作图集尺寸超限。");value=new Bitmap(source.Width,source.Height,PixelFormat.Format32bppArgb);using(var g=Graphics.FromImage(value))g.DrawImageUnscaled(source,0,0);}
-        while(pngOrder.Count>=(animations.ProceduralMotion?64:3)){string oldest=pngOrder.First.Value;pngOrder.RemoveFirst();pngs[oldest].Dispose();pngs.Remove(oldest);}pngs.Add(file,value);pngOrder.AddLast(file);return value;
+        // Bound decoded pixels, not compressed file sizes. Keep one oversized
+        // atlas if required, but never preload all expression images.
+        long bytes=(long)value.Width*value.Height*4;
+        while(pngOrder.Count>0&&(pngOrder.Count>=(animations.ProceduralMotion?8:3)||pngs.Values.Sum(b=>(long)b.Width*b.Height*4)+bytes>4*1024*1024)){string oldest=pngOrder.First.Value;pngOrder.RemoveFirst();pngs[oldest].Dispose();pngs.Remove(oldest);}pngs.Add(file,value);pngOrder.AddLast(file);return value;
     }
     public Rectangle Frame(int row,int frame){
         row=Math.Max(0,Math.Min(Rows-1,row));frame=Math.Max(0,frame);

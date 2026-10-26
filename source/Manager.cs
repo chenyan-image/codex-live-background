@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.2")]
-[assembly: AssemblyFileVersion("1.7.0.2")]
+[assembly: AssemblyVersion("1.7.0.4")]
+[assembly: AssemblyFileVersion("1.7.0.4")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -127,32 +127,42 @@ internal sealed class OpacitySlider : Control {
     }
 }
 internal sealed class WallpaperPreview : Control {
-    Image picture;MemoryStream imageBytes;readonly EventHandler animation;int request;
+    Image picture;MemoryStream imageBytes;readonly EventHandler animation;int request,loadingRequest=-1;string desiredMedia;readonly List<Control> visibilityOwners=new List<Control>();
     public bool Animate=true;
     public bool HasPicture {get{return picture!=null;}}
     public WallpaperPreview(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);animation=delegate{if(Visible&&IsHandleCreated&&!IsDisposed)try{BeginInvoke((MethodInvoker)delegate{if(Visible)Invalidate();});}catch(InvalidOperationException){}};}
     void ClearImage(){if(picture!=null){ImageAnimator.StopAnimate(picture,animation);picture.Dispose();picture=null;}if(imageBytes!=null){imageBytes.Dispose();imageBytes=null;}}
     public void SetMedia(string file){
-        int generation=Interlocked.Increment(ref request);ClearImage();Invalidate();
+        desiredMedia=file;Interlocked.Increment(ref request);ClearImage();Invalidate();LoadVisibleMedia();
+    }
+    void UnwatchVisibility(){foreach(var parent in visibilityOwners)parent.VisibleChanged-=OwnerVisibilityChanged;visibilityOwners.Clear();}
+    void WatchVisibility(){if(visibilityOwners==null)return;UnwatchVisibility();for(var parent=Parent;parent!=null;parent=parent.Parent){visibilityOwners.Add(parent);parent.VisibleChanged+=OwnerVisibilityChanged;}}
+    void OwnerVisibilityChanged(object sender,EventArgs e){if(IsHandleCreated&&!IsDisposed)try{BeginInvoke((MethodInvoker)RefreshVisibility);}catch(InvalidOperationException){}}
+    void RefreshVisibility(){if(IsDisposed)return;if(!Visible){Interlocked.Increment(ref request);ClearImage();}else LoadVisibleMedia();}
+    protected override void OnParentChanged(EventArgs e){base.OnParentChanged(e);WatchVisibility();}
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);WatchVisibility();LoadVisibleMedia();}
+    protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);RefreshVisibility();}
+    void LoadVisibleMedia(){
+        if(IsDisposed||!Visible||!IsHandleCreated||picture!=null||loadingRequest==request)return;
+        int generation=request;string file=desiredMedia;loadingRequest=generation;
         if(String.IsNullOrEmpty(file)||new[]{".mp4",".webm"}.ContainsExtension(file))return;
-        IntPtr ready=Handle;
         // Decode and resize off the UI thread so a large image cannot block Close/resize.
         ThreadPool.QueueUserWorkItem(delegate{
             if(IsDisposed||generation!=request)return;
             Image loaded=null;MemoryStream bytes=null;
             try{if(File.Exists(file)){
-                if(Path.GetExtension(file).Equals(".gif",StringComparison.OrdinalIgnoreCase)&&new FileInfo(file).Length<=16*1024*1024){bytes=new MemoryStream(File.ReadAllBytes(file));loaded=Image.FromStream(bytes);if(loaded.Width>1024||loaded.Height>1024){loaded.Dispose();loaded=null;bytes.Dispose();bytes=null;}}
-                else using(var source=Image.FromFile(file)){float ratio=Math.Min(512F/source.Width,288F/source.Height);loaded=new Bitmap(Math.Max(1,(int)(source.Width*ratio)),Math.Max(1,(int)(source.Height*ratio)));using(var g=Graphics.FromImage(loaded))g.DrawImage(source,0,0,loaded.Width,loaded.Height);}
+                if(Animate&&Path.GetExtension(file).Equals(".gif",StringComparison.OrdinalIgnoreCase)&&new FileInfo(file).Length<=16*1024*1024){bytes=new MemoryStream(File.ReadAllBytes(file));loaded=Image.FromStream(bytes);if(loaded.Width>1024||loaded.Height>1024){loaded.Dispose();loaded=null;bytes.Dispose();bytes=null;}}
+                else using(var source=Image.FromFile(file)){float ratio=Math.Min(1F,Math.Min(512F/source.Width,288F/source.Height));loaded=new Bitmap(Math.Max(1,(int)(source.Width*ratio)),Math.Max(1,(int)(source.Height*ratio)));using(var g=Graphics.FromImage(loaded))g.DrawImage(source,0,0,loaded.Width,loaded.Height);}
             }}catch{if(loaded!=null)loaded.Dispose();loaded=null;if(bytes!=null)bytes.Dispose();bytes=null;}
             Image result=loaded;MemoryStream buffer=bytes;bool queued=false;
             try{if(!IsDisposed&&IsHandleCreated){BeginInvoke((MethodInvoker)delegate{
-                if(IsDisposed||generation!=request){if(result!=null)result.Dispose();if(buffer!=null)buffer.Dispose();return;}
+                if(IsDisposed||!Visible||generation!=request){if(result!=null)result.Dispose();if(buffer!=null)buffer.Dispose();return;}
                 ClearImage();picture=result;imageBytes=buffer;if(Animate&&picture!=null&&ImageAnimator.CanAnimate(picture))ImageAnimator.Animate(picture,animation);Invalidate();
             });queued=true;}}catch(InvalidOperationException){}
             if(!queued){if(result!=null)result.Dispose();if(buffer!=null)buffer.Dispose();}
         });
     }
-    protected override void Dispose(bool disposing){if(disposing){Interlocked.Increment(ref request);ClearImage();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){UnwatchVisibility();Interlocked.Increment(ref request);ClearImage();}base.Dispose(disposing);}
     protected override void OnPaint(PaintEventArgs e){
         var g=e.Graphics;g.Clear(BackColor);g.SmoothingMode=SmoothingMode.AntiAlias;
         using(var clip=IconAssets.Round(new RectangleF(0,0,Width-1,Height-1),12)){
@@ -276,13 +286,14 @@ internal sealed partial class Manager : Form {
             string active=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexDreamSkin\active-theme");
             var theme=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(active,"theme.json"),Encoding.UTF8));
             object value;if(theme.TryGetValue("name",out value))wallpaperName.Text=Convert.ToString(value);
+            bool retiredSeed=wallpaperName.Text=="纸上微光"&&theme.ContainsKey("image")&&Path.GetFileName(Convert.ToString(theme["image"])).Equals("dream-reference.jpg",StringComparison.OrdinalIgnoreCase);if(retiredSeed)wallpaperName.Text="选择一张壁纸";
             if(theme.TryGetValue("art",out value)){
                 var art=value as Dictionary<string,object>;object alpha;
                 if(art!=null&&art.TryGetValue("surfaceOpacity",out alpha))opacity.Value=Math.Max(opacity.Minimum,Math.Min(opacity.Maximum,(int)Math.Round(Convert.ToDouble(alpha)*100)));
             }
-            if(theme.TryGetValue("image",out value)){string file=Path.GetFullPath(Path.Combine(active,Convert.ToString(value)));if(file.StartsWith(active+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)){media.Text=file;preview.SetMedia(file);}}
+            if(!retiredSeed&&theme.TryGetValue("image",out value)){string file=Path.GetFullPath(Path.Combine(active,Convert.ToString(value)));if(file.StartsWith(active+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)){media.Text=file;preview.SetMedia(file);}}
             string previewInfo=Path.Combine(Path.GetDirectoryName(active),"manager-preview.json");
-            if(File.Exists(previewInfo)){
+            if(!retiredSeed&&File.Exists(previewInfo)){
                 var saved=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(previewInfo,Encoding.UTF8));object id,pathValue,themeId;
                 if(saved.TryGetValue("themeId",out id)&&theme.TryGetValue("id",out themeId)&&Equals(id,themeId)&&saved.TryGetValue("path",out pathValue)){
                     string file=Path.GetFullPath(Convert.ToString(pathValue)),cache=Path.Combine(Path.GetDirectoryName(active),"previews")+Path.DirectorySeparatorChar;
@@ -439,7 +450,7 @@ internal sealed partial class Manager : Form {
             if(lifecycle)return form.TestLifecycle(args[1]);
             if(previewTest)return form.TestPreview(args[1],args[2]);
             if(uiTest)return form.TestChrome(args[1]);
-            if(smoke){if(args.Length==4)form.ClientSize=new Size(int.Parse(args[2]),int.Parse(args[3]));form.Show();for(int i=0;i<50;i++){Thread.Sleep(30);Application.DoEvents();}using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(args[1]);}return form.commands.Controls.Count==4?0:1;}
+            if(smoke){if(args.Length==4)form.ClientSize=new Size(int.Parse(args[2]),int.Parse(args[3]));form.Show();for(int i=0;i<50;i++){Thread.Sleep(30);Application.DoEvents();}using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(args[1]);}return form.commands.Controls.Count==5?0:1;}
             using(var activate=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))using(var timer=new System.Windows.Forms.Timer{Interval=250}){
                 timer.Tick+=delegate{if(activate.WaitOne(0))form.RestoreWindow();};timer.Start();Application.Run(form);
             }

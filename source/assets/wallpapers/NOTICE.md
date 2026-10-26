@@ -7,4 +7,4 @@ These four assets were selected by the project user from their local Wallpaper E
 - 月光下的德累斯顿: https://steamcommunity.com/sharedfiles/filedetails/?id=3200802205
 - 雨樱【Rain Sakura】- 4K: https://steamcommunity.com/sharedfiles/filedetails/?id=2970331102
 
-Flower peach and Ayaka use supplied JPG scene previews. Dresden uses the supplied preview GIF. Rain Sakura retains the complete byte-identical original 3840×2160 H.264 video (86.7 s, 101871488 bytes); its gallery thumbnail is the first frame of the supplied preview GIF converted to JPEG. No scene.pkg is executed. Steam source files are untouched and are not required after installation.
+Flower peach and Ayaka use supplied JPG scene previews. Dresden uses the supplied preview GIF. Rain Sakura is represented in the installer by a still JPEG cover. Applying it downloads the complete byte-identical 3840×2160 H.264 video (86.7 s, 101871488 bytes) from this project's GitHub release, with SHA-256 verification; an existing valid local copy is reused. The full MP4 is excluded from the installer and current source tree. No scene.pkg is executed. Steam source files are untouched.

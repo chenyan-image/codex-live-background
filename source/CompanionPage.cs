@@ -90,10 +90,10 @@ internal sealed partial class Manager {
     readonly TrackBar petSize=new TrackBar(),petCapsuleSize=new TrackBar();readonly Label petSizeLabel=new Label(),petCapsuleSizeLabel=new Label();
     readonly Button petWave=new ActionButton(),petJump=new ActionButton(),petRefresh=new ActionButton();
     readonly System.Windows.Forms.Timer petPreviewTimer=new System.Windows.Forms.Timer{Interval=120};
-    PetController pets;bool petSync,petImporting,companionLive,companionStopped;volatile bool cancelPetImport;readonly object petImportGate=new object();PetProcessScope petImportProcess;
+    string petImportProgress;PetController pets;bool petSync,petImporting,companionLive,companionStopped;volatile bool cancelPetImport;readonly object petImportGate=new object();PetProcessScope petImportProcess;
     void InitializeCompanion(bool live){
         companionLive=live;pets=new PetController(this,root,stateDirectory,live);pets.Changed+=SyncPetSettings;pets.SettingsRequested+=delegate{RestoreWindow();Navigate("pets");};BuildPetCards();SyncPetSettings();
-        Shown+=delegate{if(companionLive)pets.Start();};petPreviewTimer.Tick+=delegate{if(petPage.Visible&&Visible)foreach(var tile in petTiles)tile.Animate();};petPreviewTimer.Start();
+        Shown+=delegate{if(companionLive)pets.Start();};petPreviewTimer.Tick+=delegate{string message=Interlocked.Exchange(ref petImportProgress,null);if(message!=null)previewHint.Text=message;if(petPage.Visible&&Visible)foreach(var tile in petTiles)tile.Animate();};petPreviewTimer.Start();
     }
     void BuildPetPage(Panel pages){
         petPage.Dock=DockStyle.Fill;petPage.Visible=false;pages.Controls.Add(petPage);
@@ -124,7 +124,7 @@ internal sealed partial class Manager {
     void ApplyPetScale(){if(pets==null||petSync)return;if(pets.Preferences.Scale!=petSize.Value||pets.Preferences.CapsuleScale!=petCapsuleSize.Value){pets.Preferences.Scale=petSize.Value;pets.Preferences.CapsuleScale=petCapsuleSize.Value;pets.Apply(false);}}
     void BuildPetCards(){
         foreach(var tile in petTiles)tile.Dispose();petTiles.Clear();petCards.ClearCards();if(pets==null)return;
-        foreach(var pack in pets.Packs){try{var tile=new PetCard(pack){Font=Font,Selected=pets.Preferences.SelectedId==pack.Id};tile.Click+=delegate{try{if(tile.Pack.Optional){if(tile.Pack.Id=="bailong")ImportBailong();else LoadRemielle();}else pets.Select(tile.Pack);}catch(Exception error){MessageBox.Show(this,error.Message,"CodexHub");}};petTiles.Add(tile);petCards.AddCard(tile);}catch(Exception error){petQuotaStatus.Text=error.Message;}}
+        foreach(var pack in pets.Packs){try{var tile=new PetCard(pack){Font=Font,Selected=pets.Preferences.SelectedId==pack.Id};tile.Click+=delegate{try{if(tile.Pack.Optional){if(tile.Pack.Id=="bailong")ImportBailong();}else pets.Select(tile.Pack);}catch(Exception error){MessageBox.Show(this,error.Message,"CodexHub");}};petTiles.Add(tile);petCards.AddCard(tile);}catch(Exception error){petQuotaStatus.Text=error.Message;}}
         petSummary.Text=petTiles.Count(tile=>tile.Pack.Available)+" 个可用形象 · 点击切换 · 拖动移动 · 双击互动";
     }
     void SyncPetSettings(){
@@ -140,23 +140,24 @@ internal sealed partial class Manager {
         }
     }
     void ImportPetFile(string input,string stableId=null){
-            if(petImporting||pets==null||cancelPetImport)return;if(Path.GetFileName(input)=="素材清单.json"){ImportBailong(Path.GetDirectoryName(input));return;}petImporting=true;importButton.Enabled=false;previewHint.Text="正在校验并准备宠物图集…";
-            ThreadPool.QueueUserWorkItem(delegate{string stage=null;try{
+            if(petImporting||pets==null||cancelPetImport||updatingSoftware)return;if(Path.GetFileName(input)=="素材清单.json"){ImportBailong(Path.GetDirectoryName(input));return;}petImporting=true;importButton.Enabled=false;previewHint.Text="正在校验并准备宠物图集…";
+            ImportWork.Start(delegate{string stage=null;try{
                 stage=PetImporter.Extract(input,stateDirectory);var json=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(stage,"pet.json")));string atlas=Path.Combine(stage,Convert.ToString(json["spritesheetPath"]));
                 if(Path.GetExtension(atlas).Equals(".webp",StringComparison.OrdinalIgnoreCase)){
                     string request=Path.Combine(stage,"convert-request.json");File.WriteAllText(request,new JavaScriptSerializer().Serialize(new{input=atlas,output=Path.Combine(stage,"spritesheet.png"),stateRoot=stateDirectory}),new UTF8Encoding(false));
                     var info=new ProcessStartInfo(Path.Combine(root,@"engine\runtime\node\node.exe"),PetCommandQuote(Path.Combine(root,@"engine\scripts\convert-pet.mjs"))+" "+PetCommandQuote(request)){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
-                    PetProcessScope scope;lock(petImportGate){if(cancelPetImport)throw new OperationCanceledException();scope=petImportProcess=new PetProcessScope(info);}
+                    PetProcessScope scope;lock(petImportGate){if(cancelPetImport)throw new OperationCanceledException();scope=petImportProcess=new PetProcessScope(info,true);}
                     using(scope){var process=scope.Process;var stdout=process.StandardOutput.ReadToEndAsync();var stderr=process.StandardError.ReadToEndAsync();if(!process.WaitForExit(240000)){scope.Cancel();throw new TimeoutException("宠物图集准备超时，请检查网络后重试。");}if(process.ExitCode!=0)throw new IOException(stderr.Result.Trim());}lock(petImportGate){if(petImportProcess==scope)petImportProcess=null;}File.Delete(request);
                 }
                 if(cancelPetImport)throw new OperationCanceledException();
                 var pack=PetImporter.Finish(stage,stateDirectory,stableId);stage=null;Ui(delegate{pets.Reload();BuildPetCards();pets.Select(pack);previewHint.Text="已导入："+pack.Name;});
-            }catch(Exception error){Ui(delegate{previewHint.Text="宠物导入未完成："+error.Message;});}finally{if(stage!=null)PetImporter.DeleteStage(stage,stateDirectory);Ui(delegate{petImporting=false;importButton.Enabled=true;});}});
+            }catch(Exception error){Ui(delegate{previewHint.Text="宠物导入未完成："+error.Message;});}finally{if(stage!=null)PetImporter.DeleteStage(stage,stateDirectory);Ui(delegate{petImportProgress=null;petImporting=false;importButton.Enabled=true;});}});
     }
     static string PetCommandQuote(string value){return "\""+value.Replace("\"","\\\"")+"\"";}
     void StopCompanion(){if(companionStopped)return;companionStopped=true;cancelPetImport=true;lock(petImportGate){if(petImportProcess!=null){petImportProcess.Cancel();petImportProcess=null;}}petPreviewTimer.Stop();petPreviewTimer.Dispose();if(pets!=null){pets.Dispose();pets=null;}}
     void StartCompanionPreview(string directory){
         if(pets!=null)pets.Dispose();stateDirectory=Path.GetFullPath(directory);Directory.CreateDirectory(stateDirectory);companionLive=true;
+        library=new WallpaperLibrary(stateDirectory);library.RemapBuiltins(builtinEntries);
         pets=new PetController(this,root,stateDirectory,true);pets.Changed+=SyncPetSettings;pets.SettingsRequested+=delegate{RestoreWindow();Navigate("pets");};
         BuildPetCards();SyncPetSettings();Navigate("pets");InitializeTray();pets.Start();
     }

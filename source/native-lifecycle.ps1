@@ -172,7 +172,8 @@ function Invoke-BackgroundNativeAction {
  }
  foreach($entry in $manifest.files){$source=Get-BackgroundSafePath -Root $PackageRoot -Relative $entry.path;if((Get-FileHash -LiteralPath $source).Hash -cne $entry.sha256){throw '安装源文件校验失败。'};$target=Get-BackgroundSafePath -Root $InstallRoot -Relative $entry.path;Assert-DreamBackgroundTree -Path $target -Parent $InstallRoot;$null=New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force;Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop}
  Copy-Item -LiteralPath (Join-Path $PackageRoot 'manifest.json') -Destination (Join-Path $InstallRoot 'manifest.json') -Force
- Copy-Item -LiteralPath $SetupExecutable -Destination (Join-Path $InstallRoot '卸载 CodexHub.exe') -Force -ErrorAction Stop
+ $uninstaller=Join-Path $PackageRoot '卸载 CodexHub.exe';if(-not(Test-Path -LiteralPath $uninstaller)){$uninstaller=$SetupExecutable}
+ Copy-Item -LiteralPath $uninstaller -Destination (Join-Path $InstallRoot '卸载 CodexHub.exe') -Force -ErrorAction Stop
  [IO.File]::WriteAllText((Join-Path $InstallRoot '.codex-background-install.json'),(@{productId=$script:NativeBackgroundId;version=$manifest.version;baseVersion='1.5.4';root=[IO.Path]::GetFullPath($InstallRoot);files=$files;pending=$true}|ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
  Write-BackgroundNativeRegistration -Root $InstallRoot -Version $manifest.version
  [Console]::Out.WriteLine('正在启用并验证背景服务，请稍候…');Invoke-BackgroundNativeActivate -Root $InstallRoot -ManagerPid $ManagerPid

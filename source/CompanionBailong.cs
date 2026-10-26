@@ -12,23 +12,6 @@ using System.Threading;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
-internal static class RemotePetMaterials {
-    public static string ObtainRemielle(string root,string state,Action<string> progress,Func<bool> cancelled){
-        ServicePointManager.SecurityProtocol|=SecurityProtocolType.Tls12;
-        var spec=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(root,@"source\assets\remielle-materials.json")));string revision=Convert.ToString(spec["revision"]);
-        if(revision.Length!=40||revision.Any(c=>!Uri.IsHexDigit(c)))throw new InvalidDataException("形象版本清单无效。");string directory=Path.Combine(state,"pet-downloads","remielle-"+revision.Substring(0,12));Directory.CreateDirectory(directory);
-        foreach(var item in (IEnumerable)spec["files"]){var file=(Dictionary<string,object>)item;string name=Convert.ToString(file["name"]),url=Convert.ToString(file["url"]),expected=Convert.ToString(file["sha256"]);long length=Convert.ToInt64(file["bytes"]);
-            if(name!=Path.GetFileName(name)||!url.StartsWith("https://raw.githubusercontent.com/HanaAyane/remielle-codex-pet/"+revision+"/",StringComparison.Ordinal)||length<1||length>32*1024*1024||expected.Length!=64)throw new InvalidDataException("形象下载清单无效。");string target=Path.Combine(directory,name);
-            if(File.Exists(target)&&new FileInfo(target).Length==length&&Hash(target)==expected)continue;if(cancelled())throw new OperationCanceledException();progress("从作者原仓库准备小蕾米："+name);
-            string partial=target+".partial";var request=(HttpWebRequest)WebRequest.Create(url);request.UserAgent="CodexHub/1.7";request.Timeout=15000;request.ReadWriteTimeout=15000;
-            using(var response=request.GetResponse())using(var input=response.GetResponseStream())using(var output=File.Create(partial)){var buffer=new byte[65536];long total=0;int count;while((count=input.Read(buffer,0,buffer.Length))>0){if(cancelled())throw new OperationCanceledException();total+=count;if(total>length)throw new InvalidDataException("形象文件超过清单大小。");output.Write(buffer,0,count);}}
-            if(new FileInfo(partial).Length!=length||Hash(partial)!=expected)throw new InvalidDataException("作者素材校验失败，请重试。");if(File.Exists(target))File.Delete(target);File.Move(partial,target);
-        }
-        File.WriteAllText(Path.Combine(directory,"source.json"),new JavaScriptSerializer().Serialize(new{author=spec["author"],source=spec["source"],revision,modification="Original author notes AI-assisted redrawing and manual edits; CodexHub converts atlas locally for playback. See original ASSET-USAGE.md and NOTICE.md."}),new UTF8Encoding(false));
-        return Path.Combine(directory,"pet.json");
-    }
-    static string Hash(string path){using(var stream=File.OpenRead(path))using(var hash=SHA256.Create())return BitConverter.ToString(hash.ComputeHash(stream)).Replace("-","").ToLowerInvariant();}
-}
 internal static class BailongMaterials {
     public static string FindLocal(){
         string folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"BailongEnhanced\materials");
@@ -78,20 +61,16 @@ internal static class BailongMaterials {
     }
 }
 internal sealed partial class Manager {
-    void LoadRemielle(){
-        if(petImporting||pets==null)return;petImporting=true;importButton.Enabled=false;previewHint.Text="正在准备作者的小蕾米原素材…";
-        ThreadPool.QueueUserWorkItem(delegate{try{string input=RemotePetMaterials.ObtainRemielle(root,stateDirectory,text=>Ui(delegate{previewHint.Text=text;}),()=>cancelPetImport);Ui(delegate{petImporting=false;ImportPetFile(input,"xiaolemi");});}catch(Exception error){Ui(delegate{petImporting=false;importButton.Enabled=true;previewHint.Text="形象准备未完成："+error.Message;});}});
-    }
     void ImportBailong(string inputFolder=null){
-        if(petImporting||pets==null)return;petImporting=true;importButton.Enabled=false;previewHint.Text="正在查找白龙原动作素材…";
-        ThreadPool.QueueUserWorkItem(delegate{string stage=null;try{
-            string folder=inputFolder??BailongMaterials.Obtain(root,stateDirectory,message=>Ui(delegate{previewHint.Text=message;}),()=>cancelPetImport);string request=BailongMaterials.Plan(folder,stateDirectory);stage=Path.GetDirectoryName(request);
+        if(petImporting||pets==null||updatingSoftware)return;petImporting=true;importButton.Enabled=false;previewHint.Text="正在查找白龙原动作素材…";
+        ImportWork.Start(delegate{string stage=null;try{
+            string folder=inputFolder??BailongMaterials.Obtain(root,stateDirectory,message=>petImportProgress=message,()=>cancelPetImport);string request=BailongMaterials.Plan(folder,stateDirectory);stage=Path.GetDirectoryName(request);
             var info=new ProcessStartInfo(Path.Combine(root,@"engine\runtime\node\node.exe"),PetCommandQuote(Path.Combine(root,@"engine\scripts\prepare-bailong.mjs"))+" "+PetCommandQuote(request)){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
-            PetProcessScope scope;lock(petImportGate){if(cancelPetImport)throw new OperationCanceledException();scope=petImportProcess=new PetProcessScope(info);}
-            using(scope){var process=scope.Process;var stderr=process.StandardError.ReadToEndAsync();string line;while((line=process.StandardOutput.ReadLine())!=null){if(line.StartsWith("DREAM_PROGRESS:")){string text=line.Substring(15);Ui(delegate{previewHint.Text=text;});}}process.WaitForExit();if(process.ExitCode!=0)throw new IOException(stderr.Result.Trim());}
+            PetProcessScope scope;lock(petImportGate){if(cancelPetImport)throw new OperationCanceledException();scope=petImportProcess=new PetProcessScope(info,true);}
+            using(scope){var process=scope.Process;var stderr=process.StandardError.ReadToEndAsync();string line;while((line=process.StandardOutput.ReadLine())!=null){if(line.StartsWith("DREAM_PROGRESS:")){string text=line.Substring(15);petImportProgress=text;}}process.WaitForExit();if(process.ExitCode!=0)throw new IOException(stderr.Result.Trim());}
             lock(petImportGate){if(petImportProcess==scope)petImportProcess=null;}if(cancelPetImport)throw new OperationCanceledException();
             string destination=Path.Combine(stateDirectory,"pets","bailong");Directory.CreateDirectory(Path.GetDirectoryName(destination));if(Directory.Exists(destination))throw new IOException("本机白龙副本已经存在，请重新选择该形象。");File.Delete(request);Directory.Move(stage,destination);stage=null;var pack=PetPack.Read(destination,false);
             Ui(delegate{pets.Reload();BuildPetCards();pets.Select(pack);previewHint.Text="白龙娘已就绪，右键可选择 "+pack.Actions.Count+" 段完整动作。";});
-        }catch(Exception error){Ui(delegate{previewHint.Text="白龙准备未完成："+error.Message;});}finally{if(stage!=null)PetImporter.DeleteStage(stage,stateDirectory);Ui(delegate{petImporting=false;importButton.Enabled=true;});}});
+        }catch(Exception error){Ui(delegate{previewHint.Text="白龙准备未完成："+error.Message;});}finally{if(stage!=null)PetImporter.DeleteStage(stage,stateDirectory);Ui(delegate{petImportProgress=null;petImporting=false;importButton.Enabled=true;});}});
     }
 }

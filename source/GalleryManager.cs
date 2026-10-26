@@ -21,7 +21,7 @@ internal sealed partial class Manager {
     readonly TypeFilter filters=new TypeFilter();readonly System.Windows.Forms.Timer connectionTimer=new System.Windows.Forms.Timer{Interval=20000};
     MediaPreviewJob previewJob;readonly List<WallpaperTile> tiles=new List<WallpaperTile>();
     void BuildGallery(bool checkStatus){
-        Text="CodexHub · 1.7.0 预览版 3";Font=new Font("Microsoft YaHei UI",9.5F);ForeColor=Ink;BackColor=Color.FromArgb(12,14,17);
+        Text="CodexHub · 1.7.0 预览版 4";Font=new Font("Microsoft YaHei UI",9.5F);ForeColor=Ink;BackColor=Color.FromArgb(12,14,17);
         AutoScaleDimensions=new SizeF(96,96);AutoScaleMode=AutoScaleMode.Dpi;FormBorderStyle=FormBorderStyle.None;Padding=new Padding(1);ClientSize=new Size(1310,816);MinimumSize=new Size(1090,720);StartPosition=FormStartPosition.CenterScreen;
         DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);
         try{Icon=new Icon(Path.Combine(root,"CodexBackground.ico"),32,32);}catch{}
@@ -35,7 +35,7 @@ internal sealed partial class Manager {
         var nav=new BufferedFlow{Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,Margin=Padding.Empty};
         string[] ids={"local","steam","history","pets","settings"},names={"本地壁纸","Wallpaper Engine","使用记录","桌面宠物","服务与设置"},glyphs={"library","steam","recent","pet","settings"};
         for(int i=0;i<ids.Length;i++){string id=ids[i];var button=new NavigationButton{Text=names[i],Glyph=glyphs[i],Tag=id,Width=176,Selected=i==0,AccessibleName=names[i]};button.Click+=delegate{Navigate(id);};navigation.Add(button);nav.Controls.Add(button);}sidebar.Controls.Add(nav,0,2);
-        var connection=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12,8,8,4),Cursor=Cursors.Hand};status.Text=checkStatus?"○  正在检测 Codex":"○  尚未检测";status.Font=new Font(Font.FontFamily,9F,FontStyle.Bold);status.ForeColor=Muted;status.Dock=DockStyle.Top;status.Height=25;connectionDetail.Text="点击重新检测连接";connectionDetail.ForeColor=Muted;connectionDetail.Font=new Font(Font.FontFamily,8F);connectionDetail.Dock=DockStyle.Fill;connection.Controls.Add(connectionDetail);connection.Controls.Add(status);EventHandler recheck=delegate{Run("Connection");};connection.Click+=recheck;status.Click+=recheck;connectionDetail.Click+=recheck;sidebar.Controls.Add(connection,0,4);sidebar.Controls.Add(Caption("1.7.0 PREVIEW 3  ·  LOCAL FIRST",7.5F,Color.FromArgb(81,96,106)),0,5);
+        var connection=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12,8,8,4),Cursor=Cursors.Hand};status.Text=checkStatus?"○  正在检测 Codex":"○  尚未检测";status.Font=new Font(Font.FontFamily,9F,FontStyle.Bold);status.ForeColor=Muted;status.Dock=DockStyle.Top;status.Height=25;connectionDetail.Text="点击重新检测连接";connectionDetail.ForeColor=Muted;connectionDetail.Font=new Font(Font.FontFamily,8F);connectionDetail.Dock=DockStyle.Fill;connection.Controls.Add(connectionDetail);connection.Controls.Add(status);EventHandler recheck=delegate{Run("Connection");};connection.Click+=recheck;status.Click+=recheck;connectionDetail.Click+=recheck;sidebar.Controls.Add(connection,0,4);sidebar.Controls.Add(Caption("1.7.0 PREVIEW 4  ·  LOCAL FIRST",7.5F,Color.FromArgb(81,96,106)),0,5);
         var main=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(29,17,28,8),Margin=Padding.Empty};main.RowStyles.Add(new RowStyle(SizeType.Absolute,87));main.RowStyles.Add(new RowStyle(SizeType.Percent,100));main.RowStyles.Add(new RowStyle(SizeType.Absolute,48));main.RowStyles.Add(new RowStyle(SizeType.Absolute,20));shell.Controls.Add(main,1,0);
         var heading=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=2,Margin=Padding.Empty};heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));heading.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,150));heading.RowStyles.Add(new RowStyle(SizeType.Absolute,41));heading.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         pageTitle.Text="我的壁纸";pageTitle.Font=new Font(Font.FontFamily,23F,FontStyle.Bold);pageTitle.Dock=DockStyle.Fill;heading.Controls.Add(pageTitle,0,0);pageSubtitle.Text="把喜欢的风景，留在每一次对话里。";pageSubtitle.Font=new Font(Font.FontFamily,8.5F);pageSubtitle.ForeColor=Muted;pageSubtitle.Dock=DockStyle.Fill;heading.Controls.Add(pageSubtitle,0,1);
@@ -72,7 +72,7 @@ internal sealed partial class Manager {
     void BuildServicePage(){
         var layout=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=5,Padding=new Padding(0,8,0,0),Margin=Padding.Empty};layout.RowStyles.Add(new RowStyle(SizeType.Absolute,38));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,46));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,64));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,32));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));servicePage.Controls.Add(layout);
         layout.Controls.Add(Caption("后台服务",16,Ink),0,0);layout.Controls.Add(Caption("装载后随 Windows 登录和 Codex 启动恢复，关闭管理器不影响背景。",9,Muted),0,1);
-        commands.Dock=DockStyle.Fill;commands.WrapContents=false;commands.Margin=Padding.Empty;commands.Controls.Add(MakeButton("装载服务",true,false,delegate{Run("Install");}));commands.Controls.Add(MakeButton("卸载皮肤",false,false,delegate{ConfirmRemoval();}));commands.Controls.Add(MakeButton("卸载服务",false,true,delegate{ConfirmServiceRemoval();}));commands.Controls.Add(MakeButton("重新检测",false,false,delegate{Run("Connection");}));foreach(Control b in commands.Controls){b.Width=153;b.Height=42;}layout.Controls.Add(commands,0,2);layout.Controls.Add(Caption("运行记录",9,Muted),0,3);
+        commands.Dock=DockStyle.Fill;commands.WrapContents=false;commands.Margin=Padding.Empty;commands.Controls.Add(MakeButton("装载服务",true,false,delegate{Run("Install");}));commands.Controls.Add(MakeButton("卸载皮肤",false,false,delegate{ConfirmRemoval();}));commands.Controls.Add(MakeButton("卸载服务",false,true,delegate{ConfirmServiceRemoval();}));commands.Controls.Add(MakeButton("重新检测",false,false,delegate{Run("Connection");}));BuildUpdateButton();foreach(Control b in commands.Controls){b.Width=137;b.Height=42;}layout.Controls.Add(commands,0,2);layout.Controls.Add(Caption("运行记录",9,Muted),0,3);
         var card=new Surface{Dock=DockStyle.Fill,Padding=new Padding(15),BackColor=Color.FromArgb(20,24,28),Margin=Padding.Empty};log.Multiline=true;log.ReadOnly=true;log.BorderStyle=BorderStyle.None;log.ScrollBars=ScrollBars.Vertical;log.Dock=DockStyle.Fill;log.ForeColor=Muted;log.BackColor=card.BackColor;log.Font=new Font(Font.FontFamily,9F);log.Text="准备就绪。导入、选择，再点击应用壁纸。";card.Controls.Add(log);progress.Dock=DockStyle.Bottom;progress.Height=3;progress.Visible=false;progress.Style=ProgressBarStyle.Marquee;card.Controls.Add(progress);layout.Controls.Add(card,0,4);
     }
     void Navigate(string destination){
@@ -105,7 +105,7 @@ internal sealed partial class Manager {
         foreach(var tile in tiles){tile.Selected=tile.Entry.Id==entry.Id;tile.Invalidate();}
         steamGallery.SetSelected(entry.Id);
         string thumbnail=!String.IsNullOrEmpty(entry.Thumbnail)&&File.Exists(entry.Thumbnail)?entry.Thumbnail:entry.Animated?"":entry.Path;preview.SetMedia(thumbnail);
-        if(!entry.Available)return;
+        if(entry.Source=="builtin"&&(entry.Remote!=null||entry.Kind=="video")){previewHint.Text=entry.Remote!=null&&entry.Kind!="video"?"静态封面 · 应用时从 GitHub 下载完整 4K 视频。":"静态封面 · 原视频已就绪，应用后播放。";return;}if(!entry.Available)return;
         if(entry.Animated||Path.GetExtension(entry.Path).Equals(".webp",StringComparison.OrdinalIgnoreCase)){
             int generation=previewGeneration;var work=new MediaPreviewJob();previewJob=work;
             work.Start(root,stateDirectory,entry.Path,message=>Ui(delegate{if(generation==previewGeneration)previewHint.Text=message;}),(file,error)=>Ui(delegate{
@@ -117,10 +117,12 @@ internal sealed partial class Manager {
     }
     void ChooseAndImport(){
         if(busy)return;using(var dialog=new OpenFileDialog{Title="导入本地壁纸",Filter="支持的素材|*.mp4;*.webm;*.gif;*.png;*.jpg;*.jpeg;*.webp",CheckFileExists=true,Multiselect=true}){
-            if(dialog.ShowDialog(this)!=DialogResult.OK)return;WallpaperEntry last=null;try{foreach(string file in dialog.FileNames)last=library.Add(file,null,"local",null,"本地文件引用；不会复制或删除原文件");Navigate("local");SelectEntry(last);}catch(Exception error){MessageBox.Show(this,error.Message,"导入壁纸");}
+            if(dialog.ShowDialog(this)!=DialogResult.OK)return;ImportWallpaperFiles(dialog.FileNames);
         }
     }
-    void ApplySelected(){if(busy||selected==null)return;if(!selected.Available){previewHint.Text="源文件不可用，请重新导入或连接磁盘。";return;}CancelPreview();Run("Apply");}
+    internal bool ImportingWallpapers;
+    internal void ImportWallpaperFiles(string[] files){if(ImportingWallpapers||busy)return;ImportingWallpapers=true;importButton.Enabled=false;previewHint.Text="正在导入 "+files.Length+" 个本地文件，宠物继续运行…";ImportWork.Start(delegate{WallpaperEntry last=null;Exception failure=null;try{last=library.AddLocalBatch(files);}catch(Exception error){failure=error;}Ui(delegate{ImportingWallpapers=false;importButton.Enabled=true;if(failure!=null){previewHint.Text="导入未完成："+failure.Message;return;}Navigate("local");SelectEntry(last);});});}
+    void ApplySelected(){if(busy||selected==null||downloadingBuiltin)return;if(selected.Remote!=null&&selected.Kind!="video"&&selected.Kind!="gif"){DownloadBuiltin(selected);return;}if(!selected.Available){previewHint.Text="源文件不可用，请重新导入或连接磁盘。";return;}CancelPreview();Run("Apply");}
     void AppliedToHistory(WallpaperEntry entry){if(entry==null)return;try{library.Applied(entry);}catch(Exception error){log.AppendText(Environment.NewLine+"壁纸已应用，但使用记录保存失败："+error.Message);}previewHint.Text="✓ 已应用 "+entry.Name+"；关闭管理器后背景继续运行。";removeEntry.Enabled=true;if(page=="history")RenderGallery();}
     void ForgetSelected(){if(busy||selected==null)return;try{library.Forget(selected.Id);removeEntry.Enabled=false;previewHint.Text="已移除记录，原壁纸文件保留。";RenderGallery();}catch(Exception error){previewHint.Text="记录保存失败："+error.Message;log.Text=error.ToString();}}
     void ImportCurrentTheme(){
@@ -142,7 +144,7 @@ internal sealed partial class Manager {
         }catch{status.Text="○  连接检测失败";status.ForeColor=Muted;}
     }
     static string BackgroundStatusText(string state){switch(state){case "playing":return "视频播放中";case "image-ready":return "图片背景已就绪";case "waiting-visible":return "视频等待窗口显示";case "not-applied":return "尚未应用壁纸";case "loading":return "壁纸加载中";case "paused":return "视频当前暂停";case "reduced-motion":return "减少动态效果：视频暂停";case "blocked":return "视频播放被阻止";case "error":return "壁纸出错，请重新应用";case "stalled":return "视频暂未推进，请重试";default:return "壁纸状态暂不可用";}}
-    void SetBusyControls(bool value){commands.Enabled=!value;opacity.Enabled=!value;importButton.Enabled=!value;applyButton.Enabled=!value&&selected!=null&&selected.Available;removeEntry.Enabled=!value&&selected!=null&&library.Snapshot().Any(x=>x.Id==selected.Id);}
+    void SetBusyControls(bool value){value=value||updatingSoftware;commands.Enabled=!value;opacity.Enabled=!value;importButton.Enabled=!value;applyButton.Enabled=!value&&selected!=null&&selected.Available;removeEntry.Enabled=!value&&selected!=null&&library.Snapshot().Any(x=>x.Id==selected.Id);}
     int TestSteamScroll(string report){
         Show();for(int i=0;i<12;i++){Thread.Sleep(25);Application.DoEvents();}
         for(int i=0;i<5000;i++)steamEntries.Add(new WallpaperEntry{Id="scroll-fixture-"+i,Name=i==4999?"最后一张 · 完整壁纸库":"风景 "+(i+1).ToString("D4"),Path=builtinEntries[i%6].Path,Thumbnail=builtinEntries[i%6].Path,Source="steam",Kind=i%2==0?"video":"image",Note="测试目录 · 原创背景示例"});
@@ -197,7 +199,7 @@ internal sealed partial class Manager {
         string original=selected.Path;ForgetSelected();if(tiles.Count!=0||!File.Exists(original))throw new Exception("Removing history deleted the source");
         UpdateConnection("{\"installed\":true,\"connected\":false,\"serviceRunning\":true,\"version\":\"26.1016\"}");if(status.ForeColor==Mint)throw new Exception("Unverified connection shown green");
         UpdateConnection("{\"installed\":true,\"connected\":true,\"serviceRunning\":true,\"version\":\"26.1016\"}");if(status.ForeColor!=Mint)throw new Exception("Verified connection not displayed");
-        Navigate("settings");if(!servicePage.Visible||libraryPage.Visible||commands.Controls.Count!=4)throw new Exception("Service commands unavailable");Navigate("local");
+        Navigate("settings");if(!servicePage.Visible||libraryPage.Visible||commands.Controls.Count!=5)throw new Exception("Service commands unavailable");Navigate("local");
         if(filters.Bottom>filters.Parent.ClientSize.Height)throw new Exception("Filter clipped by toolbar");
         string fixtures=Path.Combine(stateDirectory,"gallery-fixtures");Directory.CreateDirectory(fixtures);for(int i=0;i<10;i++){string path=Path.Combine(fixtures,"fixture-"+i+".jpg");File.Copy(builtinEntries[0].Path,path);library.Add(path,"分页条目 "+i,"local",path,null);}RenderGallery();Application.DoEvents();
         if(!nextPage.Enabled||tiles.Count!=renderedCapacity)throw new Exception("Gallery pagination missing");foreach(var tile in tiles)if(tile.Bottom>gallery.ClientSize.Height||tile.Right>gallery.ClientSize.Width)throw new Exception("Gallery card clipped");nextPage.PerformClick();if(pageNumber!=1||previousPage.Enabled!=true)throw new Exception("Gallery next page failed");

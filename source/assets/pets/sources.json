@@ -174,15 +174,6 @@
       "license": "MIT",
       "distribution": "bundled-production-webm",
       "actions": 106
-    },
-    {
-      "author": "HanaAyane / 小蕾米",
-      "source": "https://github.com/HanaAyane/remielle-codex-pet",
-      "license": "Load original material directly from the author; no Remielle artwork is redistributed. Read original ASSET-USAGE.md and NOTICE.md in the downloaded folder.",
-      "modification": "Local playback conversion only. The author notes AI-assisted redrawing and manual editing.",
-      "id": "xiaolemi",
-      "name": "小蕾米",
-      "distribution": "author-download-or-local"
     }
   ]
 }

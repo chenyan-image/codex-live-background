@@ -279,7 +279,7 @@ internal sealed class PetWindow : Form {
     }
     public PetWindow(PetPack pack,PetPreferences preferences,string root,PetAtlas prepared=null){
         this.pack=pack;settings=preferences;behavior=settings.ForPet(pack.Id);director=new PetAnimationDirector(pack,behavior,Environment.TickCount);atlas=prepared??new PetAtlas(pack);painter=new PetPainter(root);Text="CodexHub · "+pack.Name;FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;StartPosition=FormStartPosition.Manual;TopMost=true;AutoScaleMode=AutoScaleMode.None;Cursor=Cursors.Hand;
-        lastScope=settings.CodexOnly;petFactor=settings.Scale*.014F;capsuleFactor=settings.CapsuleScale/100F;using(var g=Graphics.FromHwnd(IntPtr.Zero))preferredScale=RenderScale=g.DpiX/96F;
+        lastScope=settings.CodexOnly;petFactor=settings.Scale*PetScaleUnit;capsuleFactor=settings.CapsuleScale/100F;using(var g=Graphics.FromHwnd(IntPtr.Zero))preferredScale=RenderScale=g.DpiX/96F;
         if(settings.PositionVersion<1){if(settings.X!=int.MinValue&&settings.Y!=int.MinValue){var old=new PetLayout(false,petFactor,capsuleFactor,0,atlas.IsVideo);settings.X+=(int)(old.Sprite.X*RenderScale);settings.Y+=(int)(old.Sprite.Y*RenderScale);}settings.PositionVersion=1;}
         ClientSize=PhysicalSize();menu.SuspendLayout();menu.BackColor=Color.FromArgb(27,32,37);menu.ForeColor=Color.FromArgb(231,240,238);
         menu.Items.Add("查看状态",null,delegate{if(!expanded)ToggleExpanded();});
@@ -340,13 +340,14 @@ internal sealed class PetWindow : Form {
     void FitScale(Rectangle bounds){
         if(preferredScale<=0||bounds.Width<1||bounds.Height<1)return;RenderScale=preferredScale;float width=(bounds.Width-1)/RenderScale,height=(bounds.Height-1)/RenderScale,header=54;
         capsuleFactor=Math.Max(.05F,Math.Min(settings.CapsuleScale/100F,Math.Min(width/280F,(height-24)/header)));
-        petFactor=Math.Max(.05F,Math.Min(settings.Scale*.014F,Math.Min(width/((atlas.IsVideo?512F:192F)*atlas.IdleContentBounds.Width),(height-8)/((atlas.IsVideo?288F:208F)*atlas.IdleContentBounds.Height))));
+        petFactor=Math.Max(.05F,Math.Min(settings.Scale*PetScaleUnit,Math.Min(width/((atlas.IsVideo?512F:192F)*atlas.IdleContentBounds.Width),(height-8)/((atlas.IsVideo?288F:208F)*atlas.IdleContentBounds.Height))));
         Size next=PhysicalSize();if(next!=ClientSize){if(previousBounds!=Rectangle.Empty)Motion.Position=new PointF(Motion.Position.X-(next.Width-Width)/2F,Motion.Position.Y);ClientSize=next;}
     }
+    float PetScaleUnit {get{return pack.Id=="deepseek-fat-fish"?.0112F:.014F;}}
     void Present(){using(PetDpi.Enter())PresentPhysical();}
     void PresentPhysical(){
         if(surface!=null){var safe=PetMotion.Clamp(Motion.Position,Size,MotionBounds(surface.Bounds));if(safe!=Motion.Position){Motion.Position=safe;Location=Point.Round(safe);}}
-        if(IsDisposed||!IsHandleCreated)return;double time=watch.Elapsed.TotalSeconds;int physical=Motion.Row;Motion.Row=director.Row;if(animationGeneration!=director.Generation){animationGeneration=director.Generation;actionStarted=time;lastMoveClock=0;atlas.BeginVideo(director.Row,animationGeneration,director.DirectSwitch);}atlas.HoldLast=director.Sleeping;var frame=painter.Render(atlas,Motion,false,false,Quota,QuotaStatus,time-actionStarted,RenderScale,Activity.Label,Activity.Active,time,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex,true);Motion.Row=physical;
+        if(IsDisposed||!IsHandleCreated)return;double time=watch.Elapsed.TotalSeconds;int physical=Motion.Row;Motion.Row=director.Row;if(animationGeneration!=director.Generation){animationGeneration=director.Generation;actionStarted=time;lastMoveClock=0;atlas.BeginVideo(director.Row,animationGeneration,director.DirectSwitch,director.Moving);}atlas.HoldLast=director.Sleeping;var frame=painter.Render(atlas,Motion,false,false,Quota,QuotaStatus,time-actionStarted,RenderScale,Activity.Label,Activity.Active,time,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex,true);Motion.Row=physical;
         IntPtr screen=GetDC(IntPtr.Zero),dc=CreateCompatibleDC(screen),bitmap=IntPtr.Zero,previous=IntPtr.Zero;
         try{bitmap=frame.GetHbitmap(Color.FromArgb(0));previous=SelectObject(dc,bitmap);var point=new NativePoint(Left,Top);var origin=new NativePoint(0,0);var size=new NativeSize(frame.Width,frame.Height);var blend=new Blend{Alpha=255,Format=1};if(!UpdateLayeredWindow(Handle,screen,ref point,ref size,dc,ref origin,0,ref blend,2))throw new Win32Exception();}
         finally{if(previous!=IntPtr.Zero)SelectObject(dc,previous);if(bitmap!=IntPtr.Zero)DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(IntPtr.Zero,screen);}
