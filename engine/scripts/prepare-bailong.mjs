@@ -14,13 +14,13 @@ for(const [index,action] of request.actions.entries()){
  if(path.basename(action.file)!==action.file||!action.file.endsWith('.gif')||path.extname(action.input).toLowerCase()!=='.webp')throw new Error('动作路径无效。');
  process.stdout.write('DREAM_PROGRESS:正在准备白龙完整动作 '+(index+1)+'/'+request.actions.length+' · '+action.name+'\n');
  const output=path.join(request.stage,action.file);
- await run(['-nostdin','-hide_banner','-loglevel','error','-y','-threads','2','-i',action.input,'-filter_complex_threads','2','-filter_complex','[0:v]fps=12,scale=224:256:force_original_aspect_ratio=decrease:flags=lanczos,pad=224:256:(ow-iw)/2:oh-ih:color=black@0,split[a][b];[a]palettegen=reserve_transparent=1:stats_mode=diff[p];[b][p]paletteuse=alpha_threshold=100:dither=bayer','-an','-loop','0',output]);
- actions.push({id:action.id,name:action.name,file:action.file,durationMs:action.durationMs,frames:Math.max(1,Math.round(action.durationMs/1000*12))});
+ await run(['-nostdin','-hide_banner','-loglevel','error','-y','-threads','2','-i',action.input,'-filter_complex_threads','2','-filter_complex','[0:v]fps=24,scale=336:384:force_original_aspect_ratio=decrease:flags=lanczos,pad=336:384:(ow-iw)/2:oh-ih:color=black@0,split[a][b];[a]palettegen=reserve_transparent=1:stats_mode=diff[p];[b][p]paletteuse=alpha_threshold=100:dither=bayer','-an','-loop','0',output]);
+ actions.push({id:action.id,name:action.name,file:action.file,durationMs:action.durationMs,frames:Math.max(1,Math.round(action.durationMs/1000*24))});
 }
 await run(['-nostdin','-hide_banner','-loglevel','error','-y','-i',path.join(request.stage,actions[0].file),'-frames:v','1',path.join(request.stage,'poster.png')]);
 const find=id=>Math.max(0,actions.findIndex(action=>action.id===id));
-await fs.writeFile(path.join(request.stage,'pet.json'),JSON.stringify({id:'bailong',displayName:'白龙娘',spritesheetPath:'poster.png',format:'animated-gif-set',actions,rowMap:[0,find('landing'),find('landing'),find('01'),find('landing'),find('13'),find('idle2'),find('work01'),find('work05')]},null,2));
-await fs.writeFile(path.join(request.stage,'source.json'),JSON.stringify({author:'jingh12312-rgb; Wunsch2048',source:'https://github.com/jingh12312-rgb/bailong-desktop-pet',enhancedSource:'https://github.com/Wunsch2048/codex-bailong-desktop-pet',license:'Loaded personally from the original author material. No original white-dragon artwork is bundled in CodexHub distribution.',modification:'Local 12 FPS GIF playback copies at 224x256. All action clips and their full duration retained.'},null,2));
+await fs.writeFile(path.join(request.stage,'pet.json'),JSON.stringify({id:'bailong',displayName:'白龙娘',spritesheetPath:'poster.png',format:'animated-gif-set',playbackFps:24,actions,rowMap:[0,find('landing'),find('landing'),find('01'),find('landing'),find('13'),find('idle2'),find('work01'),find('work05')]},null,2));
+await fs.writeFile(path.join(request.stage,'source.json'),JSON.stringify({author:'jingh12312-rgb; Wunsch2048',source:'https://github.com/jingh12312-rgb/bailong-desktop-pet',enhancedSource:'https://github.com/Wunsch2048/codex-bailong-desktop-pet',license:'Loaded personally from the original author material. No original white-dragon artwork is bundled in CodexHub distribution.',modification:'Local 24 FPS GIF playback copies at 336x384. All action clips and their full duration retained; GIF frame delays determine playback.'},null,2));
 process.stdout.write('DREAM_RESULT:'+JSON.stringify({actions:actions.length})+'\n');
 return {actions:actions.length};
 }

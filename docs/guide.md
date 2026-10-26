@@ -143,12 +143,15 @@ THIRD_PARTY/  第三方许可证、来源和运行时下载配置
 ```powershell
 $nodeExe = Read-Host 'Node.js node.exe 的完整路径'
 $nodeLicense = Read-Host 'Node.js LICENSE 的完整路径'
+$decoderExe = node --input-type=module -e "import {ensureFFmpegRuntime} from './engine/scripts/ffmpeg-runtime.mjs'; console.log(await ensureFFmpegRuntime('./build-cache'));"
+$decoderDirectory = Split-Path -Parent $decoderExe
 .\source\build.ps1 `
   -EngineSource .\engine `
   -NodeExecutable $nodeExe `
   -NodeLicense $nodeLicense `
   -PortSource .\startup `
   -ThirdPartySource .\THIRD_PARTY `
+  -FFmpegRuntimeDirectory $decoderDirectory `
   -OutputDirectory .\dist\Codex-Background-local-win-x64
 ```
 

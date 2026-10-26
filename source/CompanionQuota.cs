@@ -74,7 +74,7 @@ internal sealed class PetQuotaReader : IDisposable {
         using(var timeout=CancellationTokenSource.CreateLinkedTokenSource(shutdown.Token)){
             var process=scope.Process;timeout.CancelAfter(20000);process.ErrorDataReceived+=delegate{};process.BeginErrorReadLine();
             try{
-                await Send(process,new{id=1,method="initialize",@params=new{clientInfo=new{name="codex_desktop_pet",title="CodexHub",version="1.7.0-preview.1"}}}).ConfigureAwait(false);
+                await Send(process,new{id=1,method="initialize",@params=new{clientInfo=new{name="codex_desktop_pet",title="CodexHub",version="1.7.0-preview.2"}}}).ConfigureAwait(false);
                 await Response(process,1,timeout.Token).ConfigureAwait(false);
                 await Send(process,new{method="initialized"}).ConfigureAwait(false);
                 await Send(process,new{id=2,method="account/rateLimits/read"}).ConfigureAwait(false);

@@ -9,6 +9,9 @@ using System.Windows.Forms;
 // ToolStrip's normal AutoClose does not see clicks in other applications when
 // its owner is a non-activating pet window. Observe those clicks only while a
 // popup is open; never capture input, activate an owner, or install a hook.
+internal sealed class HubContextMenu : ContextMenuStrip {
+    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle=(value.ExStyle|0x80|0x08000000)&~0x40000;return value;}}
+}
 internal static class HubPopupMenu {
     static readonly Dictionary<ContextMenuStrip,Session> sessions=new Dictionary<ContextMenuStrip,Session>();
     static readonly PopupRenderer renderer=new PopupRenderer();
@@ -24,7 +27,7 @@ internal static class HubPopupMenu {
         if(diameter<=0){path.AddRectangle(bounds);return path;}
         path.AddArc(bounds.Left,bounds.Top,diameter,diameter,180,90);path.AddArc(bounds.Right-diameter,bounds.Top,diameter,diameter,270,90);path.AddArc(bounds.Right-diameter,bounds.Bottom-diameter,diameter,diameter,0,90);path.AddArc(bounds.Left,bounds.Bottom-diameter,diameter,diameter,90,90);path.CloseFigure();return path;
     }
-    static readonly Color Background=Color.FromArgb(22,27,35),Foreground=Color.FromArgb(231,238,248),Muted=Color.FromArgb(125,143,165),Border=Color.FromArgb(48,61,79),Selected=Color.FromArgb(40,59,84),Accent=Color.FromArgb(138,192,255);
+    static readonly Color Background=Color.FromArgb(15,15,16),Foreground=Color.FromArgb(242,242,244),Muted=Color.FromArgb(132,136,144),Border=Color.FromArgb(41,42,46),Selected=Color.FromArgb(40,43,49),Accent=Color.FromArgb(142,188,247);
     sealed class PopupColors : ProfessionalColorTable {
         public override Color ToolStripDropDownBackground {get{return Background;}}
         public override Color MenuBorder {get{return Border;}}
@@ -69,13 +72,20 @@ internal static class HubPopupMenu {
     }
     sealed class Session : IDisposable {
         [DllImport("user32.dll")]static extern short GetAsyncKeyState(int key);
+        [StructLayout(LayoutKind.Sequential)]struct NativeRect {public int Left,Top,Right,Bottom;}
+        [StructLayout(LayoutKind.Sequential)]struct NativePoint {public int X,Y;}
+        [DllImport("user32.dll")]static extern bool GetWindowRect(IntPtr window,out NativeRect bounds);
+        [DllImport("user32.dll")]static extern bool GetPhysicalCursorPos(out NativePoint point);
+        [DllImport("user32.dll")]static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+        [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]static extern IntPtr GetWindowLongPtr(IntPtr window,int index);
+        [DllImport("user32.dll",EntryPoint="SetWindowLongPtrW")]static extern IntPtr SetWindowLongPtr(IntPtr window,int index,IntPtr value);
         readonly ContextMenuStrip root;readonly System.Windows.Forms.Timer timer=new System.Windows.Forms.Timer{Interval=20};readonly Font font=new Font("Microsoft YaHei UI",9F,FontStyle.Regular,GraphicsUnit.Point);
         readonly HashSet<ToolStripDropDown> styled=new HashSet<ToolStripDropDown>();readonly HashSet<ToolStripMenuItem> items=new HashSet<ToolStripMenuItem>();bool open,disposed;int previousButtons;
         public Session(ContextMenuStrip menu){root=menu;StyleTree(menu);menu.Opening+=delegate{StyleTree(root);};menu.Opened+=delegate{Begin();};menu.Closed+=delegate{End();};menu.VisibleChanged+=delegate{if(menu.Visible)Begin();else End();};menu.Disposed+=delegate{Dispose();};timer.Tick+=delegate{Poll();};}
         public void StyleTree(ToolStripDropDown menu){
             if(disposed||menu.IsDisposed)return;menu.BackColor=Background;menu.ForeColor=Foreground;menu.Font=font;menu.Renderer=renderer;menu.AutoClose=true;menu.DropShadowEnabled=true;menu.Padding=new Padding(5,5,5,5);menu.ShowItemToolTips=false;
             var dropdown=menu as ToolStripDropDownMenu;if(dropdown!=null){dropdown.ShowImageMargin=false;dropdown.ShowCheckMargin=true;}
-            if(styled.Add(menu)){menu.SizeChanged+=delegate{RoundWindow(menu);};menu.Opened+=delegate{RoundWindow(menu);};menu.ItemAdded+=delegate{StyleTree(menu);};}
+            if(styled.Add(menu)){menu.HandleCreated+=delegate{KeepBackground(menu);};menu.SizeChanged+=delegate{RoundWindow(menu);};menu.Opened+=delegate{KeepBackground(menu);RoundWindow(menu);};menu.ItemAdded+=delegate{StyleTree(menu);};}
             foreach(ToolStripItem item in menu.Items){item.ForeColor=Foreground;item.BackColor=Background;item.Font=font;
                 if(item is ToolStripSeparator){item.Margin=new Padding(2,3,2,3);continue;}
                 item.Padding=new Padding(7,4,7,4);item.Margin=new Padding(1,0,1,0);var parent=item as ToolStripMenuItem;
@@ -84,14 +94,15 @@ internal static class HubPopupMenu {
             }
             RoundWindow(menu);
         }
+        static void KeepBackground(ToolStripDropDown menu){if(menu.IsDisposed||!menu.IsHandleCreated)return;long style=GetWindowLongPtr(menu.Handle,-20).ToInt64();SetWindowLongPtr(menu.Handle,-20,new IntPtr((style|0x80|0x08000000)&~0x40000));}
         static void RoundWindow(ToolStripDropDown menu){if(menu.IsDisposed||menu.Width<2||menu.Height<2)return;using(var path=Round(new RectangleF(0,0,menu.Width,menu.Height),9)){var old=menu.Region;menu.Region=new Region(path);if(old!=null)old.Dispose();}}
         static int Buttons(out bool recent){int down=0;recent=false;int[] keys={1,2,4,5,6};for(int i=0;i<keys.Length;i++){short state=GetAsyncKeyState(keys[i]);if((state&0x8000)!=0)down|=1<<i;if((state&1)!=0)recent=true;}return down;}
         void Begin(){if(disposed||open)return;bool ignored;previousButtons=Buttons(out ignored);open=true;Interlocked.Increment(ref openCount);timer.Start();}
         void End(){if(!open)return;open=false;timer.Stop();Interlocked.Decrement(ref openCount);}
-        bool ContainsPointer(ToolStripDropDown menu,Point pointer){if(menu.IsDisposed||!menu.Visible)return false;if(menu.Bounds.Contains(pointer))return true;foreach(ToolStripItem item in menu.Items){var parent=item as ToolStripMenuItem;if(parent!=null&&parent.HasDropDownItems&&parent.DropDown.Visible&&ContainsPointer(parent.DropDown,pointer))return true;}return false;}
+        bool ContainsPointer(ToolStripDropDown menu,Point pointer){if(menu.IsDisposed||!menu.Visible)return false;NativeRect box;if(GetWindowRect(menu.Handle,out box)&&pointer.X>=box.Left&&pointer.X<box.Right&&pointer.Y>=box.Top&&pointer.Y<box.Bottom)return true;foreach(ToolStripItem item in menu.Items){var parent=item as ToolStripMenuItem;if(parent!=null&&parent.HasDropDownItems&&parent.DropDown.Visible&&ContainsPointer(parent.DropDown,pointer))return true;}return false;}
         void Poll(){
             if(disposed||root.IsDisposed||!root.Visible){End();return;}bool recent;int buttons=Buttons(out recent);bool pressed=(buttons&~previousButtons)!=0||recent;previousButtons=buttons;
-            if(pressed&&!ContainsPointer(root,Cursor.Position))root.Close(ToolStripDropDownCloseReason.AppClicked);
+            if(pressed){IntPtr old=IntPtr.Zero;try{old=SetThreadDpiAwarenessContext(new IntPtr(-4));NativePoint point;if(GetPhysicalCursorPos(out point)&&!ContainsPointer(root,new Point(point.X,point.Y)))root.Close(ToolStripDropDownCloseReason.AppClicked);}finally{if(old!=IntPtr.Zero)SetThreadDpiAwarenessContext(old);}}
         }
         public void Dispose(){if(disposed)return;End();disposed=true;timer.Dispose();sessions.Remove(root);styled.Clear();items.Clear();font.Dispose();}
     }

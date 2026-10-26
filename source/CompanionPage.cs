@@ -12,16 +12,16 @@ using System.Windows.Forms;
 
 internal sealed class PetCard : Control {
     public readonly PetPack Pack;readonly PetAtlas atlas;public bool Selected;int frame;
-    public PetCard(PetPack pack){Pack=pack;if(pack.Available)atlas=new PetAtlas(pack);DoubleBuffered=true;Size=new Size(166,205);Margin=new Padding(0,0,12,12);Cursor=Cursors.Hand;AccessibleName=pack.Name;AccessibleRole=AccessibleRole.RadioButton;TabStop=true;}
+    public PetCard(PetPack pack){Pack=pack;if(pack.Available)atlas=new PetAtlas(pack,true);DoubleBuffered=true;Size=new Size(166,205);Margin=new Padding(0,0,12,12);Cursor=Cursors.Hand;AccessibleName=pack.Name;AccessibleRole=AccessibleRole.RadioButton;TabStop=true;}
     public void Animate(){if(Visible){frame++;Invalidate();}}
     protected override void OnKeyDown(KeyEventArgs e){base.OnKeyDown(e);if(e.KeyCode==Keys.Enter||e.KeyCode==Keys.Space){OnClick(EventArgs.Empty);e.Handled=true;}}
     protected override void OnPaint(PaintEventArgs e){
         var g=e.Graphics;g.Clear(Parent.BackColor);g.SmoothingMode=SmoothingMode.AntiAlias;
         using(var shape=IconAssets.Round(new RectangleF(1,1,Width-3,Height-3),14))using(var fill=new SolidBrush(Selected?Color.FromArgb(27,43,43):Color.FromArgb(21,25,32)))using(var border=new Pen(Selected?Color.FromArgb(135,235,194):Color.FromArgb(42,49,60),Selected?2:1)){g.FillPath(fill,shape);g.DrawPath(border,shape);}
         float ratio=Math.Min((Width-24)/192F,(Height-57)/208F);float width=192*ratio,height=208*ratio;g.InterpolationMode=InterpolationMode.HighQualityBicubic;if(atlas!=null)atlas.Draw(g,new RectangleF((Width-width)/2,6,width,height),Selected?3:0,frame/10D);else{using(var logo=IconAssets.Create(64))g.DrawImage(logo,(Width-64)/2,45,64,64);}
-        var name=Pack.Id=="deepseek"?"鲸鱼娘 · deepseek酱":Pack.Name;
+        var name=Pack.Name;
         TextRenderer.DrawText(g,name,Font,new Rectangle(12,Height-48,Width-24,23),Color.FromArgb(231,240,238),TextFormatFlags.Left|TextFormatFlags.EndEllipsis);
-        using(var small=new Font(Font.FontFamily,8F))TextRenderer.DrawText(g,!Pack.Available?"点击加载作者原动作包":Pack.Actions!=null?Pack.Actions.Count+" 段完整动作":Pack.Builtin?"内置 · 9 种基础动作":"本地导入 · 动态形象",small,new Rectangle(12,Height-22,Width-24,17),Color.FromArgb(137,155,170),TextFormatFlags.Left|TextFormatFlags.EndEllipsis);
+        using(var small=new Font(Font.FontFamily,8F))TextRenderer.DrawText(g,!Pack.Available?"点击加载作者原动作包":Pack.ProceduralMotion?Pack.Actions.Count+" 个表情 / 轻动画":Pack.Actions!=null?Pack.Actions.Count+" 项动作 / 素材":Pack.Builtin?"内置 · 9 种基础动作":"本地导入 · 动态形象",small,new Rectangle(12,Height-22,Width-24,17),Color.FromArgb(137,155,170),TextFormatFlags.Left|TextFormatFlags.EndEllipsis);
     }
     protected override void Dispose(bool disposing){if(disposing&&atlas!=null)atlas.Dispose();base.Dispose(disposing);}
 }
@@ -44,7 +44,7 @@ internal sealed class PetController : IDisposable {
     bool checking;volatile bool readingActivity,disposed;public PetPreferences Preferences;public List<PetPack> Packs;public PetWindow Window;
     public PetQuotaSnapshot Quota;public PetTokenSnapshot Tokens;public string QuotaStatus="尚未读取";
     public event Action Changed,SettingsRequested;
-    public PetController(Control ui,string appRoot,string stateRoot,bool enabled){owner=ui;root=appRoot;state=stateRoot;live=enabled;Preferences=PetPreferences.Load(state);Packs=PetPack.Discover(root,state);timer.Tick+=delegate{if(Preferences.Enabled&&Preferences.ShowQuota)Refresh();};if(live){string home=Environment.GetEnvironmentVariable("CODEX_HOME")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),".codex");activity=new PetActivityReader(home);tokenReader=new PetTokenReader(home);activityTimer.Tick+=delegate{ReadActivity();};}}
+    public PetController(Control ui,string appRoot,string stateRoot,bool enabled){owner=ui;root=appRoot;state=stateRoot;live=enabled;Preferences=PetPreferences.Load(state);Packs=PetPack.Discover(root,state);timer.Tick+=delegate{if(Preferences.Enabled&&Preferences.ShowQuota)Refresh();};if(live){string home=Environment.GetEnvironmentVariable("CODEX_HOME")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),".codex");activity=new PetActivityReader(home,root);tokenReader=new PetTokenReader(home);activityTimer.Tick+=delegate{ReadActivity();};}}
     void Raise(){if(Changed!=null)Changed();}
     public void Start(){if(!live||disposed)return;Apply(false);timer.Start();activityTimer.Start();ReadActivity();}
     void ReadActivity(){if(disposed||readingActivity||activity==null)return;readingActivity=true;ThreadPool.QueueUserWorkItem(delegate{try{var value=activity.Read();var tokens=tokenReader.Read();if(!disposed&&owner.IsHandleCreated)owner.BeginInvoke((MethodInvoker)delegate{if(!disposed){Tokens=tokens;if(Window!=null){Window.Activity=value;Window.Tokens=tokens;}}});}catch(InvalidOperationException){}catch(IOException){}catch(UnauthorizedAccessException){}finally{readingActivity=false;}});}
@@ -54,20 +54,21 @@ internal sealed class PetController : IDisposable {
             if(rebuild&&Window!=null){Preferences.X=Window.Left;Preferences.Y=Window.Top;Window.Dispose();Window=null;}
             var pack=Packs.FirstOrDefault(x=>x.Id==Preferences.SelectedId&&x.Available)??Packs.FirstOrDefault(x=>x.Available);
             if(Preferences.Enabled&&Window==null&&pack!=null){
-                Preferences.SelectedId=pack.Id;Window=PetWindow.Create(pack,Preferences,root);Window.Quota=Quota;Window.Tokens=Tokens;Window.QuotaStatus=QuotaStatus;
-                Window.OpenSettings+=delegate{if(SettingsRequested!=null)SettingsRequested();};Window.RefreshQuota+=Refresh;Window.PreferenceChanged+=delegate{Preferences.Save(state);Raise();};
+                Preferences.SelectedId=pack.Id;Window=PetWindow.Create(pack,Preferences,root);Window.Quota=Quota;Window.Tokens=Tokens;Window.QuotaStatus=QuotaStatus;Window.QuotaRefreshing=checking;
+                Window.OpenSettings+=delegate{if(SettingsRequested!=null)SettingsRequested();};Window.ScopeRequested+=SetScope;Window.RefreshQuota+=Refresh;Window.PreferenceChanged+=delegate{Preferences.Save(state);Raise();};Window.NotifyQuota(Quota);
             }
             if(Window!=null){if(!Preferences.Enabled)Window.Hide();else Window.AdvanceOnce();}
             if(Preferences.Enabled&&Preferences.ShowQuota&&Quota==null)Refresh();
         }Raise();
     }
     public async void Refresh(){
-        if(disposed||checking||!live)return;checking=true;QuotaStatus="正在刷新真实额度…";Raise();
-        try{var value=await reader.ReadAsync();if(disposed)return;Quota=value;QuotaStatus="更新于 "+value.CheckedUtc.ToLocalTime().ToString("HH:mm:ss");}
+        if(disposed||checking||!live)return;checking=true;if(Window!=null)Window.QuotaRefreshing=true;QuotaStatus="正在刷新真实额度…";Raise();
+        try{var value=await reader.ReadAsync();if(disposed)return;Quota=value;if(Window!=null)Window.NotifyQuota(value);QuotaStatus="更新于 "+value.CheckedUtc.ToLocalTime().ToString("HH:mm:ss");}
         catch(OperationCanceledException){return;}catch(Exception error){if(disposed)return;QuotaStatus=error.Message;}
-        finally{checking=false;if(!disposed){if(Window!=null){Window.Quota=Quota;Window.QuotaStatus=QuotaStatus;}Raise();}}
+        finally{checking=false;if(!disposed){if(Window!=null){Window.QuotaRefreshing=false;Window.Quota=Quota;Window.QuotaStatus=QuotaStatus;}Raise();}}
     }
     public void Select(PetPack pack){Preferences.SelectedId=pack.Id;Apply(true);}
+    public void SetScope(bool codexOnly){Preferences.CodexOnly=codexOnly;if(Window!=null)Window.SetScope(codexOnly);else{Preferences.Save(state);Raise();}}
     public void Reload(){Packs=PetPack.Discover(root,state);Raise();}
     public void Dispose(){if(disposed)return;disposed=true;timer.Stop();timer.Dispose();activityTimer.Stop();activityTimer.Dispose();if(activity!=null)activity.Dispose();if(tokenReader!=null)tokenReader.Dispose();reader.Dispose();if(Window!=null){Preferences.X=Window.Left;Preferences.Y=Window.Top;Window.Dispose();Window=null;}Preferences.Save(state);}
 }
@@ -90,24 +91,25 @@ internal sealed partial class Manager {
         var left=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Margin=new Padding(0,0,20,0)};left.RowStyles.Add(new RowStyle(SizeType.Absolute,35));left.RowStyles.Add(new RowStyle(SizeType.Percent,100));left.RowStyles.Add(new RowStyle(SizeType.Absolute,45));layout.Controls.Add(left,0,0);
         petSummary.Dock=DockStyle.Fill;petSummary.ForeColor=Muted;petSummary.Font=new Font(Font.FontFamily,8.5F);left.Controls.Add(petSummary,0,0);
         petCards.Dock=DockStyle.Fill;petCards.BackColor=BackColor;left.Controls.Add(petCards,0,1);
-        var sources=new Label{Dock=DockStyle.Fill,Text="形象来自 Petdex / Codex Pet · 支持导入 ZIP 或 pet.json",ForeColor=Color.FromArgb(107,129,146),Font=new Font(Font.FontFamily,8F)};left.Controls.Add(sources,0,2);
+        var sources=new Label{Dock=DockStyle.Fill,Text="内置素材 + 本地导入 · 支持 ZIP 或 pet.json",ForeColor=Color.FromArgb(107,129,146),Font=new Font(Font.FontFamily,8F)};left.Controls.Add(sources,0,2);
         var settings=new Surface{Dock=DockStyle.Fill,Padding=new Padding(16),AutoScroll=true,BackColor=Color.FromArgb(20,24,30)};layout.Controls.Add(settings,1,0);
-        var rows=new BufferedTable{Dock=DockStyle.Top,Height=535,ColumnCount=1,RowCount=17,Margin=Padding.Empty};foreach(int height in new[]{28,29,29,29,28,24,29,29,27,36,27,36,26,40,42,36,40})rows.RowStyles.Add(new RowStyle(SizeType.Absolute,height));settings.Controls.Add(rows);
+        var rows=new BufferedTable{Dock=DockStyle.Top,Height=580,ColumnCount=1,RowCount=18,Margin=Padding.Empty};foreach(int height in new[]{28,29,29,29,28,24,29,29,27,36,27,36,26,40,42,36,40,42})rows.RowStyles.Add(new RowStyle(SizeType.Absolute,height));settings.Controls.Add(rows);
         rows.Controls.Add(Caption("陪伴方式",12,Ink),0,0);
-        var checks=new[]{petEnabled,petRoaming,petSound,petQuotaVisible};string[] checkLabels={"显示桌面宠物","允许随机行走","双击互动音效","显示上方额度圆环"};int[] indices={1,2,3,4};
+        var checks=new[]{petEnabled,petRoaming,petSound,petQuotaVisible};string[] checkLabels={"显示桌面宠物","允许随机行走","点击互动音效","显示上方额度圆环"};int[] indices={1,2,3,4};
         for(int i=0;i<checks.Length;i++){var check=checks[i];check.Text=checkLabels[i];check.ForeColor=Ink;check.Dock=DockStyle.Fill;check.Margin=Padding.Empty;check.CheckedChanged+=delegate{if(petSync||pets==null)return;pets.Preferences.Enabled=petEnabled.Checked;pets.Preferences.Roaming=petRoaming.Checked;pets.Preferences.Sound=petSound.Checked;pets.Preferences.ShowQuota=petQuotaVisible.Checked;pets.Apply(false);};rows.Controls.Add(check,0,indices[i]);}
         rows.Controls.Add(Caption("活动范围",9,Muted),0,5);
         petInCodex.Text="仅在 Codex 窗口内";petOnDesktop.Text="整个桌面（可跨屏拖动）";
-        foreach(var option in new[]{petInCodex,petOnDesktop}){option.Dock=DockStyle.Fill;option.ForeColor=Ink;option.Margin=Padding.Empty;option.CheckedChanged+=delegate{if(petSync||pets==null||!((RadioButton)option).Checked)return;if(pets.Window!=null)pets.Window.SetScope(petInCodex.Checked);else{pets.Preferences.CodexOnly=petInCodex.Checked;pets.Apply(false);}};}
+        foreach(var option in new[]{petInCodex,petOnDesktop}){option.Dock=DockStyle.Fill;option.ForeColor=Ink;option.Margin=Padding.Empty;option.CheckedChanged+=delegate{if(petSync||pets==null||!((RadioButton)option).Checked)return;pets.SetScope(petInCodex.Checked);};}
         rows.Controls.Add(petInCodex,0,6);rows.Controls.Add(petOnDesktop,0,7);petSizeLabel.Dock=DockStyle.Fill;petSizeLabel.ForeColor=Muted;rows.Controls.Add(petSizeLabel,0,8);
         petSize.Minimum=70;petSize.Maximum=150;petSize.TickStyle=TickStyle.None;petSize.Dock=DockStyle.Fill;petSize.SmallChange=5;petSize.LargeChange=10;petSize.BackColor=settings.BackColor;petSize.ValueChanged+=delegate{petSizeLabel.Text="宠物大小  "+petSize.Value+"%";};petSize.MouseUp+=delegate{ApplyPetScale();};petSize.KeyUp+=delegate{ApplyPetScale();};rows.Controls.Add(petSize,0,9);
         petCapsuleSizeLabel.Dock=DockStyle.Fill;petCapsuleSizeLabel.ForeColor=Muted;rows.Controls.Add(petCapsuleSizeLabel,0,10);
         petCapsuleSize.Minimum=70;petCapsuleSize.Maximum=150;petCapsuleSize.TickStyle=TickStyle.None;petCapsuleSize.Dock=DockStyle.Fill;petCapsuleSize.SmallChange=5;petCapsuleSize.LargeChange=10;petCapsuleSize.BackColor=settings.BackColor;petCapsuleSize.ValueChanged+=delegate{petCapsuleSizeLabel.Text="胶囊大小  "+petCapsuleSize.Value+"%";};petCapsuleSize.MouseUp+=delegate{ApplyPetScale();};petCapsuleSize.KeyUp+=delegate{ApplyPetScale();};rows.Controls.Add(petCapsuleSize,0,11);
-        rows.Controls.Add(Caption("始终置顶 · 点击上方圆环查看额度",8,Muted),0,12);
+        rows.Controls.Add(Caption("始终置顶 · 胶囊看任务，圆环看额度",8,Muted),0,12);
         petQuotaValues.Dock=DockStyle.Fill;petQuotaValues.ForeColor=Mint;petQuotaValues.Font=new Font(Font.FontFamily,10F,FontStyle.Bold);rows.Controls.Add(petQuotaValues,0,13);
         petQuotaStatus.Dock=DockStyle.Fill;petQuotaStatus.ForeColor=Muted;petQuotaStatus.Font=new Font(Font.FontFamily,8F);petQuotaStatus.AutoEllipsis=true;rows.Controls.Add(petQuotaStatus,0,14);
-        var actions=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));petWave.Text="招手";petJump.Text="跳跃";petWave.Dock=petJump.Dock=DockStyle.Fill;petWave.Margin=new Padding(0,0,6,3);petJump.Margin=new Padding(6,0,0,3);petWave.Click+=delegate{if(pets!=null&&pets.Window!=null)pets.Window.Interact(3,true);};petJump.Click+=delegate{if(pets!=null&&pets.Window!=null)pets.Window.Interact(4,true);};actions.Controls.Add(petWave,0,0);actions.Controls.Add(petJump,1,0);rows.Controls.Add(actions,0,15);
+        var actions=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,50));petWave.Text="打招呼";petJump.Text="随机动作";petWave.Dock=petJump.Dock=DockStyle.Fill;petWave.Margin=new Padding(0,0,6,3);petJump.Margin=new Padding(6,0,0,3);petWave.Click+=delegate{if(pets!=null&&pets.Window!=null)pets.Window.Greet();};petJump.Click+=delegate{if(pets!=null&&pets.Window!=null)pets.Window.RandomAction();};actions.Controls.Add(petWave,0,0);actions.Controls.Add(petJump,1,0);rows.Controls.Add(actions,0,15);
         petRefresh.Text="刷新真实额度";petRefresh.Dock=DockStyle.Fill;petRefresh.Margin=new Padding(0,5,0,0);petRefresh.Click+=delegate{if(pets!=null)pets.Refresh();};rows.Controls.Add(petRefresh,0,16);
+        var behaviorButton=new ActionButton{Text="互动与动画设置",Dock=DockStyle.Fill,Margin=new Padding(0,5,0,0)};behaviorButton.Click+=delegate{if(pets==null)return;var pack=pets.Packs.FirstOrDefault(p=>p.Id==pets.Preferences.SelectedId&&p.Available);if(pack==null)return;using(var dialog=new PetBehaviorSettings(pack,pets.Preferences.ForPet(pack.Id))){if(dialog.ShowDialog(this)==DialogResult.OK)pets.Apply(false);}};rows.Controls.Add(behaviorButton,0,17);
     }
     void ApplyPetScale(){if(pets==null||petSync)return;if(pets.Preferences.Scale!=petSize.Value||pets.Preferences.CapsuleScale!=petCapsuleSize.Value){pets.Preferences.Scale=petSize.Value;pets.Preferences.CapsuleScale=petCapsuleSize.Value;pets.Apply(false);}}
     void BuildPetCards(){

@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.0")]
-[assembly: AssemblyFileVersion("1.7.0.0")]
+[assembly: AssemblyVersion("1.7.0.1")]
+[assembly: AssemblyFileVersion("1.7.0.1")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -24,10 +24,15 @@ internal sealed class BufferedFlow : FlowLayoutPanel {
     public BufferedFlow(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
 }
 internal static class WindowFrame {
+    [DllImport("dwmapi.dll")]static extern int DwmSetWindowAttribute(IntPtr window,int attribute,ref int value,int size);
+    [DllImport("user32.dll")]static extern uint GetDpiForWindow(IntPtr window);
+    public static int ResizeHit(Form form,Point point){float scale=1;try{scale=GetDpiForWindow(form.Handle)/96F;}catch(EntryPointNotFoundException){}return ResizeHit(form.ClientSize,point,scale);}
+    public static int ResizeHit(Size size,Point point,float scale){int edge=(int)Math.Ceiling(11*Math.Max(1,scale)),corner=(int)Math.Ceiling(23*Math.Max(1,scale));bool left=point.X<edge,right=point.X>=size.Width-edge,top=point.Y<edge,bottom=point.Y>=size.Height-edge;if(top&&point.X<corner||left&&point.Y<corner)return 13;if(top&&point.X>=size.Width-corner||right&&point.Y<corner)return 14;if(bottom&&point.X<corner||left&&point.Y>=size.Height-corner)return 16;if(bottom&&point.X>=size.Width-corner||right&&point.Y>=size.Height-corner)return 17;return left?10:right?11:top?12:bottom?15:0;}
     public static void Update(Form form){
         if(form.IsDisposed||form.Disposing||!form.IsHandleCreated||form.Width<2||form.Height<2||form.WindowState==FormWindowState.Minimized)return;
         Region previous=form.Region;
         if(form.WindowState==FormWindowState.Maximized){if(previous!=null){form.Region=null;previous.Dispose();}return;}
+        if(form is Manager){try{int round=2;if(DwmSetWindowAttribute(form.Handle,33,ref round,4)==0){if(previous!=null){form.Region=null;previous.Dispose();}return;}}catch(DllNotFoundException){}catch(EntryPointNotFoundException){}}
         using(var g=form.CreateGraphics())using(var path=IconAssets.Round(new RectangleF(0,0,form.Width,form.Height),8*g.DpiX/96F))form.Region=new Region(path);
         if(previous!=null)previous.Dispose();
     }
@@ -176,9 +181,10 @@ internal sealed partial class Manager : Form {
     readonly WallpaperPreview preview=new WallpaperPreview();
     bool busy,closeRequested;volatile bool cancelStatus;string runningAction;int operationGeneration;
     NotifyIcon tray;ContextMenuStrip trayMenu;Icon trayImage;
-    bool exitRequested,repaintQueued,nativeWasMinimized,restoringWindow;
+    bool exitRequested,repaintQueued,nativeWasMinimized,restoringWindow,startHidden;
     readonly bool liveStatusEnabled;
     FormWindowState stateBeforeHide=FormWindowState.Normal;
+    WindowResizeBridge resizeBridge;
     readonly object statusLock=new object();Process statusProcess;
     readonly string root=AppDomain.CurrentDomain.BaseDirectory;
     static readonly Color Muted=Color.FromArgb(146,166,169),Ink=Color.FromArgb(231,240,238),Mint=Color.FromArgb(135,235,194);
@@ -191,9 +197,10 @@ internal sealed partial class Manager : Form {
     [DllImport("user32.dll")] static extern bool RedrawWindow(IntPtr window,IntPtr update,IntPtr region,uint flags);
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
     Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);InitializeCompanion(checkStatus);if(checkStatus)InitializeTray(); }
-    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;return value;}}
+    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;value.Style|=0x40000;return value;}}
+    protected override void SetVisibleCore(bool value){if(value&&startHidden){startHidden=false;base.SetVisibleCore(false);return;}base.SetVisibleCore(value);}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
-    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}WindowFrame.Update(this);}
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);if(resizeBridge==null)resizeBridge=new WindowResizeBridge(this);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}WindowFrame.Update(this);}
     protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(Visible&&!restoringWindow&&WindowState!=FormWindowState.Minimized)stateBeforeHide=WindowState;WindowFrame.Update(this);}
     protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)QueueCompleteRedraw();}
     protected override void OnHandleDestroyed(EventArgs e){repaintQueued=false;base.OnHandleDestroyed(e);}
@@ -210,7 +217,7 @@ internal sealed partial class Manager : Form {
     }
     void InitializeTray(){
         if(tray!=null)return;
-        trayMenu=new ContextMenuStrip{BackColor=Color.FromArgb(27,32,37),ForeColor=Ink,ShowImageMargin=false};
+        trayMenu=new HubContextMenu{BackColor=Color.FromArgb(27,32,37),ForeColor=Ink,ShowImageMargin=false};
         trayMenu.Items.Add("打开管理器",null,delegate{RestoreWindow();});trayMenu.Items.Add(new ToolStripSeparator());
         trayMenu.Items.Add("退出管理器",null,delegate{if(!IsDisposed&&!Disposing)BeginInvoke((MethodInvoker)delegate{exitRequested=true;Close();});});
         HubPopupMenu.Apply(trayMenu);
@@ -252,6 +259,7 @@ internal sealed partial class Manager : Form {
     }
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);WindowFrame.PaintBorder(this,e.Graphics,Color.FromArgb(49,65,69));}
     protected override void WndProc(ref Message m){
+        if(m.Msg==0x83){m.Result=IntPtr.Zero;return;}
         base.WndProc(ref m);
         if(m.Msg==0x0005){
             bool minimized=m.WParam.ToInt32()==1,restored=nativeWasMinimized&&!minimized;nativeWasMinimized=minimized;
@@ -259,9 +267,7 @@ internal sealed partial class Manager : Form {
             if(restored)QueueCompleteRedraw();
         }
         if(m.Msg==0x84&&WindowState==FormWindowState.Normal&&m.Result==(IntPtr)1){
-            var point=PointToClient(new Point(unchecked((short)(long)m.LParam),unchecked((short)((long)m.LParam>>16))));int grip=6;
-            bool left=point.X<grip,right=point.X>=Width-grip,top=point.Y<grip,bottom=point.Y>=Height-grip;
-            if(top&&left)m.Result=(IntPtr)13;else if(top&&right)m.Result=(IntPtr)14;else if(bottom&&left)m.Result=(IntPtr)16;else if(bottom&&right)m.Result=(IntPtr)17;else if(left)m.Result=(IntPtr)10;else if(right)m.Result=(IntPtr)11;else if(top)m.Result=(IntPtr)12;else if(bottom)m.Result=(IntPtr)15;
+            var point=PointToClient(new Point(unchecked((short)(long)m.LParam),unchecked((short)((long)m.LParam>>16))));int hit=WindowFrame.ResizeHit(this,point);if(hit!=0)m.Result=(IntPtr)hit;
         }
     }
     Button MakeButton(string title,bool primary,bool destructive,EventHandler action){var b=new ActionButton{Text=title,Primary=primary,Destructive=destructive,AccessibleName=title};b.Click+=action;return b;}
@@ -421,13 +427,13 @@ internal sealed partial class Manager : Form {
         if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test",steamScrollTest=args.Length==2&&args[0]=="--steam-scroll-test";
-        bool companionPreview=args.Length==2&&args[0]=="--pet-preview";
+        bool companionPreview=args.Length==2&&(args[0]=="--pet-preview"||args[0]=="--pet-preview-tray");
         bool test=smoke||uiTest||previewTest||lifecycle||galleryTest||steamScrollTest||companionPreview;Mutex instance=null;bool owns=false;
         try{
         if(!test){try{using(var setup=Mutex.OpenExisting("Local\\CodexLiveBackground.Setup."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){MessageBox.Show("安装或卸载正在进行，请等待完成。","CodexHub");return 0;}}catch(WaitHandleCannotBeOpenedException){}instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
             if(!owns){try{using(var activate=EventWaitHandle.OpenExisting("Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))activate.Set();}catch(WaitHandleCannotBeOpenedException){}return 0;}}
         using(var form=new Manager(!test)){
-            if(companionPreview){form.StartCompanionPreview(args[1]);Application.Run(form);return 0;}
+            if(companionPreview){form.startHidden=args[0]=="--pet-preview-tray";if(form.startHidden){form.ShowInTaskbar=false;IntPtr handle=form.Handle;}form.StartCompanionPreview(args[1]);Application.Run(form);return 0;}
             if(steamScrollTest)return form.TestSteamScroll(args[1]);
             if(galleryTest)return form.TestGallery(args[1]);
             if(lifecycle)return form.TestLifecycle(args[1]);

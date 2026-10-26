@@ -1,6 +1,463 @@
 {
   "id": "deepseek",
-  "displayName": "deepseek酱",
-  "description": "基于 DeepSeek 娘化三视图的蓝发鲸尾 Q 版女仆动态宠物.",
-  "spritesheetPath": "spritesheet.png"
+  "displayName": "鲸鱼娘 · DeepSeek",
+  "format": "frame-set",
+  "spritesheetPath": "poster.png",
+  "actions": [
+    {
+      "id": "deepseek-idle",
+      "name": "待机",
+      "file": "deepseek-idle.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "frame-desk-coding-hands-up",
+      "name": "敲键盘 · 抬手",
+      "file": "frame-desk-coding-hands-up.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "frame-idle-blink",
+      "name": "眨眼",
+      "file": "frame-idle-blink.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "frame-thinking-keypress",
+      "name": "思考 · 按键",
+      "file": "frame-thinking-keypress.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-angry",
+      "name": "生气",
+      "file": "reaction-angry.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-apologetic",
+      "name": "道歉",
+      "file": "reaction-apologetic.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-blindfold",
+      "name": "蒙眼",
+      "file": "reaction-blindfold.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-cheerful",
+      "name": "开心",
+      "file": "reaction-cheerful.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-crying",
+      "name": "哭泣",
+      "file": "reaction-crying.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-deepseek-pressure",
+      "name": "压力",
+      "file": "reaction-deepseek-pressure.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-deepseek-rice",
+      "name": "端饭",
+      "file": "reaction-deepseek-rice.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-desk-coding",
+      "name": "伏案工作",
+      "file": "reaction-desk-coding.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-desk-confused",
+      "name": "工作疑惑",
+      "file": "reaction-desk-confused.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-desk-done",
+      "name": "工作完成",
+      "file": "reaction-desk-done.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-desk-facepalm",
+      "name": "捂脸",
+      "file": "reaction-desk-facepalm.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-eating-rice",
+      "name": "吃饭",
+      "file": "reaction-eating-rice.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-hungry",
+      "name": "饿了",
+      "file": "reaction-hungry.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-pillow",
+      "name": "抱枕",
+      "file": "reaction-pillow.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-proud",
+      "name": "得意",
+      "file": "reaction-proud.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-relaxed",
+      "name": "放松",
+      "file": "reaction-relaxed.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-satiated",
+      "name": "吃饱",
+      "file": "reaction-satiated.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-shocked",
+      "name": "惊讶",
+      "file": "reaction-shocked.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-skeptical",
+      "name": "怀疑",
+      "file": "reaction-skeptical.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-sleeping",
+      "name": "睡觉",
+      "file": "reaction-sleeping.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-sleepy",
+      "name": "困倦",
+      "file": "reaction-sleepy.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-thinking",
+      "name": "思考",
+      "file": "reaction-thinking.png",
+      "frames": 2,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1080,
+      "files": [
+        "reaction-thinking.png",
+        "frame-thinking-keypress.png"
+      ],
+      "frameDurations": [
+        900,
+        180
+      ]
+    },
+    {
+      "id": "reaction-whip-defense",
+      "name": "防御",
+      "file": "reaction-whip-defense.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-whip-frightened",
+      "name": "受惊",
+      "file": "reaction-whip-frightened.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "reaction-whip-giggle",
+      "name": "偷笑",
+      "file": "reaction-whip-giggle.png",
+      "frames": 1,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 1800
+    },
+    {
+      "id": "idle-blink",
+      "name": "待机 · 眨眼",
+      "file": "deepseek-idle.png",
+      "files": [
+        "deepseek-idle.png",
+        "deepseek-idle.png",
+        "frame-idle-blink.png",
+        "deepseek-idle.png"
+      ],
+      "frames": 4,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 5720,
+      "frameDurations": [
+        2400,
+        1800,
+        120,
+        1400
+      ]
+    },
+    {
+      "id": "coding",
+      "name": "工作 · 敲键盘",
+      "file": "reaction-desk-coding.png",
+      "files": [
+        "reaction-desk-coding.png",
+        "frame-desk-coding-hands-up.png"
+      ],
+      "frames": 2,
+      "columns": 1,
+      "cellWidth": 288,
+      "cellHeight": 312,
+      "durationMs": 840,
+      "frameDurations": [
+        660,
+        180
+      ]
+    }
+  ],
+  "rowMap": [
+    29,
+    29,
+    29,
+    7,
+    29,
+    29,
+    29,
+    30,
+    13
+  ],
+  "proceduralMotion": true,
+  "behavior": {
+    "idle": [
+      29
+    ],
+    "turn": [
+      29
+    ],
+    "move": [
+      29
+    ],
+    "click": [
+      7,
+      18,
+      28
+    ],
+    "drag": [
+      29
+    ],
+    "whisper": [
+      7,
+      28,
+      29
+    ],
+    "sleep": [
+      23,
+      24
+    ],
+    "work": [
+      [
+        30
+      ],
+      [
+        30
+      ],
+      [
+        11
+      ],
+      [
+        12
+      ],
+      [
+        13
+      ],
+      [
+        14
+      ]
+    ],
+    "quota": [
+      [
+        7
+      ],
+      [
+        18
+      ],
+      [
+        0
+      ],
+      [
+        9,
+        22
+      ],
+      [
+        16,
+        24
+      ],
+      [
+        8,
+        5
+      ]
+    ],
+    "categories": [
+      {
+        "name": "表情与日常",
+        "weight": 35,
+        "actions": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          24,
+          26,
+          27,
+          28
+        ]
+      },
+      {
+        "name": "思考",
+        "weight": 5,
+        "actions": [
+          25
+        ]
+      }
+    ]
+  }
 }
