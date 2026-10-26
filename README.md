@@ -2,9 +2,20 @@
 
 <p align="center"><img src="docs/screenshots/wallpapers.png" alt="CodexHub 本地壁纸与预览" width="100%"></p>
 
+<p align="center">
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.5"><img src="docs/badges/version.svg" alt="预览版 v1.7.0-preview.5"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.5/CodexHub-1.7.0-preview.5-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 165 MiB"></a>
+  <a href="#安装更新与后台运行"><img src="docs/badges/platform.svg" alt="Windows 10 / 11 x64"></a>
+  <a href="LICENSE"><img src="docs/badges/license.svg" alt="MIT License"></a>
+</p>
+
 让 Codex 换上喜欢的风景，也有一个会动的小伙伴。动态背景、桌面宠物、任务和额度卡片，都放在一个 Windows 软件里。
 
-**[下载功能预览版](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.4) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md)**
+<p align="center">
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.5/CodexHub-1.7.0-preview.5-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.5" width="238" height="48"></a>
+</p>
+
+**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.5) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md)**
 
 ## 壁纸与背景
 
@@ -19,7 +30,7 @@
 
 ## 桌面宠物
 
-<p align="center"><img src="docs/screenshots/pets.png" alt="三个宠物与独立大小设置" width="100%"></p>
+<p align="center"><img src="docs/screenshots/pets.png" alt="三个宠物、自动启停与胶囊配色设置" width="100%"></p>
 
 | 鲸鱼娘 | 鲸鱼女仆 | 白龙娘 |
 | :---: | :---: | :---: |
@@ -27,14 +38,16 @@
 
 - 拖动、惯性滑行、随机行走、碰撞反馈，右键可选择各自的动作。
 - 活动范围可设为 Codex 内或整个桌面。只有手动跨屏拖动才换屏，自主运动在当前屏幕内回弹。
+- 可按需开启“跟随 Codex 自动启停”，默认关闭：Codex 最小化、隐藏或关闭时同步退出，打开或恢复可见时自动从托盘启动；仅切换焦点时宠物继续陪伴。
 - 任务开始进入工作，结束播放完成动作；空闲动作轮换，长时间无任务只进入一次休息。碎碎念已取消。
 - 点击胶囊看当前任务，点击圆环看剩余额度、重置时间与 Token 曲线。卡片平滑展开，跟随宠物继续移动。
+- “统一配色”一次更改左侧 Hub 按钮、中间胶囊和右侧圆环，也可分别选色；胶囊不透明度用 0%～100% 滑条调节并实时预览，文字保持清晰，字号略微加大。
 - 宠物与胶囊分别调节，范围均为 70%～150%。鲸鱼女仆新 100% 对应此前 80% 的实际大小，胶囊比例独立。
 - 鲸鱼女仆的没钱系列仅在真实剩余额度低于 10% 时自动随机播放。
 
 ## 安装、更新与后台运行
 
-1. 下载 `CodexHub-1.7.0-preview.4-Setup.exe`，选择安装目录，无需解压。
+1. [下载 `CodexHub-1.7.0-preview.5-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.5/CodexHub-1.7.0-preview.5-Setup.exe)，选择安装目录，无需解压。
 2. 选择或导入壁纸，预览后点击应用；按需启用桌面宠物。
 3. 在 **服务与设置 → 更新软件** 获取 GitHub 程序更新。更新包只替换程序，壁纸、宠物素材、设置和记录保留。
 
