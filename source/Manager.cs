@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.13")]
-[assembly: AssemblyFileVersion("1.7.0.13")]
+[assembly: AssemblyVersion("1.7.0.14")]
+[assembly: AssemblyFileVersion("1.7.0.14")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -191,7 +191,7 @@ internal sealed partial class Manager : Form {
     readonly WallpaperPreview preview=new WallpaperPreview();
     bool busy,closeRequested,connectionRequested;volatile bool cancelStatus;string runningAction,lastConnectionMessage;int operationGeneration;
     NotifyIcon tray;ContextMenuStrip trayMenu;Icon trayImage;
-    bool exitRequested,repaintQueued,nativeWasMinimized,restoringWindow,startHidden;
+    bool exitRequested,repaintQueued,nativeWasMinimized,nativeWasMaximized,restoringWindow,startHidden;
     readonly bool liveStatusEnabled;
     FormWindowState stateBeforeHide=FormWindowState.Normal;
     WindowResizeBridge resizeBridge;
@@ -214,14 +214,18 @@ internal sealed partial class Manager : Form {
     protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(Visible&&!restoringWindow&&WindowState!=FormWindowState.Minimized)stateBeforeHide=WindowState;WindowFrame.Update(this);}
     protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)QueueCompleteRedraw();}
     protected override void OnHandleDestroyed(EventArgs e){repaintQueued=false;base.OnHandleDestroyed(e);}
+    static void ReflowVisibleControls(Control control){
+        if(control.IsDisposed||!control.Visible)return;
+        control.PerformLayout();foreach(Control child in control.Controls)ReflowVisibleControls(child);
+    }
     void QueueCompleteRedraw(){
         if(repaintQueued||IsDisposed||Disposing||!IsHandleCreated||!Visible||WindowState==FormWindowState.Minimized)return;
         repaintQueued=true;
         try{BeginInvoke((MethodInvoker)delegate{
             repaintQueued=false;if(IsDisposed||Disposing||!IsHandleCreated||!Visible||WindowState==FormWindowState.Minimized)return;
-            PerformLayout();if(Controls.Count>0)Controls[0].PerformLayout();WindowFrame.Update(this);
-            // Invalidate the complete composited surface after restore, including
-            // every child HWND; repainting just the preview leaves a stale buffer.
+            ReflowVisibleControls(this);WindowFrame.Update(this);
+            // Size-state changes expose areas outside the previous composited
+            // buffer. Repaint every child and the complete window background.
             Invalidate(true);RedrawWindow(Handle,IntPtr.Zero,IntPtr.Zero,0x0585);
         });}catch(InvalidOperationException){repaintQueued=false;}
     }
@@ -273,10 +277,11 @@ internal sealed partial class Manager : Form {
         if(m.Msg==0x83){m.Result=IntPtr.Zero;return;}
         base.WndProc(ref m);
         if(m.Msg==0x0005){
-            bool minimized=m.WParam.ToInt32()==1,restored=nativeWasMinimized&&!minimized;nativeWasMinimized=minimized;
+            bool minimized=m.WParam.ToInt32()==1,maximized=m.WParam.ToInt32()==2,restored=nativeWasMinimized&&!minimized,maximizeChanged=nativeWasMaximized!=maximized;nativeWasMinimized=minimized;nativeWasMaximized=maximized;
             if(minimized&&tray!=null&&!exitRequested&&!restoringWindow){try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed&&!Disposing&&!exitRequested&&!restoringWindow&&WindowState==FormWindowState.Minimized)HideToTray();});}catch(InvalidOperationException){}}
-            if(restored)QueueCompleteRedraw();
+            if(!minimized&&(restored||maximizeChanged))QueueCompleteRedraw();
         }
+        if(m.Msg==0x0232)QueueCompleteRedraw();
         if(m.Msg==0x84&&WindowState==FormWindowState.Normal&&m.Result==(IntPtr)1){
             var point=PointToClient(new Point(unchecked((short)(long)m.LParam),unchecked((short)((long)m.LParam>>16))));int hit=WindowFrame.ResizeHit(this,point);if(hit!=0)m.Result=(IntPtr)hit;
         }

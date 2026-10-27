@@ -2,6 +2,12 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.11 — 最大化露底修复
+
+- 补上最大化和从最大化还原时的完整布局、背景与子控件重绘，修复画面仍使用旧尺寸而露出桌面。
+- 手动调整窗口大小结束后补完整重绘。
+- 按使用者要求完成编译打包后发布，界面效果待使用者确认。
+
 ## v1.7.0-preview.10 — 白龙图标与首页图片
 
 - 全部 CodexHub 程序和界面采用白龙抽象图标；软件内更新后同步桌面快捷方式图标。
