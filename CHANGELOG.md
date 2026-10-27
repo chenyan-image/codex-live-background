@@ -2,6 +2,11 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.10 — 白龙图标与首页图片
+
+- 全部 CodexHub 程序和界面采用白龙抽象图标；软件内更新后同步桌面快捷方式图标。
+- 修复 GitHub 主分支缺失的首页截图和徽章。
+
 ## v1.7.0-preview.9 — 宠物列表恢复显示
 
 - 从宠物 Hub 按钮打开管理器时，等待窗口恢复布局后再进入桌面宠物页。
