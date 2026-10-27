@@ -1,21 +1,21 @@
 # CodexHub
 
-<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
 
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.7"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/badges/version.svg" alt="预览版 v1.7.0-preview.7"></a>
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.7/CodexHub-1.7.0-preview.7-Setup.exe"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/badges/download-size.svg" alt="EXE 安装包约 98 MiB"></a>
-  <a href="#安装更新与后台运行"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/badges/platform.svg" alt="Windows 10 / 11 x64"></a>
-  <a href="https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/LICENSE"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/badges/license.svg" alt="MIT License"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.8"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/badges/version.svg" alt="预览版 v1.7.0-preview.8"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.8/CodexHub-1.7.0-preview.8-Setup.exe"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/badges/download-size.svg" alt="EXE 安装包约 98 MiB"></a>
+  <a href="#安装更新与后台运行"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/badges/platform.svg" alt="Windows 10 / 11 x64"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/LICENSE"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/badges/license.svg" alt="MIT License"></a>
 </p>
 
 让 Codex 换上喜欢的风景，也有一个会动的小伙伴。动态背景、桌面宠物、任务和额度卡片，都放在一个 Windows 软件里。
 
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.7/CodexHub-1.7.0-preview.7-Setup.exe"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.7" width="238" height="48"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.8/CodexHub-1.7.0-preview.8-Setup.exe"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.8" width="238" height="48"></a>
 </p>
 
-**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.7) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/CHANGELOG.md)**
+**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.8) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/CHANGELOG.md)**
 
 ## 壁纸与背景
 
@@ -26,11 +26,11 @@
 - 下载和导入在后台进行，宠物及卡片动画继续运行。
 - 静态缩略图只保留一帧，隐藏预览释放图片；宠物动作采用限量缓存，降低后台常驻占用。
 
-<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/screenshots/wallpaper-engine.png" alt="Wallpaper Engine 连续滚动壁纸库" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/screenshots/wallpaper-engine.png" alt="Wallpaper Engine 连续滚动壁纸库" width="100%"></p>
 
 ## 桌面宠物
 
-<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/screenshots/pets.jpg" alt="三个宠物、自动启停与胶囊配色设置" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/screenshots/pets.jpg" alt="三个宠物、自动启停与胶囊配色设置" width="100%"></p>
 
 | 鲸鱼娘 | 鲸鱼女仆 | 白龙娘 |
 | :---: | :---: | :---: |
@@ -42,16 +42,17 @@
 - 任务开始进入工作，结束播放完成动作；空闲动作轮换，长时间无任务只进入一次休息。碎碎念与离线聊天已取消。点击与自动动作不会连续重复，固定模式稍微提高随机动作频率。
 - 点击胶囊看当前任务，点击圆环看剩余额度、重置时间与 Token 曲线。卡片平滑展开，跟随宠物继续移动；单击宠物刷新额度并收起卡片。刷新平滑完成整圈后，成功显示短暂对勾，失败保留错误提示。
 - 展开任务卡片跟随胶囊颜色，额度卡片跟随圆环颜色。“统一配色”一次更改左侧 Hub 按钮、中间胶囊和右侧圆环，也可分别选色；左右圆环和胶囊共用 0%～100% 不透明度滑条，实时预览；透明圆环使用白字和深色描边，百分比保持清楚。
+- 深色圆角色盘支持连续选色、精选色卡及 HEX／RGB 输入，确认后应用；程序更新后在运行记录显示修改内容。
 - 宠物与胶囊分别调节，范围均为 70%～150%。鲸鱼女仆新 100% 对应此前 80% 的实际大小，胶囊比例独立。
 - 鲸鱼女仆的没钱系列仅在真实剩余额度低于 10% 时自动随机播放。
 
 ## 安装、更新与后台运行
 
-1. [下载 `CodexHub-1.7.0-preview.7-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.7/CodexHub-1.7.0-preview.7-Setup.exe)，选择安装目录，无需解压。
+1. [下载 `CodexHub-1.7.0-preview.8-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.8/CodexHub-1.7.0-preview.8-Setup.exe)，选择安装目录，无需解压。
 2. 选择或导入壁纸，预览后点击应用；按需启用桌面宠物。
 3. 在 **服务与设置 → 更新软件** 获取 GitHub 程序更新。更新包只替换程序，壁纸、宠物素材、设置和记录保留；每次启动通过公开频道检查 GitHub 更新，避免匿名 API 限流；有新版时在更新按钮上显示小红点，点击后才安装。
 
-<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.7/docs/screenshots/settings.png" alt="服务与设置中的更新软件按钮" width="100%"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/chenyan-image/codex-live-background/v1.7.0-preview.8/docs/screenshots/settings.png" alt="服务与设置中的更新软件按钮" width="100%"></p>
 
 最小化或关闭管理器会隐藏到托盘，不占任务栏；背景服务随 Windows 登录和 Codex 启动恢复。完整卸载可运行安装目录中的“卸载 CodexHub.exe”。
 
@@ -79,13 +80,13 @@
 | 分辨率与动画 | 单边最高 **16384 像素**，总像素最高 **50 MP**；图片动画最多 **300 帧**。 |
 | 播放方式 | 视频静音循环；转换保留完整时长，原素材不被修改。 |
 
-鲸鱼女仆的完整动画已经内置；为减小安装包，通用播放／视频转换组件首次需要时下载并校验，之后复用本机缓存，已有组件保留。[兼容与离线使用说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/docs/guide.md#首次转换需要的下载)
+鲸鱼女仆的完整动画已经内置；为减小安装包，通用播放／视频转换组件首次需要时下载并校验，之后复用本机缓存，已有组件保留。[兼容与离线使用说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/docs/guide.md#首次转换需要的下载)
 
 
 ## 项目来源
 
 原始背景管理器：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)，底层引擎：[Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。本项目在其基础上修复 Bug、简化源码并改进 Windows 体验。
 
-[MIT](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/LICENSE) · [第三方声明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/THIRD_PARTY_NOTICES.md) · [素材说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/THIRD_PARTY/Pet-Assets/README.md) · [构建与详细说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/docs/guide.md)
+[MIT](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/LICENSE) · [第三方声明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/THIRD_PARTY_NOTICES.md) · [素材说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/THIRD_PARTY/Pet-Assets/README.md) · [构建与详细说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/docs/guide.md)
 
-本工具为非官方项目，与 OpenAI 无隶属关系。当前发行尚未正式代码签名，[Windows 提示说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.7/docs/windows-trust.md)。
+本工具为非官方项目，与 OpenAI 无隶属关系。当前发行尚未正式代码签名，[Windows 提示说明](https://github.com/chenyan-image/codex-live-background/blob/v1.7.0-preview.8/docs/windows-trust.md)。
