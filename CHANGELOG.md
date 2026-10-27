@@ -2,6 +2,12 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0.2 — 静止模式待机修复
+
+- 关闭随机行走只停止位移，待机和空闲动作继续轮换；行走过程中关闭会及时恢复待机。
+- 完整休息一次后回到待机，下一次用户互动或任务才重新触发休息周期，避免定格和连续重复休息。
+- 所有宠物共用修复，保留个人设置、素材和现有动作防重复规则。
+
 ## v1.7.0.1 — 稳定版仓库更名兼容
 
 - 仓库更名为 codex-live-background-pet，软件内更新兼容新旧仓库地址。

@@ -63,8 +63,9 @@ internal static class PetRandomActionTests {
         }
         Need(seen.Count==daily.Length,"Automatic action coverage incomplete: "+pack.Id+" "+seen.Count+"/"+daily.Length);
         var rest=new PetAnimationDirector(pack,new PetBehaviorProfile{SleepSeconds=30},3);rest.Tick(31,motion,"idle",false,false,false);Need(rest.Sleeping,"Pet never rests: "+pack.Id);generation=rest.Generation;
-        for(int i=32;i<180;i++)rest.Tick(i,motion,"idle",false,false,false);
-        Need(rest.Sleeping&&rest.Generation==generation,"Sleeping rest restarted: "+pack.Id);rest.Click(181);Need(!rest.Sleeping,"Click cannot wake pet: "+pack.Id);
+        rest.Tick(31+rest.Duration(rest.Row)*.5,motion,"idle",false,false,false);Need(rest.Sleeping&&rest.Generation==generation,"Rest clip was interrupted: "+pack.Id);
+        for(int i=(int)Math.Ceiling(31+rest.Duration(rest.Row));i<180;i++)rest.Tick(i,motion,"idle",false,false,false);
+        Need(!rest.Sleeping&&rest.Generation>generation,"Completed rest did not resume idle actions: "+pack.Id);rest.Click(181);Need(!rest.Sleeping,"Click cannot wake pet: "+pack.Id);
         return new{id=pack.Id,eligibleClickActions=eligible,automaticActions=seen.Count,randomStarts,nonRepeating=true};
     }
     static int Starts(PetPack pack,bool roaming){
