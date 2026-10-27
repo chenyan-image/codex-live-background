@@ -47,6 +47,13 @@ function Resolve-DreamBackgroundUpgradeStartup {
     if([IO.Path]::GetFileName($executable) -ine 'DreamSkinPortHook.exe' -or (Split-Path -Leaf $taskRoot) -ine 'startup'){throw '旧服务启动入口不是已验证的后台组件。'}
     Assert-DreamBackgroundUpgradeTree -Path (Split-Path -Parent $taskRoot) -StateRoot $StateRoot
   }
+  if(-not(Test-Path -LiteralPath $executable) -and @($approved|Where-Object{Test-DreamSkinPathEqual -Left $_ -Right $taskRoot}).Count){
+    # Missing files can leave a stale task. Exact path, arguments and SID must
+    # still match this installation before allowing registration removal.
+    Assert-DreamBackgroundTaskOwner -Task $Task -StartupRoot $taskRoot
+    [Console]::Out.WriteLine('发现指向已删除组件的本项目启动任务，将移除失效记录：'+$executable)
+    return $taskRoot
+  }
   $null=Get-DreamBackgroundServicePlan -Task $Task -StartupRoot $taskRoot -ProfilesPath (Join-Path $PackageRoot 'service-compatibility.json')
   return $taskRoot
 }
