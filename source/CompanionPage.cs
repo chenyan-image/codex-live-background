@@ -27,14 +27,28 @@ internal sealed class PetCard : Control {
     protected override void Dispose(bool disposing){if(disposing){if(atlas!=null)atlas.Dispose();if(poster!=null)poster.Dispose();}base.Dispose(disposing);}
 }
 internal sealed class PetCardGallery : Panel {
-    readonly Panel viewport=new Panel{Dock=DockStyle.Fill};readonly GalleryScrollBar scrollbar=new GalleryScrollBar{Dock=DockStyle.Right,Width=16};readonly List<PetCard> cards=new List<PetCard>();bool arranging;
+    readonly Panel viewport=new Panel{Dock=DockStyle.Fill};readonly GalleryScrollBar scrollbar=new GalleryScrollBar{Dock=DockStyle.Right,Width=16};readonly List<PetCard> cards=new List<PetCard>();bool arranging,refreshQueued;
     public PetCardGallery(){DoubleBuffered=true;Controls.Add(viewport);Controls.Add(scrollbar);scrollbar.AccessibleName="桌面宠物列表滚动条";scrollbar.ValueChanged+=delegate{Arrange();};viewport.SizeChanged+=delegate{Arrange();};}
     public void AddCard(PetCard card){cards.Add(card);viewport.Controls.Add(card);card.MouseWheel+=Wheel;Arrange();}
     public void ClearCards(){cards.Clear();viewport.Controls.Clear();scrollbar.Value=0;}
+    protected override void OnLayout(LayoutEventArgs e){base.OnLayout(e);Arrange();}
+    protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);RefreshCards();}
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);RefreshCards();}
+    protected override void OnHandleDestroyed(EventArgs e){refreshQueued=false;base.OnHandleDestroyed(e);}
+    public void RefreshCards(){
+        if(refreshQueued||IsDisposed||Disposing||!Visible||!IsHandleCreated)return;
+        refreshQueued=true;
+        // Tray restore and the companion button can reveal this page before
+        // its parent has finished layout. Reflow and paint after that cycle.
+        try{BeginInvoke((MethodInvoker)delegate{
+            refreshQueued=false;if(IsDisposed||Disposing||!Visible)return;
+            PerformLayout();Arrange();viewport.Invalidate(true);Invalidate(true);
+        });}catch(InvalidOperationException){refreshQueued=false;}
+    }
     void Wheel(object sender,MouseEventArgs e){scrollbar.Value-=(int)Math.Round(e.Delta/120D*108);var handled=e as HandledMouseEventArgs;if(handled!=null)handled.Handled=true;}
     protected override void OnMouseWheel(MouseEventArgs e){Wheel(this,e);base.OnMouseWheel(e);}
     void Arrange(){if(arranging||viewport.Width<2)return;arranging=true;try{
-        float scale=1;using(var graphics=CreateGraphics())scale=graphics.DpiX/96F;int width=(int)(166*scale),height=(int)(205*scale),gap=(int)(12*scale),columns=Math.Max(1,(viewport.Width+gap)/(width+gap));int rows=(cards.Count+columns-1)/columns;
+        float scale=1;if(IsHandleCreated)using(var graphics=CreateGraphics())scale=graphics.DpiX/96F;int width=(int)(166*scale),height=(int)(205*scale),gap=(int)(12*scale),columns=Math.Max(1,(viewport.Width+gap)/(width+gap));int rows=(cards.Count+columns-1)/columns;
         scrollbar.SetRange(Math.Max(0,rows*(height+gap)-gap-viewport.Height),viewport.Height);
         for(int i=0;i<cards.Count;i++)cards[i].Bounds=new Rectangle((i%columns)*(width+gap),(i/columns)*(height+gap)-scrollbar.Value,width,height);
     }finally{arranging=false;}}
@@ -94,9 +108,10 @@ internal sealed partial class Manager {
     readonly System.Windows.Forms.Timer petPreviewTimer=new System.Windows.Forms.Timer{Interval=120};
     string petImportProgress;PetController pets;bool petSync,petImporting,companionLive,companionStopped;volatile bool cancelPetImport;readonly object petImportGate=new object();PetProcessScope petImportProcess;
     void InitializeCompanion(bool live){
-        companionLive=live;pets=new PetController(this,root,stateDirectory,live);pets.Changed+=SyncPetSettings;pets.SettingsRequested+=delegate{RestoreWindow();Navigate("pets");};BuildPetCards();SyncPetSettings();
+        companionLive=live;pets=new PetController(this,root,stateDirectory,live);pets.Changed+=SyncPetSettings;pets.SettingsRequested+=OpenCompanionSettings;BuildPetCards();SyncPetSettings();
         Shown+=delegate{StartManagedCompanion();};petPreviewTimer.Tick+=delegate{string message=Interlocked.Exchange(ref petImportProgress,null);if(message!=null)previewHint.Text=message;if(petPage.Visible&&Visible)foreach(var tile in petTiles)tile.Animate();};petPreviewTimer.Start();
     }
+    void OpenCompanionSettings(){RestoreWindow();Ui(delegate{Navigate("pets");petCards.RefreshCards();});}
     void BuildPetPage(Panel pages){
         petPage.Dock=DockStyle.Fill;petPage.Visible=false;pages.Controls.Add(petPage);
         var layout=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,Margin=Padding.Empty};layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,306));petPage.Controls.Add(layout);
@@ -160,7 +175,7 @@ internal sealed partial class Manager {
     void StartCompanionPreview(string directory){
         if(pets!=null)pets.Dispose();stateDirectory=Path.GetFullPath(directory);Directory.CreateDirectory(stateDirectory);companionLive=true;
         library=new WallpaperLibrary(stateDirectory);library.RemapBuiltins(builtinEntries);
-        pets=new PetController(this,root,stateDirectory,true);pets.Changed+=SyncPetSettings;pets.SettingsRequested+=delegate{RestoreWindow();Navigate("pets");};
+        pets=new PetController(this,root,stateDirectory,true);pets.Changed+=SyncPetSettings;pets.SettingsRequested+=OpenCompanionSettings;
         BuildPetCards();SyncPetSettings();Navigate("pets");InitializeTray();pets.Start();
     }
 }

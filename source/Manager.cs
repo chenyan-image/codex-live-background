@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.11")]
-[assembly: AssemblyFileVersion("1.7.0.11")]
+[assembly: AssemblyVersion("1.7.0.12")]
+[assembly: AssemblyFileVersion("1.7.0.12")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -245,6 +245,7 @@ internal sealed partial class Manager : Form {
         closeRequested=exitRequested=false;restoringWindow=true;
         try{ShowInTaskbar=true;Show();WindowState=target;Activate();SetForegroundWindow(Handle);}finally{restoringWindow=false;}
         QueueCompleteRedraw();
+        if(page=="pets")petCards.RefreshCards();
         if(tray!=null&&liveStatusEnabled){connectionTimer.Start();if(!busy&&!checkingStatus)Run("Connection");}
     }
     protected override void Dispose(bool disposing){

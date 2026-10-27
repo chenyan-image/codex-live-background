@@ -2,6 +2,13 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.9 — 宠物列表恢复显示
+
+- 从宠物 Hub 按钮打开管理器时，等待窗口恢复布局后再进入桌面宠物页。
+- 宠物列表在显示、重建窗口和布局变化时重新排列并刷新，避免仅显示数量、形象卡片区空白。
+- GitHub 首页标题更新为“CodexHub Codex动态壁纸+桌面宠物”。
+- 编译和打包后发布，界面效果由使用者验证；图标沿用原版。
+
 ## v1.7.0-preview.8 — 现代选色、更新说明与动作衔接
 
 - 深色圆角选色窗口替代旧 Windows 色盘，支持连续选色、精选色卡、HEX／RGB 和预览；确认应用，取消不改设置。

@@ -18,7 +18,7 @@ internal sealed class Setup : Form {
     bool busy,completed;readonly bool uninstall,relocated;string retryAction;
     static readonly JavaScriptSerializer Json=new JavaScriptSerializer();
     Setup(bool mode,string root,bool temporary){
-        uninstall=mode;relocated=temporary;Text="CodexHub · 1.7.0 预览版 8";BackColor=Color.FromArgb(14,21,25);ForeColor=Color.FromArgb(231,240,238);Font=new Font("Microsoft YaHei UI",10);ClientSize=new Size(710,594);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;Padding=new Padding(1);
+        uninstall=mode;relocated=temporary;Text="CodexHub · 1.7.0 预览版 9";BackColor=Color.FromArgb(14,21,25);ForeColor=Color.FromArgb(231,240,238);Font=new Font("Microsoft YaHei UI",10);ClientSize=new Size(710,594);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;Padding=new Padding(1);
         try{Icon=new Icon(Assembly.GetExecutingAssembly().GetManifestResourceStream("Codex.Setup.ico"));}catch{}
         var frame=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty};frame.RowStyles.Add(new RowStyle(SizeType.Absolute,32));frame.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(frame);
         var bar=new Panel{Dock=DockStyle.Fill,Margin=Padding.Empty,BackColor=Color.FromArgb(18,27,31)};var caption=new Label{Text=Text,Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft,Padding=new Padding(10,0,0,0),Font=new Font(Font.FontFamily,9),ForeColor=Color.FromArgb(174,197,194)};bar.Controls.Add(caption);
