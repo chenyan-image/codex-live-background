@@ -3,8 +3,8 @@
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
 
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.10"><img src="docs/badges/version.svg" alt="预览版 v1.7.0-preview.10"></a>
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.10/CodexHub-1.7.0-preview.10-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 100 MiB"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.11"><img src="docs/badges/version.svg" alt="预览版 v1.7.0-preview.11"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.11/CodexHub-1.7.0-preview.11-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 100 MiB"></a>
   <a href="#安装更新与后台运行"><img src="docs/badges/platform.svg" alt="Windows 10 / 11 x64"></a>
   <a href="LICENSE"><img src="docs/badges/license.svg" alt="MIT License"></a>
 </p>
@@ -12,10 +12,10 @@
 让 Codex 换上喜欢的风景，也有一个会动的小伙伴。动态背景、桌面宠物、任务和额度卡片，都放在一个 Windows 软件里。
 
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.10/CodexHub-1.7.0-preview.10-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.10" width="238" height="48"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.11/CodexHub-1.7.0-preview.11-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.11" width="238" height="48"></a>
 </p>
 
-**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.10) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md)**
+**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.11) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md)**
 
 ## 壁纸与背景
 
@@ -48,7 +48,7 @@
 
 ## 安装、更新与后台运行
 
-1. [下载 `CodexHub-1.7.0-preview.10-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.10/CodexHub-1.7.0-preview.10-Setup.exe)，选择安装目录，无需解压。
+1. [下载 `CodexHub-1.7.0-preview.11-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.11/CodexHub-1.7.0-preview.11-Setup.exe)，选择安装目录，无需解压。
 2. 选择或导入壁纸，预览后点击应用；按需启用桌面宠物。
 3. 在 **服务与设置 → 更新软件** 获取 GitHub 程序更新。更新包只替换程序，壁纸、宠物素材、设置和记录保留；每次启动通过公开频道检查 GitHub 更新，避免匿名 API 限流；有新版时在更新按钮上显示小红点，点击后才安装。
 
