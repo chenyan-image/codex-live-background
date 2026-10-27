@@ -2,6 +2,14 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.13 — 安装诊断与已核验残留清理
+
+- EXE 安装器新增深度扫描、具体原因报告与可停止的本地磁盘扫描。
+- 新增清理已确认残留；清理前显示位置，按已验证发行文件清单操作，保留素材和个人设置。
+- 修复损坏旧安装标记、失效启动任务与其他目录的无效旧记录阻断安装。
+- 未安装 Codex 或检测接口不可用时允许完成管理器安装，连接结果单独提示。
+- 诊断报告固定保存在 CodexHub\Diagnostics，完整安装包继续附带解码依赖。
+
 ## v1.7.0-preview.12 — 安装路径、离线依赖与历史定位
 
 - 支持本地盘符根目录和任意合法文件夹名，修复路径截断与引用。
