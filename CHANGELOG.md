@@ -2,6 +2,14 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.8 — 现代选色、更新说明与动作衔接
+
+- 深色圆角选色窗口替代旧 Windows 色盘，支持连续选色、精选色卡、HEX／RGB 和预览；确认应用，取消不改设置。
+- 统一配色与三个独立入口共用同一选色体验；原不透明度滑条保持。
+- 手动检查已是最新版时显示当前更新内容，程序更新后重新打开也会在运行记录显示本次说明。
+
+- 拖拽图片与 GIF 提前准备，按压尺寸平滑衔接，鲸鱼女仆更快进入拖拽姿态；白龙娘执行阶段轮换四种工作动作，保留完整任务链。
+
 ## v1.7.0-preview.7 — 额度可读性与宠物交互
 
 - 透明额度圆环增加白字与深色描边，完整显示 100%。刷新连续转动、平滑完成整圈，成功显示短暂对勾，失败不假报成功。

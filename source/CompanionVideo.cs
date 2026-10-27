@@ -56,18 +56,19 @@ internal sealed partial class PetAtlas {
     public void ResumeVideo(){if(suspendedAt<0)return;double duration=videoClock.Elapsed.TotalSeconds-suspendedAt;if(videoOrigin>=0)videoOrigin+=duration;if(blendOrigin>=0)blendOrigin+=duration;suspendedAt=-1;}
     public bool DragHeld;public double VideoPlaybackTime{get;private set;}
     public void ReleaseDragFrame(){if(!IsVideo)return;if(videoFrame!=null)videoFrame.Dispose();if(previousVideo!=null)previousVideo.Dispose();videoFrame=previousVideo=null;}
-    public bool DragReady{get{return !IsVideo||dragPrepared!=null&&(dragPrepared.Ready||dragPrepared.Error!=null);}}
+    public bool DragReady{get{return IsVideo?dragPrepared!=null&&(dragPrepared.Ready||dragPrepared.Error!=null):ImageDragReady;}}
     public bool IsVideo{get{return animations!=null&&animations.Format=="transparent-video-set";}}
     public bool VideoFinished{get{return !IsVideo||video!=null&&(video.Ended||!String.IsNullOrEmpty(video.Error));}}
     public string VideoError{get{return video==null?null:video.Error;}}
     double playbackOffset;
     string Decoder{get{return PetMediaRuntime.Find();}}
-    PetVideoStream Stream(int row,bool movement=false){var a=animations.Actions[ActionIndex(row)];return new PetVideoStream(Decoder,Path.Combine(animations.Directory,a.file),a.cellWidth,a.cellHeight,a.fps,row==dragRow?a.dragStartSeconds:movement?a.moveLeadSeconds:0);}
-    public void BeginVideo(int row,int generation,bool direct=false,bool movement=false){if(!IsVideo||previewOnly||generation==videoGeneration)return;videoGeneration=generation;playbackOffset=row==dragRow?animations.Actions[ActionIndex(row)].dragStartSeconds:movement?animations.Actions[ActionIndex(row)].moveLeadSeconds:0;
+    double DragStartOffset(int row){var action=animations.Actions[ActionIndex(row)];return action.dragHoldSeconds>action.dragStartSeconds?Math.Max(action.dragStartSeconds,action.dragHoldSeconds-.9):action.dragStartSeconds;}
+    PetVideoStream Stream(int row,bool movement=false){var a=animations.Actions[ActionIndex(row)];return new PetVideoStream(Decoder,Path.Combine(animations.Directory,a.file),a.cellWidth,a.cellHeight,a.fps,row==dragRow?DragStartOffset(row):movement?a.moveLeadSeconds:0);}
+    public void BeginVideo(int row,int generation,bool direct=false,bool movement=false){if(!IsVideo||previewOnly||generation==videoGeneration)return;videoGeneration=generation;playbackOffset=row==dragRow?DragStartOffset(row):movement?animations.Actions[ActionIndex(row)].moveLeadSeconds:0;
         if(previousVideo!=null)previousVideo.Dispose();previousVideo=direct||videoFrame==null?null:new Bitmap(videoFrame);
         if(video!=null)video.Dispose();video=row==dragRow&&dragPrepared!=null?dragPrepared:!movement&&prepared!=null&&preparedRow==row?prepared:Stream(row,movement);if(video==dragPrepared)dragPrepared=null;if(video!=prepared&&prepared!=null)prepared.Dispose();prepared=null;preparedRow=-1;currentAction=ActionIndex(row);videoOrigin=blendOrigin=-1;VideoPlaybackTime=0;if(row!=dragRow)PrepareDrag(dragRow);
     }
-    public void PrepareDrag(int row){if(!IsVideo||previewOnly||row<0)return;dragRow=row;if(dragPrepared==null)dragPrepared=Stream(row);}
+    public void PrepareDrag(int row){if(previewOnly||row<0)return;dragRow=row;if(!IsVideo){PrepareImageDrag(row);return;}if(dragPrepared==null)dragPrepared=Stream(row); }
     public void PrepareVideo(int row){if(!IsVideo||previewOnly||preparedRow==row)return;if(prepared!=null)prepared.Dispose();preparedRow=row;prepared=Stream(row);}
     void DrawVideo(Graphics g,RectangleF destination,int row,double time){
         if(previewOnly){g.DrawImage(bitmap,destination,new RectangleF(200,50,240,285),GraphicsUnit.Pixel);return;}

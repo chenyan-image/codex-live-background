@@ -3,8 +3,8 @@
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
 
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.7"><img src="docs/badges/version.svg" alt="预览版 v1.7.0-preview.7"></a>
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.7/CodexHub-1.7.0-preview.7-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 98 MiB"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.8"><img src="docs/badges/version.svg" alt="预览版 v1.7.0-preview.8"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.8/CodexHub-1.7.0-preview.8-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 98 MiB"></a>
   <a href="#安装更新与后台运行"><img src="docs/badges/platform.svg" alt="Windows 10 / 11 x64"></a>
   <a href="LICENSE"><img src="docs/badges/license.svg" alt="MIT License"></a>
 </p>
@@ -12,10 +12,10 @@
 让 Codex 换上喜欢的风景，也有一个会动的小伙伴。动态背景、桌面宠物、任务和额度卡片，都放在一个 Windows 软件里。
 
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.7/CodexHub-1.7.0-preview.7-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.7" width="238" height="48"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.8/CodexHub-1.7.0-preview.8-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0-preview.8" width="238" height="48"></a>
 </p>
 
-**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.7) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md)**
+**[预览版详情](https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.8) · [稳定版](https://github.com/chenyan-image/codex-live-background/releases/latest) · [更新记录](CHANGELOG.md)**
 
 ## 壁纸与背景
 
@@ -42,12 +42,13 @@
 - 任务开始进入工作，结束播放完成动作；空闲动作轮换，长时间无任务只进入一次休息。碎碎念与离线聊天已取消。点击与自动动作不会连续重复，固定模式稍微提高随机动作频率。
 - 点击胶囊看当前任务，点击圆环看剩余额度、重置时间与 Token 曲线。卡片平滑展开，跟随宠物继续移动；单击宠物刷新额度并收起卡片。刷新平滑完成整圈后，成功显示短暂对勾，失败保留错误提示。
 - 展开任务卡片跟随胶囊颜色，额度卡片跟随圆环颜色。“统一配色”一次更改左侧 Hub 按钮、中间胶囊和右侧圆环，也可分别选色；左右圆环和胶囊共用 0%～100% 不透明度滑条，实时预览；透明圆环使用白字和深色描边，百分比保持清楚。
+- 深色圆角色盘支持连续选色、精选色卡及 HEX／RGB 输入，确认后应用；程序更新后在运行记录显示修改内容。
 - 宠物与胶囊分别调节，范围均为 70%～150%。鲸鱼女仆新 100% 对应此前 80% 的实际大小，胶囊比例独立。
 - 鲸鱼女仆的没钱系列仅在真实剩余额度低于 10% 时自动随机播放。
 
 ## 安装、更新与后台运行
 
-1. [下载 `CodexHub-1.7.0-preview.7-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.7/CodexHub-1.7.0-preview.7-Setup.exe)，选择安装目录，无需解压。
+1. [下载 `CodexHub-1.7.0-preview.8-Setup.exe`](https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.8/CodexHub-1.7.0-preview.8-Setup.exe)，选择安装目录，无需解压。
 2. 选择或导入壁纸，预览后点击应用；按需启用桌面宠物。
 3. 在 **服务与设置 → 更新软件** 获取 GitHub 程序更新。更新包只替换程序，壁纸、宠物素材、设置和记录保留；每次启动通过公开频道检查 GitHub 更新，避免匿名 API 限流；有新版时在更新按钮上显示小红点，点击后才安装。
 

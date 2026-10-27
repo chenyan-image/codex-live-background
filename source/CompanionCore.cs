@@ -75,6 +75,21 @@ internal sealed class PetPack {
 internal sealed partial class PetAtlas : IDisposable {
     public const int Columns=8,CellWidth=192,CellHeight=208;
     Bitmap bitmap,gif,currentPng;readonly PetPack animations;int currentAction=-1,lastGifFrame=-1;int[] gifDelays;
+    readonly object dragImagesGate=new object();Bitmap warmedDragGif,idleGif;int[] warmedDragDelays,idleGifDelays;int warmedDragAction=-1;RectangleF warmedDragBounds;bool dragImagesPreparing,dragImagesReady,imagesDisposed;
+    Dictionary<string,Bitmap> warmedDragPngs;public string DragPreparationError{get;private set;}
+    bool ImageDragReady{get{lock(dragImagesGate)return animations==null||dragImagesReady;}}
+    static int[] GifTiming(Bitmap image,PetAction action){int count=image.GetFrameCount(FrameDimension.Time);var delays=Enumerable.Repeat(Math.Max(10,action.durationMs/count),count).ToArray();try{byte[] values=image.GetPropertyItem(0x5100).Value;for(int i=0;i<count&&i*4+4<=values.Length;i++)delays[i]=Math.Max(10,BitConverter.ToInt32(values,i*4)*10);}catch(ArgumentException){}return delays;}
+    void PrepareImageDrag(int row){
+        if(animations==null)return;int action=ActionIndex(row);lock(dragImagesGate){if(imagesDisposed||dragImagesPreparing||dragImagesReady)return;dragImagesPreparing=true;}
+        System.Threading.ThreadPool.QueueUserWorkItem(delegate{Bitmap warm=null;Dictionary<string,Bitmap> frames=null;int[] delays=null;RectangleF bounds=IdleContentBounds;string failure=null;
+            try{var spec=animations.Actions[action];if(animations.Format=="animated-gif-set"){warm=new Bitmap(Path.Combine(animations.Directory,spec.file));if(warm.Width>512||warm.Height>512)throw new InvalidDataException("Drag GIF dimensions exceed limits.");delays=GifTiming(warm,spec);warm.SelectActiveFrame(FrameDimension.Time,0);bounds=MeasureBody(warm,new Rectangle(0,0,warm.Width,warm.Height));}
+                else if(animations.Format=="frame-set"){frames=new Dictionary<string,Bitmap>(StringComparer.OrdinalIgnoreCase);long bytes=0;foreach(string file in (spec.files??new[]{spec.file}).Distinct(StringComparer.OrdinalIgnoreCase).Take(8)){using(var source=Image.FromFile(Path.Combine(animations.Directory,file))){if(source.Width>8192||source.Height>16384||(long)source.Width*source.Height>24000000)throw new InvalidDataException("Drag frame dimensions exceed limits.");long size=(long)source.Width*source.Height*4;if(bytes+size>4*1024*1024&&frames.Count>0)break;var copy=new Bitmap(source.Width,source.Height,PixelFormat.Format32bppArgb);using(var g=Graphics.FromImage(copy))g.DrawImageUnscaled(source,0,0);frames.Add(file,copy);bytes+=size;}}
+                    Bitmap first=frames.Values.First();int cell=spec.frameIndices==null?0:spec.frameIndices[0];bounds=MeasureBody(first,new Rectangle(cell%spec.columns*spec.cellWidth,(spec.row+cell/spec.columns)*spec.cellHeight,spec.cellWidth,spec.cellHeight));}
+            }catch(Exception error){failure=error.Message;}
+            lock(dragImagesGate){if(imagesDisposed){if(warm!=null)warm.Dispose();if(frames!=null)foreach(var image in frames.Values)image.Dispose();return;}warmedDragGif=warm;warmedDragDelays=delays;warmedDragPngs=frames;warmedDragAction=action;warmedDragBounds=bounds;DragPreparationError=failure;dragImagesReady=true;dragImagesPreparing=false;}
+        });
+    }
+    void DisposeDragImages(){lock(dragImagesGate){imagesDisposed=true;if(warmedDragGif!=null&&warmedDragGif!=gif)warmedDragGif.Dispose();if(idleGif!=null&&idleGif!=gif&&idleGif!=warmedDragGif)idleGif.Dispose();warmedDragGif=idleGif=null;if(warmedDragPngs!=null){foreach(var image in warmedDragPngs.Values)image.Dispose();warmedDragPngs=null;}}}
     readonly Dictionary<string,Bitmap> pngs=new Dictionary<string,Bitmap>(StringComparer.OrdinalIgnoreCase);readonly LinkedList<string> pngOrder=new LinkedList<string>();
     readonly Dictionary<int,RectangleF> contentBounds=new Dictionary<int,RectangleF>();
     public RectangleF IdleContentBounds{get;private set;}
@@ -105,13 +120,14 @@ internal sealed partial class PetAtlas : IDisposable {
         if(FrameCounts.Take(9).Any(x=>x==0)){Bitmap.Dispose();throw new InvalidDataException("图集的九种基础动作必须都有连续可见帧。");}
         IdleContentBounds=ContentBounds(0);
     }
-    public RectangleF ContentBounds(int row){if(IsVideo||previewOnly&&animations!=null)return IdleContentBounds;int key=animations==null?row:ActionIndex(row);RectangleF value;if(contentBounds.TryGetValue(key,out value))return value;Rectangle frame=Frame(row,0);value=MeasureBody(Bitmap,frame);contentBounds[key]=value;return value;}
+    public RectangleF ContentBounds(int row){if(IsVideo||previewOnly&&animations!=null)return IdleContentBounds;int key=animations==null?row:ActionIndex(row);RectangleF value;if(contentBounds.TryGetValue(key,out value))return value;lock(dragImagesGate){if(animations!=null&&key==warmedDragAction&&dragImagesReady){contentBounds[key]=warmedDragBounds;return warmedDragBounds;}if(animations!=null&&row==dragRow&&dragImagesPreparing)return IdleContentBounds;}Rectangle frame=Frame(row,0);value=MeasureBody(Bitmap,frame);contentBounds[key]=value;return value;}
     // Largest opaque component excludes detached sparkles and caption/VFX pixels.
     internal static RectangleF MeasureBody(Bitmap source,Rectangle frame){using(var crop=new Bitmap(frame.Width,frame.Height,PixelFormat.Format32bppArgb)){using(var g=Graphics.FromImage(crop))g.DrawImage(source,new Rectangle(0,0,crop.Width,crop.Height),frame,GraphicsUnit.Pixel);var data=crop.LockBits(new Rectangle(0,0,crop.Width,crop.Height),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);try{int width=crop.Width,height=crop.Height;var bytes=new byte[data.Stride*height];Marshal.Copy(data.Scan0,bytes,0,bytes.Length);var seen=new bool[width*height];var queue=new int[seen.Length];int best=0,left=0,top=0,right=width,bottom=height;for(int at=0;at<seen.Length;at++){if(seen[at]||bytes[(at/width)*data.Stride+(at%width)*4+3]<96)continue;int count=1,read=0,minX=at%width,maxX=minX,minY=at/width,maxY=minY;seen[at]=true;queue[0]=at;while(read<count){int point=queue[read++],x=point%width,y=point/width;minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx<0||xx>=width||yy<0||yy>=height)continue;int next=yy*width+xx;if(seen[next]||bytes[yy*data.Stride+xx*4+3]<96)continue;seen[next]=true;queue[count++]=next;}}if(count>best){best=count;left=minX;right=maxX+1;top=minY;bottom=maxY+1;}}return new RectangleF(left/(float)width,top/(float)height,(right-left)/(float)width,(bottom-top)/(float)height);}finally{crop.UnlockBits(data);}}}
     public int ActionIndex(int row){return row<9?animations.RowMap[Math.Max(0,row)]:Math.Min(animations.Actions.Count-1,row-9);}
     Bitmap Png(string file){
         Bitmap value;if(pngs.TryGetValue(file,out value)){pngOrder.Remove(file);pngOrder.AddLast(file);return value;}
-        using(var source=Image.FromFile(Path.Combine(animations.Directory,file))){if(source.Width>8192||source.Height>16384||(long)source.Width*source.Height>24000000)throw new InvalidDataException("动作图集尺寸超限。");value=new Bitmap(source.Width,source.Height,PixelFormat.Format32bppArgb);using(var g=Graphics.FromImage(value))g.DrawImageUnscaled(source,0,0);}
+        lock(dragImagesGate){if(warmedDragPngs!=null&&warmedDragPngs.TryGetValue(file,out value))warmedDragPngs.Remove(file);}
+        if(value==null)using(var source=Image.FromFile(Path.Combine(animations.Directory,file))){if(source.Width>8192||source.Height>16384||(long)source.Width*source.Height>24000000)throw new InvalidDataException("动作图集尺寸超限。");value=new Bitmap(source.Width,source.Height,PixelFormat.Format32bppArgb);using(var g=Graphics.FromImage(value))g.DrawImageUnscaled(source,0,0);}
         // Bound decoded pixels, not compressed file sizes. Keep one oversized
         // atlas if required, but never preload all expression images.
         long bytes=(long)value.Width*value.Height*4;
@@ -125,7 +141,9 @@ internal sealed partial class PetAtlas : IDisposable {
                 int index=frame%spec.frames;string file=spec.files==null?spec.file:spec.files[index];currentPng=Png(file);int cell=spec.frameIndices!=null?spec.frameIndices[index]:spec.files==null?index:0;var box=new Rectangle(cell%spec.columns*spec.cellWidth,(spec.row+cell/spec.columns)*spec.cellHeight,spec.cellWidth,spec.cellHeight);
                 if(box.Right>currentPng.Width||box.Bottom>currentPng.Height)throw new InvalidDataException("动作帧超出图集。");return box;
             }
-            if(action!=currentAction){if(gif!=null)gif.Dispose();gif=new Bitmap(Path.Combine(animations.Directory,spec.file));if(gif.Width>512||gif.Height>512){gif.Dispose();gif=null;throw new InvalidDataException("动作尺寸超限。");}currentAction=action;lastGifFrame=-1;int count=gif.GetFrameCount(FrameDimension.Time);gifDelays=Enumerable.Repeat(Math.Max(10,spec.durationMs/count),count).ToArray();try{byte[] delays=gif.GetPropertyItem(0x5100).Value;for(int i=0;i<count&&i*4+4<=delays.Length;i++)gifDelays[i]=Math.Max(10,BitConverter.ToInt32(delays,i*4)*10);}catch(ArgumentException){}}
+            if(action!=currentAction){Bitmap next=null;int[] timing=null;lock(dragImagesGate){if(action==warmedDragAction&&warmedDragGif!=null){next=warmedDragGif;timing=warmedDragDelays;}else if(row==dragRow&&dragImagesPreparing&&gif!=null)return new Rectangle(0,0,gif.Width,gif.Height);else if(action==ActionIndex(0)&&idleGif!=null){next=idleGif;timing=idleGifDelays;}}
+                if(next==null){next=new Bitmap(Path.Combine(animations.Directory,spec.file));if(next.Width>512||next.Height>512){next.Dispose();throw new InvalidDataException("动作尺寸超限。");}timing=GifTiming(next,spec);}
+                if(gif!=null&&gif!=warmedDragGif&&gif!=idleGif)gif.Dispose();gif=next;gifDelays=timing;currentAction=action;lastGifFrame=-1;if(action==ActionIndex(0)&&idleGif==null){idleGif=gif;idleGifDelays=gifDelays;}}
             int selected=frame%gifDelays.Length;if(selected!=lastGifFrame){gif.SelectActiveFrame(FrameDimension.Time,selected);lastGifFrame=selected;}return new Rectangle(0,0,gif.Width,gif.Height);
         }
         return new Rectangle((frame%Math.Max(1,FrameCounts[row]))*CellWidth,row*CellHeight,CellWidth,CellHeight);
@@ -137,14 +155,14 @@ internal sealed partial class PetAtlas : IDisposable {
     public bool HoldLast,MirrorMotion;
     public void Draw(Graphics graphics,RectangleF destination,int row,double time){
         if(previewOnly&&animations==null){row=0;time=0;}
-        if(HoldLast)time=Math.Min(time,animations==null?.699:Math.Max(0,animations.Actions[ActionIndex(row)].durationMs/1000D-.001));
+        if(HoldLast||DragHeld&&row==dragRow&&!IsVideo)time=Math.Min(time,animations==null?.699:Math.Max(0,animations.Actions[ActionIndex(row)].durationMs/1000D-.001));
         if(previewOnly&&animations!=null){if(IsVideo)graphics.DrawImage(bitmap,destination,new RectangleF(IdleContentBounds.X*bitmap.Width,IdleContentBounds.Y*bitmap.Height,IdleContentBounds.Width*bitmap.Width,IdleContentBounds.Height*bitmap.Height),GraphicsUnit.Pixel);else graphics.DrawImage(bitmap,destination);return;}
         if(IsVideo){var state=graphics.Save();if(MirrorMotion){graphics.TranslateTransform(destination.Left+destination.Right,0);graphics.ScaleTransform(-1,1);}DrawVideo(graphics,destination,row,time);graphics.Restore(state);return;}
         int frame=(int)(Math.Max(0,time)*10);if(animations!=null){int index=ActionIndex(row);var action=animations.Actions[index];if(animations.Format!="frame-set"&&index!=currentAction)Frame(row,0);frame=SampleFrame(time,action.frames,action.durationMs,animations.Format=="frame-set"?action.frameDurations:gifDelays);}
         var source=Frame(row,frame);if(animations!=null&&animations.ProceduralMotion){float sway=(float)Math.Sin(time*2.2)*1.2F;destination.X+=sway;destination.Y+=(float)Math.Sin(time*1.6)*.8F;}
         var saved=graphics.Save();if(animations!=null&&animations.Actions[ActionIndex(row)].flip){graphics.TranslateTransform(destination.Left+destination.Right,0);graphics.ScaleTransform(-1,1);}graphics.DrawImage(Bitmap,destination,source,GraphicsUnit.Pixel);graphics.Restore(saved);
     }
-    public void Dispose(){DisposeVideo();if(bitmap!=null)bitmap.Dispose();if(gif!=null)gif.Dispose();foreach(var value in pngs.Values)value.Dispose();pngs.Clear();pngOrder.Clear();currentPng=null;}
+    public void Dispose(){DisposeDragImages();DisposeVideo();if(bitmap!=null)bitmap.Dispose();if(gif!=null)gif.Dispose();foreach(var value in pngs.Values)value.Dispose();pngs.Clear();pngOrder.Clear();currentPng=null;}
 }
 internal sealed class PetDragTracker {
     readonly Queue<Tuple<Point,double>> samples=new Queue<Tuple<Point,double>>();Point lastPoint;double lastMove;
@@ -173,7 +191,7 @@ internal sealed class PetMotion {
     public void ResumeAutonomy(bool immediate=false){Dragging=Sliding=ClickResponse=recoiling=false;walking=false;Velocity=PointF.Empty;ReactionRemaining=0;CollisionDirection=-1;Row=0;decision=6+random.NextDouble()*6;if(immediate)StartWalk();}
     public void Wander(){if(Dragging||Sliding||ReactionRemaining>0||decision>0)return;walking=false;decision=0;}
     public void Update(double delta,Size size,Rectangle bounds,bool roaming,bool working){Step(delta,size,bounds,roaming);if(working&&!Dragging&&!Sliding&&Velocity==PointF.Empty&&ReactionRemaining<=0)Row=7;}
-    public void Drop(PointF velocity){double speed=Math.Sqrt(velocity.X*velocity.X+velocity.Y*velocity.Y);if(speed<75){Drop();return;}Dragging=false;Sliding=true;ClickResponse=Pressed=false;PressScale=1;CollisionDirection=-1;ReactionRemaining=0;double factor=Math.Min(1,1800/speed);Velocity=new PointF((float)(velocity.X*factor),(float)(velocity.Y*factor));Row=Velocity.X>=0?1:2;decision=1.5;}
+    public void Drop(PointF velocity){double speed=Math.Sqrt(velocity.X*velocity.X+velocity.Y*velocity.Y);if(speed<75){Drop();return;}Dragging=false;Sliding=true;ClickResponse=Pressed=false;CollisionDirection=-1;ReactionRemaining=0;double factor=Math.Min(1,1800/speed);Velocity=new PointF((float)(velocity.X*factor),(float)(velocity.Y*factor));Row=Velocity.X>=0?1:2;decision=1.5;}
     void Slide(double delta,Size size,Rectangle bounds){
         const double drag=3.8;double decay=Math.Exp(-drag*delta),travel=(1-decay)/drag;var next=new PointF(Position.X+(float)(Velocity.X*travel),Position.Y+(float)(Velocity.Y*travel));var velocity=new PointF((float)(Velocity.X*decay),(float)(Velocity.Y*decay));int edge=-1;
         if(next.X<bounds.Left||next.X+size.Width>bounds.Right){edge=next.X<bounds.Left?0:1;velocity.X=-velocity.X*.48F;velocity.Y*=.88F;}

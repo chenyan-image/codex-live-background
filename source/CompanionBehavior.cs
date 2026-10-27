@@ -36,7 +36,7 @@ internal sealed class PetAnimationDirector {
     static int Native(PetPack p,int row){return p.Actions==null?row:9+p.RowMap[row];}
     static PetBehaviorSpec Fallback(PetPack p){
         Func<int,int[]> row=i=>new[]{p.Actions==null?i:p.RowMap[i]};var s=new PetBehaviorSpec{idle=row(0),turn=row(8),move=row(1).Concat(row(2)).Distinct().ToArray(),click=row(3),drag=row(0),collision=row(5),whisper=row(3),quota=new[]{row(3),row(0),row(0),row(6),row(5),row(6)},work=new[]{row(7),row(7),row(8),row(6),row(3),row(5)},categories=new PetActionCategory[0]};
-        s.sleep=row(6);if(p.Actions!=null){s.sleep=Find(p,new[]{"睡","困倦"},s.sleep);s.drag=Find(p,new[]{"拖拽"},s.drag);s.work=new[]{Find(p,new[]{"收到任务","思考"},s.work[0]),Find(p,new[]{"处理任务","敲键盘","工作"},s.work[1]),Find(p,new[]{"整理归档","整理"},s.work[2]),Find(p,new[]{"翻阅工作","等待"},s.work[3]),Find(p,new[]{"庆祝","完成"},s.work[4]),Find(p,new[]{"生气","道歉"},s.work[5])};s.categories=new[]{new PetActionCategory{name="日常动作",weight=20,actions=Enumerable.Range(0,p.Actions.Count).Where(i=>!s.idle.Contains(i)&&!s.move.Contains(i)&&!s.work.SelectMany(v=>v).Contains(i)&&!s.sleep.Contains(i)).ToArray()}};}else s.categories=new[]{new PetActionCategory{name="日常动作",weight=30,actions=new[]{3,4,6,8}}};
+        s.sleep=row(6);if(p.Actions!=null){s.sleep=Find(p,new[]{"睡","困倦"},s.sleep);s.drag=Find(p,new[]{"拖拽"},s.drag);s.work=new[]{Find(p,new[]{"收到任务","思考"},s.work[0]),Find(p,new[]{"处理任务","敲键盘","工作"},s.work[1]),Find(p,new[]{"整理归档","整理","放大镜","查看细节"},s.work[2]),Find(p,new[]{"翻阅工作","等待"},s.work[3]),Find(p,new[]{"庆祝","完成"},s.work[4]),Find(p,new[]{"生气","道歉"},s.work[5])};s.categories=new[]{new PetActionCategory{name="日常动作",weight=20,actions=Enumerable.Range(0,p.Actions.Count).Where(i=>!s.idle.Contains(i)&&!s.move.Contains(i)&&!s.work.SelectMany(v=>v).Contains(i)&&!s.sleep.Contains(i)).ToArray()}};}else s.categories=new[]{new PetActionCategory{name="日常动作",weight=30,actions=new[]{3,4,6,8}}};
         return s;
     }
     static int[] Find(PetPack pack,string[] terms,int[] fallback){var indices=pack.Actions.Select((a,i)=>new{a,i}).Where(v=>terms.Any(term=>v.a.name.Contains(term))).Select(v=>v.i).ToArray();return indices.Length>0?indices:fallback;}
@@ -60,6 +60,9 @@ internal sealed class PetAnimationDirector {
         previous[key]=value;return ToRow(value);
     }
     int[] StagePool(string value){int i=value=="thinking"?0:value=="working"?1:value=="result"?2:value=="waiting"?3:value=="success"?4:value=="error"?5:-1;return i<0?null:spec.work[i];}
+    static bool ContinuousWork(string value){return value=="thinking"||value=="working"||value=="result";}
+    int[] WorkRotationPool(string value){if(!ContinuousWork(value))return StagePool(value);return (spec.work[1]??new int[0]).Concat(spec.work[2]??new int[0]).Concat(spec.work[3]??new int[0]).Distinct().ToArray();}
+    int NextWorkRow(){var pool=WorkRotationPool(stage);if(pool==null||pool.Length==0)pool=StagePool(stage);return Pick("work-cycle-"+(ContinuousWork(stage)?"active":stage),pool,Row);}
     int MoveRow(PetMotion motion){int direction=motion.Velocity.X>=0?1:2;if(pack.Actions==null)return direction;int mapped=pack.RowMap[direction];return spec.move!=null&&spec.move.Length<=2&&spec.move.Contains(mapped)?ToRow(mapped):Pick("move",spec.move,Native(pack,direction));}
     void Begin(int row,string next,double now){directSwitch=kind=="drag"||kind=="collision"||next=="drag"||next=="collision";if(kind!="work"&&next=="work")workSince=now;Row=row;lastPlayed=pack.Actions==null?row:row<9?pack.RowMap[row]:row-9;int count;played.TryGetValue(lastPlayed,out count);played[lastPlayed]=count+1;if(next=="click"||next=="random"||next=="quota")lastRandomPlayed=lastPlayed;if(next=="random")automaticActions++;kind=next;started=now;Time=0;plannedRow=-1;Generation++;}
     void ClearQueued(){queuedRow=-1;queuedKind=null;queuedQuotaPool=null;queuedQuotaKey=null;}
@@ -102,12 +105,12 @@ internal sealed class PetAnimationDirector {
         if(physics>=0){if(physics!=lastPhysics||physics==11&&motion.CollisionCount!=lastCollisionCount){int row=physics==10?Pick("drag",spec.drag,Native(pack,0)):physics==11?Pick("collision",spec.collision,Native(pack,5)):MoveRow(motion);if(physics==11)lastCollisionCount=motion.CollisionCount;Begin(row,physics==11&&spec.collision!=null&&spec.collision.Length>0?"collision":"physics",now);}lastPhysics=physics;if(physics==11)return;}
         else if(lastPhysics>=0)lastPhysics=-1;
         bool done=video?videoFinished:Time>=Duration(Row);
-        if(video&&!done&&Time>Duration(Row)-1&&plannedRow<0){plannedRow=workChain.Count>0?workChain.Peek():queuedRow>=0?QueuedPlaybackRow():profile.WorkEnabled&&StagePool(stage)!=null?Pick("work-"+stage,StagePool(stage),Row):Pick("idle",spec.idle,Row);if(prefetch!=null)prefetch(plannedRow);}
+        if(video&&!done&&Time>Duration(Row)-1&&plannedRow<0){plannedRow=workChain.Count>0?workChain.Peek():queuedRow>=0?QueuedPlaybackRow():profile.WorkEnabled&&StagePool(stage)!=null?NextWorkRow():Pick("idle",spec.idle,Row);if(prefetch!=null)prefetch(plannedRow);}
         if(!done)return;
         if(physics>=0){Begin(physics==10?Pick("drag",spec.drag,Row):MoveRow(motion),"physics",now);return;}
         if(workChain.Count>0){Begin(workChain.Dequeue(),"work",now);return;}
-        if(queuedRow>=0&&!(queuedKind=="work"&&kind=="work"&&now-workSince<2.4&&stage!="error"&&stage!="success"&&stage!="waiting")){int row=QueuedPlaybackRow();string next=queuedKind;ClearQueued();Begin(row,next,now);return;}
-        if(profile.WorkEnabled&&(stage=="thinking"||stage=="working"||stage=="waiting"||stage=="result")){Begin(Pick("work-"+stage,StagePool(stage),Row),"work",now);return;}
+        if(queuedRow>=0&&!(queuedKind=="work"&&kind=="work"&&now-workSince<2.4&&stage!="error"&&stage!="success"&&stage!="waiting")){int row=QueuedPlaybackRow();string next=queuedKind;if(next=="work"&&ContinuousWork(stage)&&row==Row)row=NextWorkRow();ClearQueued();Begin(row,next,now);return;}
+        if(profile.WorkEnabled&&(stage=="thinking"||stage=="working"||stage=="waiting"||stage=="result")){Begin(plannedRow>=0&&WorkRotationPool(stage)!=null&&WorkRotationPool(stage).Any(i=>ToRow(i)==plannedRow)&&plannedRow!=Row?plannedRow:NextWorkRow(),"work",now);return;}
         if(kind=="sleep")return; // Play once, then hold the sleeping pose until input or work wakes it.
         if(now-lastWorkAt>=Math.Max(30,profile.SleepSeconds)){Begin(Pick("sleep",spec.sleep??spec.idle,Row),"sleep",now);return;}
         if(kind=="idle"&&Time<(roaming?8:6))return;
