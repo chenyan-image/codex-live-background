@@ -1,5 +1,9 @@
 ﻿# CodexHub Codex动态壁纸+桌面宠物
+<p align="center">
+  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.1/CodexHub-1.7.0.1-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0.1" width="238" height="48"></a>
+</p>
 
+**[下载最新稳定版](https://github.com/chenyan-image/codex-live-background-pet/releases/latest) · [更新记录](CHANGELOG.md)**
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
 <p align="center"><img src="docs/screenshots/pets.png" alt="三个宠物、自动启停与胶囊配色设置" width="100%"></p>
 <p align="center">
@@ -11,11 +15,7 @@
 
 让 Codex 换上喜欢的风景，也有一个会动的小伙伴。动态背景、桌面宠物、任务和额度卡片，都放在一个 Windows 软件里。
 
-<p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.1/CodexHub-1.7.0.1-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0.1" width="238" height="48"></a>
-</p>
 
-**[下载最新稳定版](https://github.com/chenyan-image/codex-live-background-pet/releases/latest) · [更新记录](CHANGELOG.md)**
 
 ## 壁纸与背景
 
