@@ -1,0 +1,64 @@
+{
+  "version": "1.7.0.10",
+  "tag": "v1.7.0-preview.7",
+  "sourceCommit": "dc35b44",
+  "releaseUrl": "https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.7",
+  "installerVerified": true,
+  "msiWrapped": false,
+  "installerMiB": 97.73,
+  "programUpdateFiles": 115,
+  "checks": {
+    "petClickInteraction": 124,
+    "quotaVisuals": 463,
+    "randomActions": 3483,
+    "quotaControllerIntegration": 38,
+    "preview6Nearby": 38,
+    "importAndUpdatePreservation": 32
+  },
+  "localInstall": {
+    "pass": true,
+    "installedVersion": "1.7.0.10",
+    "materialsPreserved": 392,
+    "settingsAndLibraryByteIdenticalBeforeRestart": true,
+    "originalCodexProcessesPreserved": 15,
+    "originalBrowserIdentityPreserved": true,
+    "managerRunning": true,
+    "guardRunning": true,
+    "updaterResident": false,
+    "installedBinariesMatchFinalPackage": true,
+    "actualRebootTested": false
+  },
+  "publishedUpdate": {
+    "pass": true,
+    "version": "1.7.0.10",
+    "tag": "v1.7.0-preview.7",
+    "files": 115,
+    "bytes": 1952401,
+    "sha256": "62c4940cf4d3e0a6474001c6dbc0951b6f896e51fb1bace5f0b8af5dcbf88fff",
+    "from7and8and9SelectPreview7": true,
+    "current10HasNoUpdate": true,
+    "publicChannelAndArchiveVerified": true,
+    "softwareApplied": false
+  },
+  "githubAssetDigestsMatch": true,
+  "publicHomepageImagesVerified": 9,
+  "restoreLatencyFullyResolved": false,
+  "actualRebootTested": false,
+  "files": [
+    {
+      "name": "CodexHub-1.7.0-preview.7-Setup.exe",
+      "bytes": 102476288,
+      "sha256": "cd216c127a9ee3e1656651a002668e961161c8322632c71abb33f1b07bc23054"
+    },
+    {
+      "name": "CodexHub-1.7.0-preview.7-Update.zip",
+      "bytes": 1952401,
+      "sha256": "62c4940cf4d3e0a6474001c6dbc0951b6f896e51fb1bace5f0b8af5dcbf88fff"
+    },
+    {
+      "name": "CodexHub-Update.json",
+      "bytes": 315,
+      "sha256": "3e3be756bcc9c228a0043cac31794df8fd7c200c37962223df33cc1696d51e60"
+    }
+  ]
+}

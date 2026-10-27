@@ -1,5 +1,6 @@
 * text=auto
 
+
 *.md text eol=lf
 *.mjs text eol=lf
 *.js text eol=lf
@@ -22,3 +23,6 @@ LICENSE text eol=lf
 *.webp binary
 *.mp4 binary
 *.webm binary
+
+# Pet manifests, original notices and media keep their recorded source hashes.
+source/assets/pets/** -text whitespace=cr-at-eol

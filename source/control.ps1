@@ -25,6 +25,7 @@ $engine = Join-Path $root 'engine'
 . (Join-Path $root 'codex-icons.ps1')
 . (Join-Path $root 'shortcuts.ps1')
 . (Join-Path $root 'uninstall-data.ps1')
+$packageVersionText=(Get-DreamBackgroundPackageVersion -PackageRoot $root).ToString()
 function Invoke-Engine([string]$Operation, [string[]]$Extra = @()) {
   $previousErrorActionPreference = $ErrorActionPreference
   try {
@@ -57,7 +58,7 @@ function Ensure-YzService {
   $status=Get-YzBackgroundAutostart -StartupRoot $startup
   $installed=$null
   try{$installed=[IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json}catch{}
-  if($installed.version -ne '1.5.4.5' -or -not $status.enabled -or -not $status.running){
+  if($installed.version -ne $packageVersionText -or -not $status.enabled -or -not $status.running){
     $output=@(& $ps -NoLogo -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File (Join-Path $root 'control.ps1') -Action Install -ManagerPid $ManagerPid 2>&1)
     if($LASTEXITCODE -ne 0){throw (($output|ForEach-Object{"$_"})-join "`r`n")}
   }
@@ -113,7 +114,17 @@ function Invoke-YzConnectionAttempt {
       $report=Get-YzConnectionReport
       if(-not $report.connected){throw '连接未通过验证，请点击重试。'}
     }
-    $report.message='连接就绪，点击可重新检查连接'
+    if($report.connected -and $report.autostart -and $report.background -in @('not-applied','no-renderer','unknown','error')){
+      $theme=Join-Path $stateRoot 'active-theme\theme.json'
+      if((Test-Path -LiteralPath $theme) -and -not(Test-DreamSkinPaused -StateRoot $stateRoot)){
+        [Console]::Out.WriteLine('正在恢复上次的壁纸…')
+        $codex=Get-DreamSkinCodexInstall;$identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
+        if(-not $identity){$registered=Get-DreamSkinVerifiedCdpIdentityForAnyRegistered -Port 9335;if($registered){$identity=$registered.Identity}}
+        if($identity){$node=Get-DreamSkinNodeRuntime;$lines=@(& $node.Path (Join-Path $engine 'scripts\injector.mjs') --once --port 9335 --browser-id $identity.BrowserId --theme-dir (Split-Path -Parent $theme) 2>&1);if($LASTEXITCODE -ne 0){throw (($lines|ForEach-Object{"$_"})-join "`r`n")}}
+        $report=Get-YzConnectionReport
+      }
+    }
+    $report.message='连接就绪，点击可重新检查并恢复壁纸'
   }catch{$message=$_.Exception.Message;$report=Get-YzConnectionReport;$report.message=$message;$report.connectionError=$true}
   return $report
 }
@@ -166,8 +177,8 @@ try {
       $null = Get-DreamSkinNodeRuntime
       $codex = Get-DreamSkinCodexInstall
       $prepared=$false
-      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq '1.5.4.5' -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
-      if(-not (Test-Path -LiteralPath (Join-Path $installRoot '.codex-background-install.json')) -and -not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne '1.5.4.5')){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
+      try{$prior=[IO.File]::ReadAllText((Join-Path $stateRoot 'last-upgrade.json'))|ConvertFrom-Json;$prepared=(-not $prior.complete -and $prior.version -eq $packageVersionText -and (Test-DreamSkinPathEqual -Left $prior.packageRoot -Right $root))}catch{}
+      if(-not (Test-Path -LiteralPath (Join-Path $installRoot '.codex-background-install.json')) -and -not $prepared -and (-not (Test-Path -LiteralPath (Join-Path $installRoot 'installed.json')) -or ([IO.File]::ReadAllText((Join-Path $installRoot 'installed.json'))|ConvertFrom-Json).version -ne $packageVersionText)){Prepare-DreamBackgroundUpgrade -InstallRoot $installRoot -StateRoot $stateRoot -PackageRoot $root -ManagerPid $ManagerPid}
       $task = Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
       $plan = Get-DreamBackgroundServicePlan -Task $task -StartupRoot $startup -ProfilesPath (Join-Path $root 'service-compatibility.json')
       New-Item -ItemType Directory -Force -Path $installRoot,$stateRoot,$startup | Out-Null
@@ -181,21 +192,17 @@ try {
       $shortcuts=Repair-DreamBackgroundShortcuts -Codex $codex -StateRoot $stateRoot -StartupRoot $startup
       $guard = Wait-DreamBackgroundService -StartupRoot $startup
       $monitor=Wait-YzBackgroundMonitor -StartupRoot $startup -EngineRoot (Join-Path $installRoot 'engine') -Seconds 45
-      $installation = [ordered]@{version='1.5.4.5';installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
+      $installation = [ordered]@{version=$packageVersionText;installedAt=[DateTime]::UtcNow.ToString('o');serviceMode=$plan.Mode;serviceProfile=$plan.Profile;guardPid=$guard.pid;monitorPid=$monitor.pid;autostart=$autostart;serviceUpgraded=$upgrade.changed}
       [IO.File]::WriteAllText((Join-Path $installRoot 'installed.json'), ($installation | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
       $shell = New-Object -ComObject WScript.Shell
       try {
         $desktop=[Environment]::GetFolderPath('Desktop')
-        $link = $shell.CreateShortcut((Join-Path $desktop 'Codex 动态背景.lnk'))
+        $link = $shell.CreateShortcut((Join-Path $desktop 'CodexHub.lnk'))
         $link.TargetPath = Join-Path $installRoot 'CodexLiveBackground.exe'
         $link.WorkingDirectory = $installRoot
         $link.IconLocation = (Join-Path $installRoot 'CodexBackground.ico')+',0'
         $link.Save()
-        $oldLink=Join-Path $desktop 'yz Codex 动态背景.lnk'
-        if(Test-Path -LiteralPath $oldLink){
-          $old=$shell.CreateShortcut($oldLink)
-          if($old.TargetPath -ieq (Join-Path $installRoot 'CodexLiveBackground.exe')){Remove-Item -LiteralPath $oldLink -Force}
-        }
+        foreach($name in @('Codex 动态背景.lnk','yz Codex 动态背景.lnk')){$oldLink=Join-Path $desktop $name;if(Test-Path -LiteralPath $oldLink){$old=$shell.CreateShortcut($oldLink);if($old.TargetPath -ieq (Join-Path $installRoot 'CodexLiveBackground.exe')){Remove-Item -LiteralPath $oldLink -Force}}}
       } finally { [Runtime.InteropServices.Marshal]::ReleaseComObject($shell) | Out-Null }
       $upgradeRecord=Join-Path $stateRoot 'last-upgrade.json'
       if(Test-Path -LiteralPath $upgradeRecord){$savedUpgrade=[IO.File]::ReadAllText($upgradeRecord)|ConvertFrom-Json;$savedUpgrade.complete=$true;[IO.File]::WriteAllText($upgradeRecord,($savedUpgrade|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))}

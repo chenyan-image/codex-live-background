@@ -1,0 +1,13 @@
+# Follow Codex lifecycle
+
+Add an opt-in `FollowCodex` preference in the companion settings. Missing values remain false to preserve existing behavior. Background means minimized, hidden or closed, not merely losing focus. Support official stable/Beta package identities and multiple visible windows. Never launch or close Codex itself.
+
+Use the existing program update executable in a lightweight `--follow` mode, without initializing Forms, pets, galleries, readers or decoders. A single current-user watcher waits for a visible official Codex window and starts `CodexLiveBackground.exe --follow-start` in the tray. The manager saves its preferences and exits normally when Codex has no visible window. A short debounce avoids transient window rebuilds. Manual manager exit suppresses re-launch until the next Codex visibility cycle. Imports, dialogs and program updates are allowed to finish before automatic shutdown.
+
+Only enabling the preference registers its current-user login command; disabling removes our matching registration and exits the watcher. Updating must stop the watcher before replacing its executable. Full uninstall removes its registration and stops the verified process before removing files. No new executable, desktop shortcut, startup hook binary or media is needed.
+
+Remove the two manager-page manual action buttons. Keep pet interactions/right-click actions, move quota refresh and behavior settings up, and reduce the status spacer. Validate preference round-trip, compact controls, official-window selection, background/restore behavior, singleton launch, manual-exit suppression, update/uninstall interaction and unchanged media/settings. Use only owned window fixtures; do not minimize or restart the user's actual Codex.
+
+Added scope: a compact appearance card under the pet list, crisp slightly larger text, and native SVG version/platform/size/license/download badges in README. Latest user refinement replaces numeric opacity with the existing smooth slider (0-100); preview on change and persist on release, keyboard completion or focus exit. One color selection can apply to all three components; separate controls change the left Hub button, middle capsule and right quota ring. Missing HubColor inherits the prior RingColor, preserving the user's chosen accent. Rendering checks compare all three pixel regions for independent and unified changes, zero/full opacity, clear text, and quota-label fit.
+
+Review fixes protect batch wallpaper import and native HWND-disabled modal owners. Keep the parent manager alive until the updater establishes maintenance suspension, and use a manual-exit signal/ack readiness handshake. JSON reads share delete access so atomic preference replacement remains safe.

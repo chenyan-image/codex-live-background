@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {rendererBackgroundStatus} from '../engine/scripts/injector.mjs';
 let checks=0;
-function status(runtime,{visible=true,active=true,reduced=false}={}){
-  const context={window:{__CODEX_DREAM_SKIN_STATE__:runtime,matchMedia:()=>({matches:reduced})},document:{visibilityState:visible?'visible':'hidden',hidden:!visible,documentElement:{getAttribute:()=>active?'active':null}}};
+function status(runtime,{visible=true,active=true,reduced=false,style='node',art='url("flower.jpg")'}={}){
+  const sheet={},registry=new WeakSet([sheet]);
+  const context={window:{__CODEX_DREAM_SKIN_STATE__:runtime,__CODEX_DREAM_SKIN_STYLE_SHEETS__:registry,matchMedia:()=>({matches:reduced})},document:{getElementById:()=>style==='node'?{}:null,adoptedStyleSheets:style==='adopted'?[sheet]:[],visibilityState:visible?'visible':'hidden',hidden:!visible,documentElement:{getAttribute:()=>active?'active':null}},getComputedStyle:()=>({getPropertyValue:()=>art})};
   return vm.runInNewContext(`(${rendererBackgroundStatus.toString()})()`,context);
 }
 const video={paused:false,readyState:3,videoWidth:1920,videoHeight:1080,currentTime:1,getVideoPlaybackQuality:()=>({totalVideoFrames:30})};
@@ -11,6 +12,9 @@ const state={mediaType:'video',videoLayer:video};
 for(const [expected,runtime,options] of [
   ['not-applied',undefined,{}],['not-applied',state,{active:false}],
   ['image-ready',{mediaType:'image',imageReady:true},{}],
+  ['image-ready',{mediaType:'image',imageReady:true},{style:'adopted'}],
+  ['not-applied',{mediaType:'image',imageReady:true},{style:'missing'}],
+  ['not-applied',{mediaType:'image',imageReady:true},{art:'none'}],
   ['loading',{mediaType:'image',imageReady:false},{}],
   ['error',{mediaType:'image',imageError:'decode failed'},{}],
   ['playing',state,{}],['waiting-visible',state,{visible:false}],

@@ -2,8 +2,8 @@
   param([string]$Path,[string]$Parent)
   $root=[IO.Path]::GetFullPath($Parent).TrimEnd('\')
   $target=[IO.Path]::GetFullPath($Path).TrimEnd('\')
-  if($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\') -or -not $target.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)){throw '服务清理路径超出应用数据目录，已停止。'}
-  $ancestors=@($root);$cursor=$root
+  if(-not $target.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)){throw '服务清理路径超出应用数据目录，已停止。'}
+  $cursor=[IO.Path]::GetFullPath($Parent);$ancestors=@($cursor)
   foreach($component in $target.Substring($root.Length+1).Split('\')){$cursor=Join-Path $cursor $component;$ancestors+=@($cursor)}
   foreach($ancestor in $ancestors){
     if(Test-Path -LiteralPath $ancestor){if((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw '服务目录包含链接或联接，未执行清理。'}}
@@ -22,7 +22,7 @@ function Assert-DreamBackgroundTaskOwner {
   param($Task,[string]$StartupRoot)
   if(-not $Task){return}
   $actions=@($Task.Actions);$hook=Join-Path $StartupRoot 'DreamSkinPortHook.exe'
-  if($actions.Count -ne 1 -or -not (Test-DreamSkinPathEqual -Left "$($actions[0].Execute)" -Right $hook) -or "$($actions[0].Arguments)".Trim() -cne '--guard'){throw '同名计划任务属于其他程序，已保留原设置。'}
+  if($actions.Count -ne 1 -or -not (Test-DreamSkinPathEqual -Left "$($actions[0].Execute)".Trim().Trim('"') -Right $hook) -or "$($actions[0].Arguments)".Trim() -cne '--guard'){throw '同名计划任务属于其他程序，已保留原设置。'}
   $identity=[Security.Principal.WindowsIdentity]::GetCurrent();$owner="$($Task.Principal.UserId)"
   try{if($owner -notmatch '^S-1-'){$owner=([Security.Principal.NTAccount]::new($owner)).Translate([Security.Principal.SecurityIdentifier]).Value}}catch{throw '无法验证后台任务的用户，未卸载。'}
   if($owner -ine $identity.User.Value -or "$($Task.Principal.LogonType)" -ne 'Interactive'){throw '后台任务不属于当前用户，未卸载。'}

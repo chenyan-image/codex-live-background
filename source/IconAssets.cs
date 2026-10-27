@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 
 // Adapted Mountains geometry from Phosphor Icons, MIT. See assets/Phosphor-LICENSE.
 internal static class IconAssets {
@@ -12,6 +13,14 @@ internal static class IconAssets {
         p.AddArc(rect.Right-d,rect.Bottom-d,d,d,0,90);p.AddArc(rect.X,rect.Bottom-d,d,d,90,90);p.CloseFigure();return p;
     }
     public static Bitmap Create(int size) {
+        Stream source=Assembly.GetExecutingAssembly().GetManifestResourceStream("CodexHub.Brand");
+        if(source==null){string path=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,@"source\assets\brand\codexhub.png");if(File.Exists(path))source=File.OpenRead(path);}
+        if(source==null)return LegacyCreate(size);
+        using(source)using(var logo=Image.FromStream(source)){
+            var bitmap=new Bitmap(size,size,PixelFormat.Format32bppArgb);using(var g=Graphics.FromImage(bitmap)){g.Clear(Color.Transparent);g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.CompositingQuality=CompositingQuality.HighQuality;g.DrawImage(logo,new Rectangle(0,0,size,size));}return bitmap;
+        }
+    }
+    static Bitmap LegacyCreate(int size) {
         var bitmap=new Bitmap(size,size,PixelFormat.Format32bppArgb);
         using(var g=Graphics.FromImage(bitmap)) {
             g.SmoothingMode=SmoothingMode.AntiAlias;g.ScaleTransform(size/64F,size/64F);

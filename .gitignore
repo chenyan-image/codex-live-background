@@ -57,3 +57,9 @@ Desktop.ini
 
 # Tiny FFmpeg-generated test patterns; never personal media.
 !/tests/fixtures/*.webm
+
+# Pinned MIT production pet media; never include arbitrary local wallpapers.
+!/source/assets/pets/deepseek-fat-fish/*.webm
+
+# User-selected bundled wallpaper media; catalog records origins and hashes.
+!/source/assets/wallpapers/*.webm

@@ -1,15 +1,5 @@
-# v1.5.3 历史附带素材
+# 默认壁纸
 
-**v1.5.4 起，以下三项已从安装包和默认壁纸库中移除，以减小体积。** 当前版本只保留六张由 `BuiltinWallpapers.cs` 生成的轻量原创背景。用户自己的 Steam 原文件和本地导入功能保留。
+预览 6 新安装只附《花桃全屏》的静态预览图片，不包含壁纸视频。它可以按比例裁切铺满 Codex。来源、大小和 SHA-256 保留在 source/assets/wallpapers/catalog.json 与 NOTICE 中，原始 Steam 素材不修改。
 
-以下记录仅说明 v1.5.3 曾附带的素材来源，不代表当前安装包仍包含这些视频或图片。
-
-| 安装后名称 | 类型 | 原项目 |
-| --- | --- | --- |
-| 水中会说话的眼睛 | 4K / 60 FPS 视频，约 9.71 秒 | [水中会说话的眼睛（过渡稍微好点版）](https://steamcommunity.com/sharedfiles/filedetails/?id=3582218429) |
-| 会说话的眼睛2 | 4K / 60 FPS 视频，10 秒 | [会说话的眼睛2](https://steamcommunity.com/sharedfiles/filedetails/?id=3488045446) |
-| 零二 02 FRANXX | 静态 JPG 预览图 | [零二 02 FRANXX](https://steamcommunity.com/sharedfiles/filedetails/?id=3295448069) |
-
-这些第三方素材的权利归各自作者、角色和相关权利人所有，不作为本仓库原创作品，也不纳入软件代码的 MIT 授权。仓库中的截图用于展示软件界面。第三项不包含或运行原 `scene.pkg` 场景。
-
-历史文件名和校验值见 [v1.5.3 素材清单](https://github.com/chenyan-image/codex-live-background/blob/v1.5.3/source/bundled-wallpapers.json)。当前源码构建不再需要素材目录参数。
+其他背景可自行导入或在 Wallpaper Engine 页面选择。已有电脑上的已下载视频、个人壁纸与使用记录保留；程序更新不替换素材。预览 3～5 曾提供的其他默认素材属于历史发行，当前新装包不再附带。宠物动画的下载方式见 [桌面宠物](desktop-pets.md)。

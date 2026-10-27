@@ -70,6 +70,8 @@ async function downloadArchive(config,onProgress){
 
 export async function ensureFFmpegRuntime(stateRoot,{onProgress=()=>{}}={}){
  const config=JSON.parse(await fs.readFile(path.join(here,'../assets/ffmpeg-runtime.json'),'utf8'));
+ const packaged=await readReadyRuntime(path.join(here,'../runtime/ffmpeg'),config);
+ if(packaged)return packaged;
  const directory=path.join(stateRoot,'runtime','ffmpeg-'+config.sha256.slice(0,16));
  const ready=await readReadyRuntime(directory,config);
  if(ready)return ready;

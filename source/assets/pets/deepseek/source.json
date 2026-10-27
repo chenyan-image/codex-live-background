@@ -1,0 +1,154 @@
+{
+  "author": "keleus",
+  "source": "https://github.com/keleus/deepseek-pet",
+  "revision": "b9b61a35c3b2443ecdeab0ed442d6b33c603d343",
+  "license": "MIT, original LICENSE retained.",
+  "modification": "Production WebP whole-body expressions converted to PNG on one fixed transparent canvas; native blink/keyframe playback and subtle procedural motion added. No sliced-body simulation. Work/think frame families are separated to prevent desk/seated scene flashing.",
+  "files": [
+    {
+      "path": "src/client/assets/deepseek-idle.webp",
+      "sha256": "10a5c3e8772a54317ee75c1d0fa4080181debe2bd0e1b18f6900371508f0b07e",
+      "bytes": 32958
+    },
+    {
+      "path": "src/client/assets/frame-desk-coding-hands-up.webp",
+      "sha256": "d431264fc449c8da5ea07f91e5aa5ffd8edaae03e30801153543d59d6155223f",
+      "bytes": 41816
+    },
+    {
+      "path": "src/client/assets/frame-idle-blink.webp",
+      "sha256": "d79cad375b814ce7a4bb71b613703e62cffad7edb4fdbd8cd25da189548e2f9d",
+      "bytes": 32524
+    },
+    {
+      "path": "src/client/assets/frame-thinking-keypress.webp",
+      "sha256": "583ea11b9ab7808e3f73912886d7839e2b7ea30ca32f27f27b9c63ca3dd7f9d4",
+      "bytes": 39960
+    },
+    {
+      "path": "src/client/assets/reaction-angry.webp",
+      "sha256": "7d1531dc4c73921d5f09ced9d936a7a7da366d8e11cd7d3a4facd519e121346b",
+      "bytes": 45052
+    },
+    {
+      "path": "src/client/assets/reaction-apologetic.webp",
+      "sha256": "12bea2f1b27687b8b10b214843a9f725b99b119b04e13f18c0180141e5f306f6",
+      "bytes": 36228
+    },
+    {
+      "path": "src/client/assets/reaction-blindfold.webp",
+      "sha256": "44fdcde9fd72d6298658c2094426731ca91b280d6569da94e235fde1d21e8d20",
+      "bytes": 37578
+    },
+    {
+      "path": "src/client/assets/reaction-cheerful.webp",
+      "sha256": "e2ad506c6149bc09bd56f65b17c643464dfedd0469ac024f7df34b148743e887",
+      "bytes": 35950
+    },
+    {
+      "path": "src/client/assets/reaction-crying.webp",
+      "sha256": "d09972a8d096f3af3444401d3952dbfb4b8c489b728792fcac28752999869844",
+      "bytes": 40042
+    },
+    {
+      "path": "src/client/assets/reaction-deepseek-pressure.webp",
+      "sha256": "353a64b287d0c9b4fdfbd8377a80083122742ed1332aaa945bf00fb6737fac5f",
+      "bytes": 42850
+    },
+    {
+      "path": "src/client/assets/reaction-deepseek-rice.webp",
+      "sha256": "d503fff212c345d10316b056f98ac6eb499020f69c7523a87ff70c7ddd3ef7fb",
+      "bytes": 47952
+    },
+    {
+      "path": "src/client/assets/reaction-desk-coding.webp",
+      "sha256": "b5f9ce3d9141b4849d94e19aef176d7d7cabdc94770311b88ba74ee0dee2782a",
+      "bytes": 41678
+    },
+    {
+      "path": "src/client/assets/reaction-desk-confused.webp",
+      "sha256": "37290c7add55454712af4fe71303b302db8f00f092d3a31c407622c33da360a0",
+      "bytes": 35810
+    },
+    {
+      "path": "src/client/assets/reaction-desk-done.webp",
+      "sha256": "119c00591861331d4470c62a5bfa8692688f8177af8c6d13da45f14d1d3c07c9",
+      "bytes": 38462
+    },
+    {
+      "path": "src/client/assets/reaction-desk-facepalm.webp",
+      "sha256": "f16a776880fedb694e72876f9c7bd56e375a74d858e82a624f375b2b13855e9b",
+      "bytes": 31948
+    },
+    {
+      "path": "src/client/assets/reaction-eating-rice.webp",
+      "sha256": "be6d2eee81d0ef2380ce901deabbec797e673e31ee0f3f4b5b814f7809f3cfcd",
+      "bytes": 42256
+    },
+    {
+      "path": "src/client/assets/reaction-hungry.webp",
+      "sha256": "d86a4bac8099e2640cb9d69314f8917fd885c6feafe723478767db2056ee7bd1",
+      "bytes": 34274
+    },
+    {
+      "path": "src/client/assets/reaction-pillow.webp",
+      "sha256": "3476cb7fd611b4ade61589eee242b2a1d6dd72ebd733b54a4a0307672f079d1c",
+      "bytes": 33712
+    },
+    {
+      "path": "src/client/assets/reaction-proud.webp",
+      "sha256": "37e1ab18df5554d0f4a565c21fbd7c3273588db220ce25337fe491c3a039ed71",
+      "bytes": 33814
+    },
+    {
+      "path": "src/client/assets/reaction-relaxed.webp",
+      "sha256": "120f0fc734d9cb7f1f837e63117c5442bb7a7ba87fd899dc36e47f563c4f375c",
+      "bytes": 33050
+    },
+    {
+      "path": "src/client/assets/reaction-satiated.webp",
+      "sha256": "7ffa5a24ebc7c40b1394eacc79e5d337bf5a18019bd118ca05046beddc80ca51",
+      "bytes": 38652
+    },
+    {
+      "path": "src/client/assets/reaction-shocked.webp",
+      "sha256": "31734b8486db68e466477b6ab2fb0e9880fb432914a0f8efed745c733fdc7c20",
+      "bytes": 42338
+    },
+    {
+      "path": "src/client/assets/reaction-skeptical.webp",
+      "sha256": "06901eff09fd13db62645d3603c06e36e8cae5041c586ab798536619bef23098",
+      "bytes": 36598
+    },
+    {
+      "path": "src/client/assets/reaction-sleeping.webp",
+      "sha256": "2f289ee3cd0ffb374291b61bf6279c99c66d2d3a2d064a2114584da5b3990e9c",
+      "bytes": 35994
+    },
+    {
+      "path": "src/client/assets/reaction-sleepy.webp",
+      "sha256": "c9530aaff3b64c4f6b3e3349a76f8787b44081582501d834e70b5e2d32dc1fdc",
+      "bytes": 39852
+    },
+    {
+      "path": "src/client/assets/reaction-thinking.webp",
+      "sha256": "893ce4ff3d7fe863a723600451b4ff3e2575fdcf30bd6eb0a6d850f2ac04ea0f",
+      "bytes": 39458
+    },
+    {
+      "path": "src/client/assets/reaction-whip-defense.webp",
+      "sha256": "2ad7ea1698415ba082894150afeb73cb6ee9bd382680348e6c29ff0c90133521",
+      "bytes": 43962
+    },
+    {
+      "path": "src/client/assets/reaction-whip-frightened.webp",
+      "sha256": "3de08e9839a283e83cca8010ab7a574774bebb562b17a7978af4d28a4d52a4f9",
+      "bytes": 47344
+    },
+    {
+      "path": "src/client/assets/reaction-whip-giggle.webp",
+      "sha256": "ea8e786187cbd66bd1aaef28747402d03df1a6a2e7ee6d57199725fce47001a9",
+      "bytes": 47356
+    }
+  ]
+}

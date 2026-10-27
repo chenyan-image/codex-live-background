@@ -4,6 +4,8 @@
 $sandbox=Join-Path $PSScriptRoot ('output\upgrade-'+[guid]::NewGuid().ToString('N'))
 $programs=Join-Path $sandbox 'Programs';$install=Join-Path $programs 'CodexLiveBackground';$legacy=Join-Path $programs 'CodexDreamSkinManager';$state=Join-Path $sandbox 'State';$package=Join-Path $sandbox 'NewPackage'
 $null=New-Item -ItemType Directory -Path $programs,$state,$package -Force
+[IO.File]::WriteAllText((Join-Path $package 'manifest.json'),'{"version":"1.7.0.2"}')
+function Get-DreamBackgroundRegisteredInstallRoots {@()}
 function Assert($Condition,$Message){if(-not $Condition){throw $Message}}
 function Test-DreamSkinPathEqual {param($Left,$Right) [IO.Path]::GetFullPath($Left).TrimEnd('\') -ieq [IO.Path]::GetFullPath($Right).TrimEnd('\')}
 $script:future=$false;$script:stopped=$false;$script:removed=0;$script:failLegacy=$false
@@ -20,6 +22,7 @@ function Move-Item {param($LiteralPath,$Destination,$ErrorAction) if($script:fai
 function Seed {
  $null=New-Item -ItemType Directory -Path $install,$legacy,(Join-Path $state 'startup'),(Join-Path $state 'cdp-profile') -Force
  [IO.File]::WriteAllText((Join-Path $install 'old.txt'),'canonical old');[IO.File]::WriteAllText((Join-Path $legacy 'old.txt'),'legacy old')
+ [IO.File]::WriteAllText((Join-Path $install 'manifest.json'),'{"version":"1.7.0.2"}')
  [IO.File]::WriteAllText((Join-Path $state 'cdp-profile\Login Data'),'login preserved');[IO.File]::WriteAllText((Join-Path $state 'wallpaper.mp4'),'wallpaper preserved')
 }
 $call=@{InstallRoot=$install;StateRoot=$state;PackageRoot=$package}
@@ -41,7 +44,7 @@ Assert ($record.backups.Count -eq 1) 'Partial migration checkpoint lost'
 $script:failLegacy=$false;$null=Restore-DreamBackgroundUpgrade @call
 Assert (Test-Path -LiteralPath (Join-Path $install 'old.txt')) 'Partial rollback failed'
 $script:future=$true;$script:stopped=$false
-try{$null=Prepare-DreamBackgroundUpgrade @call;throw 'Downgrade accepted'}catch{Assert ($_.Exception.Message -match '更高版本') 'Future version not protected'}
+try{$null=Prepare-DreamBackgroundUpgrade @call;throw 'Downgrade accepted'}catch{Assert ($_.Exception.Message -match '高于当前安装包') 'Future version not protected'}
 Assert (-not $script:stopped) 'Downgrade stopped existing manager'
 $script:future=$false
 $inPlace=@{InstallRoot=$install;StateRoot=$state;PackageRoot=$install}

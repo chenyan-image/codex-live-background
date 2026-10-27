@@ -5,11 +5,14 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 . (Join-Path $PSScriptRoot '..\source\service-removal.ps1')
 function Test-DreamSkinPathEqual {param($Left,$Right) [IO.Path]::GetFullPath($Left) -ieq [IO.Path]::GetFullPath($Right)}
 function Stop-DreamBackgroundManagers {param($Installs,$ManagerPid)}
+function Get-DreamBackgroundRegisteredInstallRoots {@()}
 function Initialize-DreamSkinNativeInspection {}
 function Get-CimInstance {param($ClassName,$Filter) @()}
 function Get-ScheduledTask {param($TaskName,$ErrorAction) $null}
 function Remove-DreamBackgroundService {param($InstallRoot,$StateRoot,$PackageRoot,[switch]$ForUpgrade) if(-not $ForUpgrade){throw 'Unexpected skin removal'}}
 $sandbox=Join-Path $PSScriptRoot ('output\legacy-'+[guid]::NewGuid().ToString('N'));$null=New-Item -ItemType Directory -Path $sandbox
+$fixturePackage=Join-Path $sandbox 'NewPackage';$null=New-Item -ItemType Directory -Path $fixturePackage
+[IO.File]::WriteAllText((Join-Path $fixturePackage 'manifest.json'),'{"version":"1.7.0.2"}')
 $fresh=Join-Path $sandbox 'fresh\Programs\CodexLiveBackground'
 if(@(Get-DreamBackgroundLegacyInstalls -InstallRoot $fresh).Count -ne 0){throw 'Fresh computer incorrectly requires an old installation'}
 $freshState=Join-Path $sandbox 'fresh\State';$null=Prepare-DreamBackgroundUpgrade -InstallRoot $fresh -StateRoot $freshState -PackageRoot (Join-Path $sandbox 'NewPackage')
@@ -31,6 +34,7 @@ $cases=9
 if($CurrentManagerPath){
  $current=Join-Path $sandbox 'current\Programs\CodexLiveBackground';$null=New-Item -ItemType Directory -Path $current -Force
  Copy-Item -LiteralPath $CurrentManagerPath -Destination (Join-Path $current 'CodexLiveBackground.exe')
+ [IO.File]::WriteAllText((Join-Path $current 'manifest.json'),'{"version":"1.7.0.2"}')
  $null=Prepare-DreamBackgroundUpgrade -InstallRoot $current -StateRoot (Join-Path $sandbox 'current\State') -PackageRoot $current
  if(-not (Test-Path -LiteralPath (Join-Path $current 'CodexLiveBackground.exe'))){throw 'MSI post-copy setup moved its own manager'}
  $cases++

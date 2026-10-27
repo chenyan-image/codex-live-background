@@ -35,6 +35,18 @@ Reset-Fixture;$script:verify=$false;$r=Invoke-YzConnectionAttempt
 if(-not $r.connectionError -or $r.connected){throw 'Unverified connection displayed as ready'}
 Reset-Fixture;$script:report.installed=$false;$r=Invoke-YzConnectionAttempt
 if($script:ensure -or -not $r.connectionError){throw 'Missing Codex was not reported'}
+$fixture=Join-Path ([IO.Path]::GetTempPath()) ('HubSavedSkin-'+[guid]::NewGuid().ToString('N'));$null=New-Item -ItemType Directory -Path (Join-Path $fixture 'active-theme');[IO.File]::WriteAllText((Join-Path $fixture 'active-theme\theme.json'),'{}');$stateRoot=$fixture;$engine=$fixture
+function Test-DreamSkinPaused {param($StateRoot);return $script:paused}
+function Get-DreamSkinCodexInstall {return [pscustomobject]@{Version='test'}}
+function Get-DreamSkinVerifiedCdpIdentity {param($Port,$Codex);return [pscustomobject]@{BrowserId='verified'}}
+function Get-DreamSkinNodeRuntime {return [pscustomobject]@{Path='Invoke-FixtureInjector'}}
+function Invoke-FixtureInjector {$script:restored++;$script:report.background='image-ready';$global:LASTEXITCODE=0}
+Reset-Fixture;$script:report.connected=$true;$script:report.background='not-applied';$script:restored=0;$script:paused=$true;$r=Invoke-YzConnectionAttempt -Automatic
+if($script:restored -ne 0){throw 'Paused wallpaper was restored'}
+$script:paused=$false;$r=Invoke-YzConnectionAttempt -Automatic
+if($script:restored -ne 1 -or $r.background -ne 'image-ready'){throw 'Saved wallpaper was not restored in the verified session'}
+$r=Invoke-YzConnectionAttempt -Automatic
+if($script:restored -ne 1){throw 'Healthy wallpaper was reapplied'}
 # Exercise the actual ordinary-instance branch. Any attempted launch/close fails this test.
 function Get-DreamSkinCodexInstall {return [pscustomobject]@{Version='test'}}
 function Get-DreamSkinVerifiedCdpIdentity {param($Port,$Codex)return $null}
@@ -43,4 +55,4 @@ function Start-DreamSkinCodexDirect {throw 'Unexpected launch'}
 function Stop-Process {throw 'Unexpected process termination'}
 Reset-Fixture
 try{& $script:connectReal;throw 'Ordinary app accepted'}catch{if($_.Exception.Message -notmatch '手动完全退出'){throw}}
-@{pass=$true;cases=10;manualConnect=$true;automaticRetry=$true;ordinaryInstancePreserved=$true;realServicesModified=$false}|ConvertTo-Json -Compress
+@{pass=$true;cases=13;manualConnect=$true;automaticRetry=$true;savedWallpaperRecovered=$true;pauseRespected=$true;ordinaryInstancePreserved=$true;realServicesModified=$false}|ConvertTo-Json -Compress

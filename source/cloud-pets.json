@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "pets": [
+    {
+      "id": "deepseek-fat-fish",
+      "name": "鲸鱼女仆",
+      "url": "https://github.com/chenyan-image/codex-live-background/releases/download/pet-assets-whale-maid-v1/CodexHub-whale-maid-106-actions.zip",
+      "bytes": 59336864,
+      "sha256": "06761bc9d2bbdeded7f356bc2ef36bbad914568b8e37caac853bf825b114a99f"
+    }
+  ],
+  "previews": [
+    {
+      "url": "https://raw.githubusercontent.com/Wunsch2048/codex-bailong-desktop-pet/f67b08b4b751d842090504e3179f13b2055c85a8/app/branding/character-reference.png",
+      "name": "白龙娘",
+      "bytes": 415999,
+      "id": "bailong",
+      "sha256": "ebe3c3b6ad2dbc85328c36b3931572bd623c90990aa76e892ca79bec4d6e0d2d"
+    }
+  ]
+}
