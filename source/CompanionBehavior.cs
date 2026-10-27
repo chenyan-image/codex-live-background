@@ -21,8 +21,8 @@ internal sealed class PetBehaviorSpec {
 // One controller for all image/video formats. Pools contain native action rows;
 // names and mappings belong to the pack, never to a hard-coded pet type.
 internal sealed class PetAnimationDirector {
-    readonly PetPack pack;readonly PetBehaviorProfile profile;readonly Random random;readonly PetBehaviorSpec spec;readonly Dictionary<string,int> previous=new Dictionary<string,int>();readonly Dictionary<int,int> played=new Dictionary<int,int>();int lastPlayed=-1;
-    readonly Queue<int> workChain=new Queue<int>();string kind="",stage="",queuedKind;bool dragHeld,directSwitch;int queuedRow=-1,lastPhysics=-1,plannedRow=-1,lastCollisionCount;double started,workSince,lastWorkAt,lastQuota=-1800;public int Row{get;private set;}public double Time{get;private set;}public int Generation{get;private set;}
+    readonly PetPack pack;readonly PetBehaviorProfile profile;readonly Random random;readonly PetBehaviorSpec spec;readonly Dictionary<string,int> previous=new Dictionary<string,int>();readonly Dictionary<int,int> played=new Dictionary<int,int>();int lastPlayed=-1,lastRandomPlayed=-1,automaticActions;
+    readonly Queue<int> workChain=new Queue<int>();string kind="",stage="",queuedKind,queuedQuotaKey;int[] queuedQuotaPool;bool dragHeld,directSwitch;int queuedRow=-1,lastPhysics=-1,plannedRow=-1,lastCollisionCount;double started,workSince,lastWorkAt,lastQuota=-1800;public int Row{get;private set;}public double Time{get;private set;}public int Generation{get;private set;}
     public bool Sleeping{get{return kind=="sleep";}}
     public bool ManualActive{get{return kind=="manual"||kind=="click";}}
     public bool CollisionActive{get{return kind=="collision"&&Time<Duration(Row);}}
@@ -42,22 +42,48 @@ internal sealed class PetAnimationDirector {
     static int[] Find(PetPack pack,string[] terms,int[] fallback){var indices=pack.Actions.Select((a,i)=>new{a,i}).Where(v=>terms.Any(term=>v.a.name.Contains(term))).Select(v=>v.i).ToArray();return indices.Length>0?indices:fallback;}
     int ToRow(int index){return pack.Actions==null?index:9+index;}
     int Priority(int index){int result=0;foreach(var category in spec.categories??new PetActionCategory[0])if(category.actions.Contains(index)){int weight;result+=profile.CategoryWeights.TryGetValue(category.name,out weight)?weight:category.weight;}return Math.Max(1,result);}
-    int Pick(string key,int[] pool,int fallback){if(pool==null||pool.Length==0)return fallback;int old;if(!previous.TryGetValue(key,out old))old=-1;var choices=pool.Distinct().Where(v=>pool.Length==1||v!=lastPlayed).ToArray();if(choices.Length==0)choices=pool.Distinct().ToArray();int least=choices.Min(v=>played.ContainsKey(v)?played[v]:0);choices=choices.Where(v=>(played.ContainsKey(v)?played[v]:0)==least).ToArray();if(choices.Length>1&&choices.Contains(old))choices=choices.Where(v=>v!=old).ToArray();int value=choices[random.Next(choices.Length)];if(key=="auto-catalog"){int roll=random.Next(choices.Sum(i=>Priority(i)));foreach(int choice in choices){roll-=Priority(choice);if(roll<0){value=choice;break;}}}previous[key]=value;return ToRow(value);}
+    static bool RandomSelection(string key){return key=="all-clicks"||key=="auto-catalog"||key=="low-quota"||key.StartsWith("quota",StringComparison.Ordinal);}
+    int Pick(string key,int[] pool,int fallback){
+        if(pool==null||pool.Length==0)return fallback;
+        int old;if(!previous.TryGetValue(key,out old))old=-1;
+        var choices=pool.Distinct().ToArray();
+        // Keep the last expressive action across the neutral idle transition.
+        // Exclude it before balancing counts; a lone least-played candidate
+        // must not defeat the no-repeat rule shared by clicks and auto play.
+        if(RandomSelection(key)&&choices.Length>1)choices=choices.Where(v=>v!=lastRandomPlayed).ToArray();
+        if(choices.Length>1)choices=choices.Where(v=>v!=lastPlayed).ToArray();
+        int least=choices.Min(v=>played.ContainsKey(v)?played[v]:0);
+        choices=choices.Where(v=>(played.ContainsKey(v)?played[v]:0)==least).ToArray();
+        if(choices.Length>1&&choices.Contains(old))choices=choices.Where(v=>v!=old).ToArray();
+        int value=choices[random.Next(choices.Length)];
+        if(key=="auto-catalog"){int roll=random.Next(choices.Sum(i=>Priority(i)));foreach(int choice in choices){roll-=Priority(choice);if(roll<0){value=choice;break;}}}
+        previous[key]=value;return ToRow(value);
+    }
     int[] StagePool(string value){int i=value=="thinking"?0:value=="working"?1:value=="result"?2:value=="waiting"?3:value=="success"?4:value=="error"?5:-1;return i<0?null:spec.work[i];}
     int MoveRow(PetMotion motion){int direction=motion.Velocity.X>=0?1:2;if(pack.Actions==null)return direction;int mapped=pack.RowMap[direction];return spec.move!=null&&spec.move.Length<=2&&spec.move.Contains(mapped)?ToRow(mapped):Pick("move",spec.move,Native(pack,direction));}
-    void Begin(int row,string next,double now){directSwitch=kind=="drag"||kind=="collision"||next=="drag"||next=="collision";if(kind!="work"&&next=="work")workSince=now;Row=row;lastPlayed=pack.Actions==null?row:row<9?pack.RowMap[row]:row-9;int count;played.TryGetValue(lastPlayed,out count);played[lastPlayed]=count+1;kind=next;started=now;Time=0;plannedRow=-1;Generation++;}
-    public void Restore(double now){queuedRow=-1;workChain.Clear();stage="";lastPhysics=-1;dragHeld=false;lastWorkAt=now;Begin(Pick("idle",spec.idle,0),"idle",now);}
-    public void Manual(int row,double now){queuedRow=-1;lastWorkAt=now;dragHeld=false;Begin(row,"manual",now);}
-    public void StartDrag(double now){dragHeld=true;lastWorkAt=now;if(kind=="drag")return;lastPhysics=10;Begin(DragRow,"drag",now);}
-    public void EndDrag(double now,bool sliding=false){dragHeld=false;lastWorkAt=now;lastPhysics=sliding?13:-1;Begin(Pick("idle",spec.idle,0),"idle",now);}
+    void Begin(int row,string next,double now){directSwitch=kind=="drag"||kind=="collision"||next=="drag"||next=="collision";if(kind!="work"&&next=="work")workSince=now;Row=row;lastPlayed=pack.Actions==null?row:row<9?pack.RowMap[row]:row-9;int count;played.TryGetValue(lastPlayed,out count);played[lastPlayed]=count+1;if(next=="click"||next=="random"||next=="quota")lastRandomPlayed=lastPlayed;if(next=="random")automaticActions++;kind=next;started=now;Time=0;plannedRow=-1;Generation++;}
+    void ClearQueued(){queuedRow=-1;queuedKind=null;queuedQuotaPool=null;queuedQuotaKey=null;}
+    void ClearQueuedQuota(){if(queuedKind=="quota")ClearQueued();}
+    void QueueQuota(string key,int[] pool){queuedRow=Pick(key,pool,Row);queuedKind="quota";queuedQuotaPool=pool;queuedQuotaKey=key;}
+    int QueuedPlaybackRow(){
+        int native=pack.Actions==null?queuedRow:queuedRow<9?pack.RowMap[queuedRow]:queuedRow-9;
+        // A click can choose a quota candidate while the event waits for the
+        // current clip. Revalidate at playback, within the same quota band.
+        if(queuedKind=="quota"&&queuedQuotaPool!=null&&native==lastRandomPlayed&&queuedQuotaPool.Any(i=>i!=native))queuedRow=Pick(queuedQuotaKey,queuedQuotaPool,queuedRow);
+        return queuedRow;
+    }
+    public void Restore(double now){ClearQueued();workChain.Clear();stage="";lastPhysics=-1;dragHeld=false;lastWorkAt=now;Begin(Pick("idle",spec.idle,0),"idle",now);}
+    public void Manual(int row,double now){ClearQueued();lastWorkAt=now;dragHeld=false;Begin(row,"manual",now);}
+    public void StartDrag(double now){ClearQueuedQuota();dragHeld=true;lastWorkAt=now;if(kind=="drag")return;lastPhysics=10;Begin(DragRow,"drag",now);}
+    public void EndDrag(double now,bool sliding=false){ClearQueuedQuota();dragHeld=false;lastWorkAt=now;lastPhysics=sliding?13:-1;Begin(Pick("idle",spec.idle,0),"idle",now);}
     bool lowQuota;public bool LowQuotaEligible{get{return lowQuota;}}
     public int[] ClickPool{get{return Enumerable.Range(0,pack.Actions==null?9:pack.Actions.Count).Where(i=>!spec.lowQuotaOnly||lowQuota||spec.lowQuotaPool==null||!spec.lowQuotaPool.Contains(i)).ToArray();}}
     public void Click(double now){dragHeld=false;lastPhysics=-1;lastWorkAt=now;Begin(Pick("all-clicks",ClickPool,Row),"click",now);}
     public static int QuotaBand(double remaining){double used=100-Math.Max(0,Math.Min(100,remaining));return used>=100?5:Math.Min(4,(int)(used/20));}
     int quotaBand=-1;
-    public void QuotaUnknown(){lowQuota=false;}
-    public void Quota(double remaining,double now,bool preview=false){bool before=lowQuota;lowQuota=remaining<10;int band=QuotaBand(remaining);if(spec.lowQuotaOnly&&!preview){if(!lowQuota||!profile.QuotaEnabled||before&&now-lastQuota<120)return;lastQuota=now;queuedRow=Pick("low-quota",spec.lowQuotaPool,Row);queuedKind="quota";return;}if(!preview&&(!profile.QuotaEnabled||band==quotaBand&&now-lastQuota<1800))return;quotaBand=band;lastQuota=now;queuedRow=Pick("quota"+band,spec.quota[band],Row);queuedKind="quota";}
-    public void PreviewQuota(int band){queuedRow=Pick("quota"+band,spec.quota[Math.Max(0,Math.Min(5,band))],Row);queuedKind="quota";}
+    public void QuotaUnknown(){lowQuota=false;if(queuedQuotaKey=="low-quota")ClearQueued();}
+    public void Quota(double remaining,double now,bool preview=false){bool before=lowQuota;lowQuota=remaining<10;if(!lowQuota&&queuedQuotaKey=="low-quota")ClearQueued();int band=QuotaBand(remaining);if(spec.lowQuotaOnly&&!preview){if(!lowQuota||!profile.QuotaEnabled||before&&now-lastQuota<120)return;lastQuota=now;QueueQuota("low-quota",spec.lowQuotaPool);return;}if(!preview&&(!profile.QuotaEnabled||band==quotaBand&&now-lastQuota<1800))return;quotaBand=band;lastQuota=now;QueueQuota("quota"+band,spec.quota[band]);}
+    public void PreviewQuota(int band){band=Math.Max(0,Math.Min(5,band));QueueQuota("quota"+band,spec.quota[band]);}
     public double Duration(int row){return pack.Actions==null?.8:pack.Actions[row<9?pack.RowMap[row]:row-9].durationMs/1000D;}
     public void Tick(double now,PetMotion motion,string currentStage,PetAtlas atlas,bool roaming){
         Tick(now,motion,currentStage,roaming,atlas.IsVideo,atlas.VideoFinished,atlas.PrepareVideo);
@@ -66,8 +92,8 @@ internal sealed class PetAnimationDirector {
         Time=Math.Max(0,now-started);
         if(currentStage=="thinking"||currentStage=="working"||currentStage=="result"||currentStage=="waiting")lastWorkAt=now;
         if(currentStage!=stage){string before=stage;stage=currentStage;var pool=StagePool(stage);if(profile.WorkEnabled&&pool!=null){int selected=Pick("work-"+stage,pool,Row);bool terminal=stage=="success"||stage=="error"||stage=="waiting",starting=(before==""||before=="idle"||before=="success"||before=="error")&&!terminal;
-            if(starting||terminal){if(workChain.Count<4)workChain.Enqueue(selected);if(terminal&&queuedKind=="work")queuedRow=-1;}
-            else{queuedRow=selected;queuedKind="work";}
+            if(starting||terminal){if(workChain.Count<4)workChain.Enqueue(selected);if(terminal&&queuedKind=="work")ClearQueued();}
+            else{ClearQueued();queuedRow=selected;queuedKind="work";}
         }}
         int physics=motion.Dragging||dragHeld?10:motion.CollisionDirection>=0?11:motion.Sliding?13:motion.Velocity!=PointF.Empty?12:-1;
         if(physics==10){StartDrag(now);return;}
@@ -76,28 +102,25 @@ internal sealed class PetAnimationDirector {
         if(physics>=0){if(physics!=lastPhysics||physics==11&&motion.CollisionCount!=lastCollisionCount){int row=physics==10?Pick("drag",spec.drag,Native(pack,0)):physics==11?Pick("collision",spec.collision,Native(pack,5)):MoveRow(motion);if(physics==11)lastCollisionCount=motion.CollisionCount;Begin(row,physics==11&&spec.collision!=null&&spec.collision.Length>0?"collision":"physics",now);}lastPhysics=physics;if(physics==11)return;}
         else if(lastPhysics>=0)lastPhysics=-1;
         bool done=video?videoFinished:Time>=Duration(Row);
-        if(video&&!done&&Time>Duration(Row)-1&&plannedRow<0){plannedRow=workChain.Count>0?workChain.Peek():queuedRow>=0?queuedRow:profile.WorkEnabled&&StagePool(stage)!=null?Pick("work-"+stage,StagePool(stage),Row):Pick("idle",spec.idle,Row);if(prefetch!=null)prefetch(plannedRow);}
+        if(video&&!done&&Time>Duration(Row)-1&&plannedRow<0){plannedRow=workChain.Count>0?workChain.Peek():queuedRow>=0?QueuedPlaybackRow():profile.WorkEnabled&&StagePool(stage)!=null?Pick("work-"+stage,StagePool(stage),Row):Pick("idle",spec.idle,Row);if(prefetch!=null)prefetch(plannedRow);}
         if(!done)return;
         if(physics>=0){Begin(physics==10?Pick("drag",spec.drag,Row):MoveRow(motion),"physics",now);return;}
         if(workChain.Count>0){Begin(workChain.Dequeue(),"work",now);return;}
-        if(queuedRow>=0&&!(queuedKind=="work"&&kind=="work"&&now-workSince<2.4&&stage!="error"&&stage!="success"&&stage!="waiting")){int row=queuedRow;queuedRow=-1;Begin(row,queuedKind,now);return;}
+        if(queuedRow>=0&&!(queuedKind=="work"&&kind=="work"&&now-workSince<2.4&&stage!="error"&&stage!="success"&&stage!="waiting")){int row=QueuedPlaybackRow();string next=queuedKind;ClearQueued();Begin(row,next,now);return;}
         if(profile.WorkEnabled&&(stage=="thinking"||stage=="working"||stage=="waiting"||stage=="result")){Begin(Pick("work-"+stage,StagePool(stage),Row),"work",now);return;}
         if(kind=="sleep")return; // Play once, then hold the sleeping pose until input or work wakes it.
         if(now-lastWorkAt>=Math.Max(30,profile.SleepSeconds)){Begin(Pick("sleep",spec.sleep??spec.idle,Row),"sleep",now);return;}
-        if(kind=="idle"&&Time<8)return;
-        if(kind!="idle"&&kind!="sleep"){Begin(Pick("idle",spec.idle,Row),"idle",now);return;}
+        if(kind=="idle"&&Time<(roaming?8:6))return;
+        // Long clips keep their complete animation. Once every four fixed-mode
+        // actions, omit the extra idle clip instead of cutting a video short.
+        bool continueCatalog=!roaming&&kind=="random"&&automaticActions%4==0&&Duration(Row)>=8;
+        if(kind!="idle"&&kind!="sleep"&&!continueCatalog){Begin(Pick("idle",spec.idle,Row),"idle",now);return;}
         // Shared play counts cover clicks and idle actions. Exhaust less-played
         // actions before reusing favorites; reactive/work states remain semantic.
         var reserved=(spec.idle??new int[0]).Concat(spec.move??new int[0]).Concat(spec.drag??new int[0]).Concat(spec.sleep??new int[0]).Concat(spec.collision??new int[0]);
         var disabled=(spec.categories??new PetActionCategory[0]).Where(c=>profile.CategoryWeights.ContainsKey(c.name)&&profile.CategoryWeights[c.name]==0).SelectMany(c=>c.actions);
-        int[] daily=ClickPool.Except(reserved).Except(disabled).ToArray();Begin(Pick("auto-catalog",daily,Pick("idle",spec.idle,Row)),daily.Length>0?"random":"idle",now);
+        int[] daily=ClickPool.Except(reserved).Except(disabled).ToArray();
+        if(daily.Length==1&&daily[0]==lastRandomPlayed)daily=new int[0];
+        Begin(Pick("auto-catalog",daily,Pick("idle",spec.idle,Row)),daily.Length>0?"random":"idle",now);
     }
-}
-internal static class PetPhrasebook {
-    // Original offline lines. No model client, prompt, network or chat history.
-    static readonly string[] daily={"眼睛看累了，就看看远处吧。","我在这里，慢慢来就好。","今天也要给自己一点空闲。","这块小地方，刚好够我散步。","喝口水，再继续也来得及。","风景没有跑，我也没有跑。","忙完这段，记得伸个懒腰。","有些灵感，要等一小会儿。","让我帮你看着进度。","不用着急，走一小步也是前进。","刚刚发现一个适合发呆的角落。","认真工作，也别忘了吃饭。","路过一下，不打扰你啦。","今天的桌面也很适合散步。","任务交给 Codex，休息留给你。","我把安静的一小会儿留给你。","事情多的时候，一件件来。","该让肩膀和手腕歇一歇了。","你忙你的，我在旁边陪着。","今天的小目标，也值得期待。"};
-    static readonly Dictionary<string,string[]> work=new Dictionary<string,string[]>{{"thinking",new[]{"正在理清思路，稍等一下。","先想清楚，再往下走。","线索正在一点点连起来。"}},{"working",new[]{"已经动手啦，我帮你看着。","正在处理这一项操作。","一步一步，把事情做完。"}},{"result",new[]{"结果回来了，正在核对。","让我看看这一步有没有做好。","把刚才的结果整理一下。"}},{"waiting",new[]{"这一步需要你确认。","我在这里等你的决定。","准备好之后再继续吧。"}},{"success",new[]{"这一项做完啦！","可以轻轻松一口气了。","又完成了一件事情。"}},{"error",new[]{"遇到一点问题，先看看原因。","这一步没有完成，别急。","需要调整一下，再试试看。"}}};
-    public static string Whisper(string id,int index){string prefix=id=="deepseek"?"鲸鲸说：":id=="deepseek-fat-fish"?"鲸鱼女仆：":"";return prefix+daily[Math.Abs(index%daily.Length)];}
-    public static string Work(string stage,int index){string[] choices;return work.TryGetValue(stage,out choices)?choices[Math.Abs(index%choices.Length)]:null;}
-    public static string Reply(string input,string id,int index){string text=(input??"").Trim();if(text.Contains("累")||text.Contains("困"))return "那就先休息一会儿，我帮你守着桌面。";if(text.Contains("你好")||text.Contains("在吗"))return "在呢，今天也一起慢慢来吧。";if(text.Contains("谢谢"))return "能陪着你就很开心啦。";if(text.Contains("工作")||text.Contains("任务"))return "进度可以点上方胶囊查看，我只在本地陪你聊天。";return Whisper(id,index);}
 }

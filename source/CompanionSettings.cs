@@ -4,11 +4,6 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-internal sealed class PetOfflineChat : Form {
-    public PetOfflineChat(string name,Func<string,string> reply){Text=name+" · 离线互动";ShowInTaskbar=false;FormBorderStyle=FormBorderStyle.FixedToolWindow;StartPosition=FormStartPosition.CenterScreen;ClientSize=new Size(390,205);BackColor=Color.FromArgb(20,24,30);ForeColor=Color.White;Font=new Font("Microsoft YaHei UI",9);
-        var description=new Label{Text="本地文案互动 · 不调用 Codex · 不保存对话",AutoSize=false,Bounds=new Rectangle(18,17,354,28),ForeColor=Color.LightSteelBlue};var input=new TextBox{Bounds=new Rectangle(18,55,354,28),MaxLength=300};var output=new Label{Bounds=new Rectangle(18,94,354,57),Text="你好呀，我在这里陪你。"};var send=new Button{Text="聊一句",Bounds=new Rectangle(277,160,95,30)};send.Click+=delegate{if(!String.IsNullOrWhiteSpace(input.Text)){output.Text=reply(input.Text);input.Clear();}};Controls.AddRange(new Control[]{description,input,output,send});AcceptButton=send;
-    }
-}
 internal sealed class PetBehaviorSettings : Form {
     readonly PetBehaviorProfile profile;readonly CheckBox work=new CheckBox(),quota=new CheckBox();readonly Dictionary<string,NumericUpDown> weights=new Dictionary<string,NumericUpDown>();
     public PetBehaviorSettings(PetPack pack,PetBehaviorProfile value){profile=value;profile.Normalize();Text=pack.Name+" · 互动与动画";ShowInTaskbar=false;StartPosition=FormStartPosition.CenterParent;FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=MinimizeBox=false;BackColor=Color.FromArgb(20,24,30);ForeColor=Color.FromArgb(226,235,245);Font=new Font("Microsoft YaHei UI",9);ClientSize=new Size(390,440);

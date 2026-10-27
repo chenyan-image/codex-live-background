@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -93,7 +93,39 @@ internal sealed class PetLayout {
     }
     public PointF CapsulePoint(PointF point){return new PointF((point.X-QuotaOffset)/CapsuleScale,point.Y/CapsuleScale);}
 }
+// A refresh owns its time origin. Completing a request settles onto a whole turn,
+// then confirms success; rendering never resets a partly turned arrow to zero.
+internal sealed class PetRefreshAnimation {
+    public struct Frame {
+        public double Angle;public float ArrowOpacity,CheckOpacity,CheckProgress;
+        public bool Turning;
+    }
+    const double Period=.9,BrakeTurns=.18,CheckIn=.16,CheckHold=1.1,CheckOut=.18;
+    double started,brakeStart,finished,initialTurns;bool active,complete,success;
+    public bool Waiting {get{return active&&!complete;}}
+    public void Begin(double now){double angle=active?At(now).Angle:0;initialTurns=(angle/360)%1;if(initialTurns<.000001||initialTurns>1-.000001)initialTurns=0;started=now;active=true;complete=false;success=false;}
+    public void Complete(double now,bool succeeded){
+        if(!active||complete)return;complete=true;success=succeeded;
+        double turns=initialTurns+Math.Max(0,(now-started)/Period),end=Math.Ceiling(Math.Max(initialTurns+1,turns+BrakeTurns));
+        brakeStart=started+(end-BrakeTurns-initialTurns)*Period;finished=brakeStart+2*BrakeTurns*Period;
+    }
+    public Frame At(double now){
+        var frame=new Frame{ArrowOpacity=1};if(!active)return frame;
+        double elapsed=Math.Max(0,now-started);frame.Turning=!complete||now<finished;
+        if(!complete||now<brakeStart)frame.Angle=(initialTurns+elapsed/Period)*360;
+        else {double t=Math.Max(0,Math.Min(1,(now-brakeStart)/(2*BrakeTurns*Period)));frame.Angle=(initialTurns+(brakeStart-started)/Period+BrakeTurns*(2*t-t*t))*360;}
+        if(complete&&success&&now>=finished){
+            double age=now-finished;frame.CheckProgress=(float)Math.Min(1,age/CheckIn);
+            frame.CheckOpacity=(float)(age<CheckIn?age/CheckIn:age<CheckIn+CheckHold?1:Math.Max(0,1-(age-CheckIn-CheckHold)/CheckOut));
+            frame.ArrowOpacity=1-frame.CheckOpacity;
+        }
+        return frame;
+    }
+}
 internal sealed class PetPainter : IDisposable {
+    readonly PetRefreshAnimation quotaRefresh=new PetRefreshAnimation();bool refreshSignal;
+    public void BeginQuotaRefresh(double now){refreshSignal=true;quotaRefresh.Begin(now);}
+    public void CompleteQuotaRefresh(double now,bool success){refreshSignal=false;quotaRefresh.Complete(now,success);}
     readonly PrivateFontCollection fonts=new PrivateFontCollection();readonly FontFamily numbers;readonly Image hubLogo=IconAssets.Create(28);readonly Dictionary<string,GraphicsPath> dialLabels=new Dictionary<string,GraphicsPath>();
     readonly Font compactLabel=new Font("Microsoft YaHei UI",11.2F,FontStyle.Bold,GraphicsUnit.Pixel);Color hubTint=Color.FromArgb(78,143,228),capsuleTint=Color.FromArgb(78,143,228),ringTint=Color.FromArgb(78,143,228);int capsuleAlpha=240;string lastHub,lastCapsule,lastRing;PetCardPalette taskColors=PetCardPalette.From(Color.FromArgb(78,143,228)),quotaColors=PetCardPalette.From(Color.FromArgb(78,143,228));
     public void ApplyAppearance(PetPreferences settings){if(settings.HubColor!=lastHub){lastHub=settings.HubColor;hubTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastHub));}if(settings.CapsuleColor!=lastCapsule){lastCapsule=settings.CapsuleColor;capsuleTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastCapsule));taskColors=PetCardPalette.From(capsuleTint);}if(settings.RingColor!=lastRing){lastRing=settings.RingColor;ringTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastRing));quotaColors=PetCardPalette.From(ringTint);}capsuleAlpha=(int)Math.Round(Math.Max(0,Math.Min(100,settings.CapsuleOpacity))*2.55);}
@@ -160,7 +192,9 @@ internal sealed class PetPainter : IDisposable {
         }
         using(var shape=IconAssets.Round(QuotaRect(true),15))using(var fill=new SolidBrush(colors.Background))using(var border=new Pen(colors.Border,1)){g.FillPath(fill,shape);g.DrawPath(border,shape);}
         using(var pen=new Pen(accent,1.4F)){g.DrawEllipse(pen,20,17,3,3);g.DrawEllipse(pen,15,23,3,3);g.DrawEllipse(pen,25,24,3,3);g.DrawLine(pen,249,18,256,22);g.DrawLine(pen,249,26,256,22);}
-        var refreshState=g.Save();if(refreshing){g.TranslateTransform(226,21);g.RotateTransform((float)(clock*300%360));g.TranslateTransform(-226,-21);}DrawRefresh(g,new RectangleF(218,13,16,16),accent);g.Restore(refreshState);
+        if(refreshing!=refreshSignal){if(refreshing)BeginQuotaRefresh(clock);else CompleteQuotaRefresh(clock,false);}
+        var refresh=quotaRefresh.At(clock);if(refresh.ArrowOpacity>0){var refreshState=g.Save();g.TranslateTransform(226,21);g.RotateTransform((float)(refresh.Angle%360));g.TranslateTransform(-226,-21);DrawRefresh(g,new RectangleF(218,13,16,16),Color.FromArgb((int)(255*refresh.ArrowOpacity),accent));g.Restore(refreshState);}
+        if(refresh.CheckOpacity>0)DrawRefreshCheck(g,new RectangleF(218,13,16,16),Color.FromArgb((int)(255*refresh.CheckOpacity),accent),refresh.CheckProgress);
         Text(g,"CodexHub",smallNumber,ink,new RectangleF(34,12,112,21),StringAlignment.Near);
         using(var line=new Pen(track))g.DrawLine(line,16,36,264,36);
         Text(g,activityLabel??"Codex · 陪伴中",label,ink,new RectangleF(18,39,180,17),StringAlignment.Near);
@@ -182,7 +216,7 @@ internal sealed class PetPainter : IDisposable {
         }
         using(var line=new Pen(track))g.DrawLine(line,16,187,264,187);
         Text(g,"今日 Token",tiny,muted,new RectangleF(18,191,72,16),StringAlignment.Near);Text(g,tokens!=null&&tokens.Available?PetTokenSnapshot.Format(tokens.Today):"—",smallNumber,ink,new RectangleF(91,191,127,16),StringAlignment.Near);Text(g,"24h",tiny,muted,new RectangleF(230,191,32,16),StringAlignment.Far);
-        string hint=String.IsNullOrEmpty(status)?"本机用量 · 含缓存输入 · 点击空白收起":status;Text(g,hint,tiny,muted,new RectangleF(18,208,242,12),StringAlignment.Near);
+        string hint=String.IsNullOrEmpty(status)?"本机用量 · 含缓存输入 · 点击宠物收起":status;Text(g,hint,tiny,muted,new RectangleF(18,208,242,12),StringAlignment.Near);
     }
     public static string CompactQuotaText(PetQuotaWindow value){if(value==null||!value.Remaining.HasValue)return "—";double percent=value.Remaining.Value;if(percent>0&&percent<1)return "<1%";return (percent>=100?100:Math.Min(99,Math.Round(Math.Max(0,percent),MidpointRounding.AwayFromZero))).ToString("0")+"%";}
     GraphicsPath DialLabel(string text){
@@ -197,7 +231,11 @@ internal sealed class PetPainter : IDisposable {
         var saved=g.Save();g.TranslateTransform(origin.X,origin.Y);g.SmoothingMode=SmoothingMode.AntiAlias;
         using(var fill=new SolidBrush(Color.FromArgb(capsuleAlpha,(accent.R+765)/4,(accent.G+765)/4,(accent.B+765)/4)))g.FillEllipse(fill,.5F,.5F,39,39);
         using(var track=new Pen(Color.FromArgb(219,225,237),4.6F))using(var arc=new Pen(accent,4.6F)){track.StartCap=track.EndCap=arc.StartCap=arc.EndCap=LineCap.Round;var box=new RectangleF(3.4F,3.4F,33.2F,33.2F);g.DrawArc(track,box,135,270);if(value!=null&&value.Remaining.HasValue&&value.Remaining.Value>0)g.DrawArc(arc,box,135,(float)(270*Math.Min(100,value.Remaining.Value)/100));}
-        var glyph=DialLabel(CompactQuotaText(value));if(capsuleAlpha<160)using(var halo=new Pen(Color.FromArgb(230,255,255,255),1.5F)){halo.LineJoin=LineJoin.Round;g.DrawPath(halo,glyph);}using(var fill=new SolidBrush(ink))g.FillPath(fill,glyph);g.Restore(saved);
+        var glyph=DialLabel(CompactQuotaText(value));bool clear=capsuleAlpha<230;
+        // Keep the actual glyph opaque on transparent glass. A dark keyline with
+        // white fill remains legible over both bright wallpaper and dark windows.
+        using(var outline=new Pen(clear?Color.FromArgb(250,13,24,42):Color.FromArgb(220,255,255,255),clear?2.3F:1.1F)){outline.LineJoin=LineJoin.Round;g.DrawPath(outline,glyph);}
+        using(var fill=new SolidBrush(clear?Color.White:ink))g.FillPath(fill,glyph);g.Restore(saved);
     }
     // Native vector construction follows Phosphor's circular-arrow proportions.
     // The arc ends at the arrow shaft; one path keeps the join continuous.
@@ -205,9 +243,13 @@ internal sealed class PetPainter : IDisposable {
         var saved=g.Save();g.TranslateTransform(box.X,box.Y);g.ScaleTransform(box.Width/256F,box.Height/256F);
         using(var pen=new Pen(color,16)){pen.StartCap=pen.EndCap=LineCap.Round;pen.LineJoin=LineJoin.Round;using(var curve=new GraphicsPath()){curve.AddArc(40,40,176,176,45,270);curve.AddLine(190.2254F,65.7746F,232,104);g.DrawPath(pen,curve);}g.DrawLines(pen,new[]{new PointF(232,56),new PointF(232,104),new PointF(184,104)});}g.Restore(saved);
     }
+    static void DrawRefreshCheck(Graphics g,RectangleF box,Color color,float progress){
+        var a=new PointF(box.Left+2.5F,box.Top+8.5F);var b=new PointF(box.Left+6.5F,box.Top+12);var c=new PointF(box.Left+14,box.Top+4);
+        float total=16.3F*progress,first=5.32F;using(var pen=new Pen(color,1.8F)){pen.StartCap=pen.EndCap=LineCap.Round;pen.LineJoin=LineJoin.Round;using(var path=new GraphicsPath()){if(total<=first){float t=total/first;path.AddLine(a,new PointF(a.X+(b.X-a.X)*t,a.Y+(b.Y-a.Y)*t));}else{path.AddLine(a,b);float t=Math.Min(1,(total-first)/10.98F);path.AddLine(b,new PointF(b.X+(c.X-b.X)*t,b.Y+(c.Y-b.Y)*t));}g.DrawPath(pen,path);}}
+    }
     static string ResetClock(PetQuotaWindow value){if(value==null||!value.ResetsAt.HasValue)return "未知";try{return DateTimeOffset.FromUnixTimeSeconds(value.ResetsAt.Value).ToLocalTime().ToString("MM-dd HH:mm");}catch(ArgumentOutOfRangeException){return "未知";}}
     static void DrawQuotaBar(Graphics g,PetQuotaWindow value,string name,RectangleF rect,Font number,Font label,Font tiny,Color ink,Color muted,Color accent,Color track){
-        Text(g,name,label,muted,new RectangleF(rect.X,rect.Y,72,20),StringAlignment.Near);Text(g,value==null?"未知":value.Percent,number,ink,new RectangleF(rect.Right-44,rect.Y-1,44,22),StringAlignment.Far);
+        Text(g,name,label,muted,new RectangleF(rect.X,rect.Y,68,20),StringAlignment.Near);Text(g,value==null?"未知":value.Percent,number,ink,new RectangleF(rect.Right-58,rect.Y-1,58,22),StringAlignment.Far);
         using(var basePen=new Pen(Color.FromArgb(214,226,243),5))using(var filled=new Pen(accent,5)){basePen.StartCap=basePen.EndCap=filled.StartCap=filled.EndCap=LineCap.Round;g.DrawLine(basePen,rect.Left+2,rect.Top+25,rect.Right-2,rect.Top+25);if(value!=null&&value.Remaining.HasValue&&value.Remaining.Value>0)g.DrawLine(filled,rect.Left+2,rect.Top+25,rect.Left+2+(rect.Width-4)*(float)value.Remaining.Value/100,rect.Top+25);}
         Text(g,value==null?"重置时间未知":value.ResetText,tiny,muted,new RectangleF(rect.X,rect.Y+31,rect.Width,13),StringAlignment.Near);
     }
@@ -247,7 +289,7 @@ internal sealed class PetWindow : Form {
     public readonly PetMotion Motion=new PetMotion(Environment.TickCount);
     readonly PetDragTracker dragTracker=new PetDragTracker();bool wasSliding;
     readonly PetAnimationDirector director;readonly PetBehaviorProfile behavior;readonly PetOverlay popup=new PetOverlay(),hud=new PetOverlay();bool draggingFromHud;
-    int animationGeneration=-1,previousButtons,phraseIndex;double lastClickSelection=-1000,lastMoveClock;
+    int animationGeneration=-1,previousButtons;double lastClickSelection=-1000,lastMoveClock;
     public PetQuotaSnapshot Quota;public PetTokenSnapshot Tokens;public bool QuotaRefreshing;public string QuotaStatus="正在读取账号额度…";
     public PetActivity Activity=new PetActivity();
     public Func<PetSurface> SurfaceProvider;public bool UseForegroundFilter=false,DismissOnOutsideClick=false,TrackLiveSurface;
@@ -274,7 +316,7 @@ internal sealed class PetWindow : Form {
         if(settings.PositionVersion<1){if(settings.X!=int.MinValue&&settings.Y!=int.MinValue){var old=new PetLayout(false,petFactor,capsuleFactor,0,atlas.IsVideo);settings.X+=(int)(old.Sprite.X*RenderScale);settings.Y+=(int)(old.Sprite.Y*RenderScale);}settings.PositionVersion=1;}
         ClientSize=PhysicalSize();menu.SuspendLayout();menu.BackColor=Color.FromArgb(27,32,37);menu.ForeColor=Color.FromArgb(231,240,238);
         menu.Items.Add("查看状态",null,delegate{if(!expanded)ToggleExpanded();});
-        menu.Items.Add("和"+pack.Name+"聊聊（离线）…",null,delegate{OfflineChat();});
+
         autonomyItem.Click+=delegate{if(NeedsAutonomyResume)ResumeAutonomy();else{settings.Roaming=false;if(!Motion.Sliding&&!Motion.Dragging)Motion.Velocity=PointF.Empty;SyncAutonomyMenu();if(PreferenceChanged!=null)PreferenceChanged();}};menu.Items.Add(autonomyItem);SyncAutonomyMenu();
         var range=new ToolStripMenuItem("桌面操作");range.DropDown.SuspendLayout();ToolStripMenuItem inCodex=new ToolStripMenuItem("仅在 Codex 窗口内"),onDesktop=new ToolStripMenuItem("整个桌面（可跨屏拖动）");inCodex.Click+=delegate{if(ScopeRequested!=null)ScopeRequested(true);else SetScope(true);};onDesktop.Click+=delegate{if(ScopeRequested!=null)ScopeRequested(false);else SetScope(false);};range.DropDownItems.Add(inCodex);range.DropDownItems.Add(onDesktop);
         range.DropDownItems.Add(new ToolStripSeparator());var roam=new ToolStripMenuItem();roam.Click+=delegate{settings.Roaming=!settings.Roaming;SyncAutonomyMenu();if(PreferenceChanged!=null)PreferenceChanged();};range.DropDownItems.Add(roam);range.DropDownItems.Add("刷新额度",null,delegate{if(RefreshQuota!=null)RefreshQuota();});range.DropDown.ResumeLayout(false);menu.Items.Add(range);
@@ -372,10 +414,12 @@ internal sealed class PetWindow : Form {
             int buttons=PetOverlay.Buttons;if(DismissOnOutsideClick&&(buttons&~previousButtons)!=0&&!popup.Bounds.Contains(PetOverlay.Pointer)&&!hud.Bounds.Contains(PetOverlay.Pointer)&&!HubPopupMenu.AnyOpen){if(expanded)OpenPanel(taskPanel);}previousButtons=buttons;
         }else popup.Hide();
     }
+    public void BeginQuotaRefresh(){QuotaRefreshing=true;painter.BeginQuotaRefresh(watch.Elapsed.TotalSeconds);}
+    public void CompleteQuotaRefresh(bool success){QuotaRefreshing=false;painter.CompleteQuotaRefresh(watch.Elapsed.TotalSeconds,success);}
     public void NotifyQuota(PetQuotaSnapshot value){if(value==null||value.Stale){director.QuotaUnknown();return;}var primary=value.Short!=null&&value.Short.Remaining.HasValue?value.Short:value.Week;if(primary!=null&&primary.Remaining.HasValue)director.Quota(primary.Remaining.Value,watch.Elapsed.TotalSeconds);else director.QuotaUnknown();}
     public void RandomAction(){director.Click(watch.Elapsed.TotalSeconds);Present();}
     public void Greet(){if(pack.Actions!=null){int index=pack.Actions.FindIndex(a=>a.name.Contains("挥手")||a.name.Contains("招手")||a.name.Contains("打招呼"));if(index>=0){Interact(9+index,true);return;}}Interact(3,true);}
-    void OfflineChat(){using(var dialog=new PetOfflineChat(pack.Name,text=>PetPhrasebook.Reply(text,pack.Id,phraseIndex++)))dialog.ShowDialog();}
+
     void PointerDown(MouseEventArgs e,bool fromHud){if(e.Button==MouseButtons.Right){rightHeld=true;Motion.Pressed=true;Motion.StepPress(.016);ReactToClick(false);menu.Show(Cursor.Position);return;}if(e.Button!=MouseButtons.Left)return;draggingFromHud=fromHud;mouseHeld=true;moved=false;Motion.Sliding=false;Motion.Velocity=PointF.Empty;cursorStart=PetOverlay.Pointer;positionStart=Motion.Position;dragTracker.Reset(cursorStart,watch.Elapsed.TotalSeconds);bodyHeld=Motion.Pressed=!fromHud;if(fromHud)hud.Capture=true;else Capture=true;}
     void HudMouseDown(object sender,MouseEventArgs e){PointerDown(e,true);}
     void HudMouseUp(object sender,MouseEventArgs e){PointerUp(e,true);}
@@ -388,7 +432,7 @@ internal sealed class PetWindow : Form {
     }
     void PointerUp(MouseEventArgs e,bool fromHud){if(e.Button!=MouseButtons.Left||!mouseHeld)return;mouseHeld=false;Capture=false;hud.Capture=false;atlas.DragHeld=false;if(moved){Motion.Drop(dragTracker.Release(PetOverlay.Pointer,watch.Elapsed.TotalSeconds));director.EndDrag(watch.Elapsed.TotalSeconds,Motion.Sliding);atlas.ReleaseDragFrame();Present();PresentOverlays(watch.Elapsed.TotalSeconds);settings.X=Left;settings.Y=Top;if(PreferenceChanged!=null)PreferenceChanged();}
         else if(fromHud){float x=e.X/(RenderScale*capsuleFactor);if(x<54){if(OpenSettings!=null)OpenSettings();}else if(x<224)OpenPanel(true);else ToggleExpanded();}
-        else ReactToClick(true);
+        else{if(expanded)OpenPanel(taskPanel);if(RefreshQuota!=null)RefreshQuota();ReactToClick(true);}
     }
     protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);PointerUp(e,false);}
     protected override void OnMouseCaptureChanged(EventArgs e){base.OnMouseCaptureChanged(e);if(!Capture&&mouseHeld&&!draggingFromHud){mouseHeld=false;atlas.DragHeld=false;if(Motion.Dragging){Motion.Drop();director.EndDrag(watch.Elapsed.TotalSeconds);atlas.ReleaseDragFrame();Present();}}}

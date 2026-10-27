@@ -1,6 +1,13 @@
-# 更新记录
+﻿# 更新记录
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
+
+## v1.7.0-preview.7 — 额度可读性与宠物交互
+
+- 透明额度圆环增加白字与深色描边，完整显示 100%。刷新连续转动、平滑完成整圈，成功显示短暂对勾，失败不假报成功。
+- 单击宠物刷新额度并收起展开卡片；拖动、右键和上方控件不误触刷新。所有宠物移除离线聊天。
+- 随机动作跨点击与自动播放去重，固定模式适度提高频率，保留完整长片、任务、碰撞和一次性睡眠链。
+- 程序更新保留原有素材和设置；持续跟踪偶发恢复显示延迟。
 
 ## v1.7.0-preview.6 — 安装修复、内置女仆与更新提示
 

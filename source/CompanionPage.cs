@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -69,15 +69,15 @@ internal sealed class PetController : IDisposable {
     }
     void FinishWindow(PetPack pack,int version,PetAtlas prepared,Exception failure,Stopwatch clock){PetWindow next=null;var uiClock=Stopwatch.StartNew();LastSwitchStages=new Dictionary<string,long>();try{
         if(disposed||version!=selectionVersion||!Preferences.Enabled||Preferences.SelectedId!=pack.Id){if(prepared!=null)prepared.Dispose();return;}if(failure!=null)throw failure;
-        var previous=Window;RectangleF anchor=previous==null?RectangleF.Empty:previous.VisibleBodyScreenBounds;if(previous!=null){Preferences.X=previous.Left;Preferences.Y=previous.Top;}next=PetWindow.Create(pack,Preferences,root,prepared);LastSwitchStages["createWindow"]=uiClock.ElapsedMilliseconds;prepared=null;next.TrackLiveSurface=true;next.SurfaceProvider=()=>cachedSurface;next.Quota=Quota;next.Tokens=Tokens;next.QuotaStatus=QuotaStatus;next.QuotaRefreshing=checking;
+        var previous=Window;RectangleF anchor=previous==null?RectangleF.Empty:previous.VisibleBodyScreenBounds;if(previous!=null){Preferences.X=previous.Left;Preferences.Y=previous.Top;}next=PetWindow.Create(pack,Preferences,root,prepared);LastSwitchStages["createWindow"]=uiClock.ElapsedMilliseconds;prepared=null;next.TrackLiveSurface=true;next.SurfaceProvider=()=>cachedSurface;next.Quota=Quota;next.Tokens=Tokens;next.QuotaStatus=QuotaStatus;if(checking)next.BeginQuotaRefresh();
         next.OpenSettings+=delegate{if(SettingsRequested!=null)SettingsRequested();};next.ScopeRequested+=SetScope;next.RefreshQuota+=Refresh;next.PreferenceChanged+=delegate{Preferences.Save(state);Raise();};next.NotifyQuota(Quota);next.AdvanceOnce();LastSwitchStages["firstFrame"]=uiClock.ElapsedMilliseconds;
         if(!anchor.IsEmpty&&next.Visible){var body=next.VisibleBodyScreenBounds;next.Motion.Position=new PointF(next.Left+anchor.Left+anchor.Width/2-body.Left-body.Width/2,next.Top+anchor.Bottom-body.Bottom);next.AdvanceOnce();}LastSwitchStages["position"]=uiClock.ElapsedMilliseconds;Window=next;windowId=pack.Id;if(previous!=null)previous.Dispose();LastSwitchStages["disposeOld"]=uiClock.ElapsedMilliseconds;Preferences.X=next.Left;Preferences.Y=next.Top;Preferences.Save(state);LastSwitchMilliseconds=clock.Elapsed.TotalMilliseconds;
     }catch(Exception error){if(prepared!=null)prepared.Dispose();if(next!=null&&Window!=next)next.Dispose();if(!disposed)SwitchError="宠物未能载入："+error.Message;}finally{if(version==selectionVersion)preparingId=null;if(!disposed)Raise();}}
     public async void Refresh(){
-        if(disposed||checking||!live)return;checking=true;if(Window!=null)Window.QuotaRefreshing=true;QuotaStatus="正在刷新真实额度…";Raise();
-        try{var value=await reader.ReadAsync();if(disposed)return;Quota=value;if(Window!=null)Window.NotifyQuota(value);QuotaStatus="更新于 "+value.CheckedUtc.ToLocalTime().ToString("HH:mm:ss");}
+        if(disposed||checking||!live)return;checking=true;bool success=false;if(Window!=null)Window.BeginQuotaRefresh();QuotaStatus="正在刷新真实额度…";Raise();
+        try{var value=await reader.ReadAsync();if(disposed)return;Quota=value;if(Window!=null)Window.NotifyQuota(value);QuotaStatus="更新于 "+value.CheckedUtc.ToLocalTime().ToString("HH:mm:ss");success=true;}
         catch(OperationCanceledException){return;}catch(Exception error){if(disposed)return;QuotaStatus=error.Message;}
-        finally{checking=false;if(!disposed){if(Window!=null){Window.QuotaRefreshing=false;Window.Quota=Quota;Window.QuotaStatus=QuotaStatus;}Raise();}}
+        finally{checking=false;if(!disposed){if(Window!=null){Window.Quota=Quota;Window.QuotaStatus=QuotaStatus;Window.CompleteQuotaRefresh(success);}Raise();}}
     }
     public void Select(PetPack pack){Preferences.SelectedId=pack.Id;Apply(true);}
     public void SetScope(bool codexOnly){Preferences.CodexOnly=codexOnly;if(Window!=null)Window.SetScope(codexOnly);else{Preferences.Save(state);Raise();}}

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="126" height="26" viewBox="0 0 126 26" role="img" aria-labelledby="title desc">
-  <title id="title">EXE 约 99 MiB</title>
-  <desc id="desc">Windows EXE 安装包约 99 MiB</desc>
+  <title id="title">EXE 约 98 MiB</title>
+  <desc id="desc">Windows EXE 安装包约 98 MiB</desc>
   <defs><clipPath id="round"><rect width="126" height="26" rx="6"/></clipPath></defs>
   <g clip-path="url(#round)"><path fill="#27343d" d="M0 0h45v26H0z"/><path fill="#23826c" d="M45 0h81v26H45z"/><path fill="#fff" fill-opacity=".09" d="M0 0h126v1H0z"/></g>
-  <g fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="11" text-anchor="middle" font-weight="600"><text x="22.5" y="17" letter-spacing=".5">EXE</text><text x="85.5" y="17">≈ 99 MiB</text></g>
+  <g fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="11" text-anchor="middle" font-weight="600"><text x="22.5" y="17" letter-spacing=".5">EXE</text><text x="85.5" y="17">≈ 98 MiB</text></g>
 </svg>
