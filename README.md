@@ -1,7 +1,7 @@
 ﻿# CodexHub Codex动态壁纸+桌面宠物
 
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
-
+<p align="center"><img src="docs/screenshots/pets.png" alt="三个宠物、自动启停与胶囊配色设置" width="100%"></p>
 <p align="center">
   <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/tag/v1.7.0.1"><img src="docs/badges/version.svg" alt="稳定版 v1.7.0.1"></a>
   <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.1/CodexHub-1.7.0.1-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 167 MiB"></a>
@@ -24,10 +24,7 @@
 - 自动扫描 Wallpaper Engine，支持搜索、筛选、连续向下滚动和预览。
 - 保存壁纸使用记录；新装仅附《花桃全屏》静态背景，其他壁纸自行导入或从 Wallpaper Engine 选择。升级保留已有素材。
 - 下载和导入在后台进行，宠物及卡片动画继续运行。
-- 静态缩略图只保留一帧，隐藏预览释放图片；宠物动作采用限量缓存，降低后台常驻占用。
-
-<p align="center"><img src="docs/screenshots/wallpapers.png" alt="CodexHub 本地壁纸与花桃全屏" width="100%"></p>
-
+- 静态缩略图只保留一帧，隐藏预览释放图片；宠物动作采用限量缓存，降低后台常驻占用。 
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="Wallpaper Engine 连续滚动壁纸库" width="100%"></p>
 
 ## 桌面宠物
