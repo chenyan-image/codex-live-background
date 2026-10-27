@@ -2,6 +2,12 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.15 — 修复旧版本文件清单遗漏
+
+- 补齐从已发布安装包核验提取的 preview.9～14 历史清单，修复 preview.11 更新说明导致安装被阻止。
+- 完整安装包保留已有版本更新说明的准确文件名，避免后续升级再次遗漏。
+- 支持核验程序缺失但原始发行清单仍在的残留；保留未知文件拦截与共享目录数据。
+
 ## v1.7.0-preview.14 — 修复运行中清理误报
 
 - 修复心跳与日志正常写入导致“扫描后文件已变化”的循环误报。
