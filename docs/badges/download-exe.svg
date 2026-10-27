@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="238" height="48" viewBox="0 0 238 48" role="img" aria-labelledby="title desc">
   <title id="title">下载 Windows EXE 安装包</title>
-  <desc id="desc">CodexHub v1.7.0-preview.5，Windows x64 安装程序</desc>
+  <desc id="desc">CodexHub v1.7.0-preview.6，Windows x64 安装程序</desc>
   <defs><linearGradient id="button" x2="0" y2="1"><stop stop-color="#25846f"/><stop offset="1" stop-color="#1c6d5b"/></linearGradient></defs>
   <rect x=".5" y=".5" width="237" height="47" rx="9" fill="url(#button)" stroke="#155c4c"/>
   <path d="M25 13v17m-6-6 6 6 6-6m-14 7v4h16v-4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <g fill="#fff" font-family="Segoe UI,Microsoft YaHei,Arial,sans-serif"><text x="47" y="22" font-size="14" font-weight="600">下载 Windows EXE</text><text x="47" y="37" font-size="10" fill="#d5efe7">v1.7.0-preview.5 · x64 安装包</text></g>
+  <g fill="#fff" font-family="Segoe UI,Microsoft YaHei,Arial,sans-serif"><text x="47" y="22" font-size="14" font-weight="600">下载 Windows EXE</text><text x="47" y="37" font-size="10" fill="#d5efe7">v1.7.0-preview.6 · x64 安装包</text></g>
 </svg>

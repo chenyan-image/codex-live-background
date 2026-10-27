@@ -1,0 +1,69 @@
+{
+  "version": "1.7.0.9",
+  "tag": "v1.7.0-preview.6",
+  "platform": "windows-x64",
+  "installerVerified": true,
+  "msiWrapped": false,
+  "updateSoftwareFiles": 115,
+  "bundledWallpapers": 1,
+  "bundledPets": 2,
+  "bundledPetAnimations": 106,
+  "downloadOnlyPets": 1,
+  "bundledDecoder": false,
+  "installerMiB": 98.9,
+  "manifestFiles": 360,
+  "localInstallationRepaired": true,
+  "localInstalledVersion": "1.7.0.9",
+  "installedBinariesMatchFinalPackage": true,
+  "preservedExistingFiles": 375,
+  "semanticPetSettingsPreserved": true,
+  "wallpaperLibraryBytesPreserved": true,
+  "codexRestarted": false,
+  "browserIdentityUnchanged": true,
+  "backgroundServiceMigrated": true,
+  "updaterResident": false,
+  "savedWallpaperStatus": "image-ready",
+  "checks": {
+    "preview6": 38,
+    "updateChannelAndBackoff": 73,
+    "nativePreflight": 17,
+    "followAppearance": 64,
+    "followRegistration": 10,
+    "embeddedFollow": 13,
+    "guardComponents": 15,
+    "importAndProgramUpdate": 32,
+    "connectionRecovery": 13,
+    "rendererHealth": 15,
+    "historicalInstall": 8,
+    "detachedServiceDiscovery": 12,
+    "upgradeVersion": 14,
+    "nativeLifecycle": 12,
+    "nativeWorker": 6
+  },
+  "legacyUpdateReceivers": [
+    "1.7.0.4",
+    "1.7.0.7"
+  ],
+  "legacyNativeHostApplied": true,
+  "isolatedUpdatePreservesSettingsBytes": true,
+  "actualRebootTested": false,
+  "restoreLatencyGateMs": 150,
+  "restoreLatencyFullyResolved": false,
+  "files": [
+    {
+      "name": "CodexHub-1.7.0-preview.6-Setup.exe",
+      "bytes": 103705088,
+      "sha256": "6cac305555067391a058a91dd4bb3aeb56616d655249c982951c9f1ff3190444"
+    },
+    {
+      "name": "CodexHub-1.7.0-preview.6-Update.zip",
+      "bytes": 1953483,
+      "sha256": "7e5dd600cf306082787bfe00ef333800a78bfe2d12ad26d2aab9a31f97212cd3"
+    },
+    {
+      "name": "CodexHub-Update.json",
+      "bytes": 314,
+      "sha256": "0d91d7b1c5bc172b246c6b6e538bde5c4a47f2da4b3fa2d52d2ba2668163f81a"
+    }
+  ]
+}
