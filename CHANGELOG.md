@@ -2,6 +2,12 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.14 — 修复运行中清理误报
+
+- 修复心跳与日志正常写入导致“扫描后文件已变化”的循环误报。
+- 停止相关后台组件后再次核验程序并收集退出文件，再按可信清单清理。
+- 保留真实程序变化、文件类型和归属检查；旧扫描报告需使用新版重新扫描一次。
+
 ## v1.7.0-preview.13 — 安装诊断与已核验残留清理
 
 - EXE 安装器新增深度扫描、具体原因报告与可停止的本地磁盘扫描。

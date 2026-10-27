@@ -23,7 +23,7 @@ function Get-BackgroundScanItem {
    }
    if(-not $valid){throw '仅发现安装标记，程序或清单的 SHA-256 无法核验；作为报告项保留。'}
   }
-  $bytes=0L;$identity=@();$existing=@()
+  $bytes=0L;$identity=@('codexhub-scan/static-v2');$existing=@()
   foreach($relative in @($files|Sort-Object -Unique)){
    $file=Get-BackgroundSafePath -Root $path -Relative $relative
    if(-not(Test-Path -LiteralPath $file)){continue}
@@ -31,12 +31,16 @@ function Get-BackgroundScanItem {
    $item=Get-Item -LiteralPath $file -Force
    if($item.PSIsContainer){throw ('清单中的程序文件变成了文件夹：'+$relative)}
    $bytes+=$item.Length;$existing+=@($relative)
-   # Detect changes between the scan and cleanup, including a replaced marker.
-   $identity+=@($relative+':'+$item.Length+':'+$item.LastWriteTimeUtc.Ticks)
-   if($relative -in @('CodexLiveBackground.exe','CodexDreamSkinManager.exe','.codex-background-install.json')){$identity+=@((Get-FileHash -LiteralPath $file).Hash)}
+   # Heartbeats, startup logs and shutdown markers change while the app is
+   # running. Keep validating their type/path and include them for removal,
+   # but they must not invalidate the static program/installation identity.
+   if($relative.Replace('/','\') -notin $script:BackgroundRuntimeFiles){
+    $identity+=@($relative+':'+$item.Length+':'+$item.LastWriteTimeUtc.Ticks)
+    if($relative -in @('CodexLiveBackground.exe','CodexDreamSkinManager.exe','.codex-background-install.json')){$identity+=@((Get-FileHash -LiteralPath $file).Hash)}
+   }
   }
   $sha=[Security.Cryptography.SHA256]::Create();try{$stamp=[BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($identity -join "`n")))).Replace('-','')}finally{$sha.Dispose()}
-  [pscustomobject]@{path=$path;kind=$Kind;verified=$true;bytes=$bytes;files=@($existing);identity=$stamp;detail='归属已核验；清理仅移除清单中的程序文件。'}
+  [pscustomobject]@{path=$path;kind=$Kind;verified=$true;bytes=$bytes;files=@($existing);identity=$stamp;identityVersion=2;detail='归属已核验；清理仅移除清单中的程序文件。'}
  }catch{[pscustomobject]@{path=$path;kind=$Kind;verified=$false;bytes=0;files=@();identity='';detail=$_.Exception.Message}}
 }
 function Get-BackgroundScanDrives {
@@ -87,7 +91,7 @@ function Invoke-BackgroundDeepScan {
  if($denied){$issues.Add([pscustomobject]@{level='warning';check='扫描权限';message=('有 '+$denied+' 个目录不可读或在扫描时变化，已跳过。')})}
  $processes=@();try{$processes=@(Get-BackgroundOwnedProcesses -Roots @($items|Where-Object{$_.verified -and $_.kind -eq 'program'}|ForEach-Object{$_.path}) -StateRoot $state -ExcludeIds @($PID))|ForEach-Object{[pscustomobject]@{pid=$_.ProcessId;path=$_.Executable}}}catch{$issues.Add([pscustomobject]@{level='warning';check='后台进程';message=$_.Exception.Message})}
  foreach($process in $processes){[Console]::Out.WriteLine('发现本项目后台进程：PID '+$process.pid+'；'+$process.path)}
- $report=[ordered]@{schema=1;productId='codexhub-install-scan';owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;createdUtc=[DateTime]::UtcNow.ToString('o');target=$InstallRoot;codexInstalled=($codex.Count -gt 0);environment=@{windows=[Environment]::OSVersion.VersionString;is64Bit=[Environment]::Is64BitOperatingSystem;powershell=$PSVersionTable.PSVersion.ToString();temporaryDirectory=[IO.Path]::GetTempPath()};directories=$count;partial=$partial;skipped=$denied;items=@($items.ToArray());issues=@($issues.ToArray());processes=@($processes)}
+ $report=[ordered]@{schema=2;productId='codexhub-install-scan';owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;createdUtc=[DateTime]::UtcNow.ToString('o');target=$InstallRoot;codexInstalled=($codex.Count -gt 0);environment=@{windows=[Environment]::OSVersion.VersionString;is64Bit=[Environment]::Is64BitOperatingSystem;powershell=$PSVersionTable.PSVersion.ToString();temporaryDirectory=[IO.Path]::GetTempPath()};directories=$count;partial=$partial;skipped=$denied;items=@($items.ToArray());issues=@($issues.ToArray());processes=@($processes)}
  $reportPath=Join-Path $OperationRoot 'scan.json';[IO.File]::WriteAllText($reportPath,($report|ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
  $lines=@('CodexHub 安装诊断',('时间：'+$report.createdUtc),('目标：'+$InstallRoot),('未安装 Codex 是否阻止安装：否'),('扫描目录：'+$count+'；部分扫描：'+$partial),'')
  foreach($issue in $issues){$lines+=@(('['+$issue.level+'] '+$issue.check+'：'+$issue.message))}
@@ -100,11 +104,13 @@ function Invoke-BackgroundResidualCleanup {
  param([string]$ScanReport,[string]$PackageRoot,[string]$OperationRoot,[int]$ManagerPid)
  if(-not [IO.File]::Exists($ScanReport) -or (Get-Item -LiteralPath $ScanReport).Length -gt 8MB){throw '请先完成深度扫描，再清理已确认的残留。'}
  $report=[IO.File]::ReadAllText($ScanReport)|ConvertFrom-Json
- if($report.schema -ne 1 -or $report.productId -cne 'codexhub-install-scan' -or $report.owner -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value){throw '扫描报告归属不匹配。'}
+ if($report.productId -cne 'codexhub-install-scan' -or $report.owner -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value){throw '扫描报告归属不匹配。'}
+ if($report.schema -ne 2){throw '扫描报告来自旧版，请使用本版安装器重新扫描一次。'}
  if([DateTime]::Parse($report.createdUtc).ToUniversalTime() -lt [DateTime]::UtcNow.AddHours(-24)){throw '扫描报告已过期，请重新扫描。'}
  $script:NativePackageRoot=$PackageRoot;$verified=@()
  foreach($saved in @($report.items|Where-Object verified)){
   if(Test-DreamSkinPathEqual -Left $saved.path -Right $PackageRoot){continue}
+  if($saved.identityVersion -ne 2){throw '扫描项目来自旧版，请使用本版安装器重新扫描一次。'}
   $current=Get-BackgroundScanItem -Root $saved.path -PackageRoot $PackageRoot -Kind $saved.kind
   if(-not $current -or -not $current.verified -or $current.identity -cne $saved.identity){throw ('扫描后文件已变化，已停止；请重新扫描：'+$saved.path)}
   if($current.kind -eq 'temporary'){
@@ -115,7 +121,14 @@ function Invoke-BackgroundResidualCleanup {
  if(-not $verified.Count){[Console]::Out.WriteLine('没有可安全清理的已核验残留；无需清理。');return}
  $roots=@($verified|Where-Object kind -eq program|ForEach-Object{$_.path});$state=Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
  if($roots.Count){Stop-BackgroundIntegrations -Roots $roots -StateRoot $state -PackageRoot $PackageRoot -ExcludeIds @($PID,$ManagerPid);Remove-BackgroundDesktopEntries -Roots $roots}
- foreach($item in $verified){
+ # Shutdown can create a final stop marker/log. Rebuild the owned file list
+ # after stopping workers, while retaining the static identity checks.
+ $ready=@();foreach($item in $verified){
+  $current=Get-BackgroundScanItem -Root $item.path -PackageRoot $PackageRoot -Kind $item.kind
+  if(-not $current -or -not $current.verified -or $current.identity -cne $item.identity){throw ('停止后台组件后程序文件或安装标记发生变化，已停止；请重新扫描：'+$item.path)}
+  $ready+=@($current)
+ }
+ foreach($item in $ready){
   # Keep a small diagnostic backup of the old marker; personal material and
   # settings in CodexDreamSkin are never passed to a removal routine here.
   $marker=Join-Path $item.path '.codex-background-install.json';if(Test-Path -LiteralPath $marker){Copy-Item -LiteralPath $marker -Destination (Join-Path $OperationRoot ('marker-'+[guid]::NewGuid().ToString('N')+'.json'))}
