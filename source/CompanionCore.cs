@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -42,7 +42,7 @@ internal sealed class PetPack {
         var json=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(manifest));
         string sprite=Text(json,"spritesheetPath","spritesheet.png");
         if(Path.GetFileName(sprite)!=sprite||sprite.IndexOfAny(new[]{'/', '\\', ':'})>=0)throw new InvalidDataException("图集必须位于宠物目录内。");
-        string format=Text(json,"format","");bool optional=format=="optional-bailong"||format=="optional-remielle";
+        string format=Text(json,"format","");bool optional=format=="optional-bailong"||format=="optional-remielle"||format=="optional-cloud";
         string file=Path.Combine(directory,sprite);if(!optional&&(!File.Exists(file)||Path.GetExtension(file).ToLowerInvariant()!=".png"))throw new InvalidDataException("宠物尚未转换为可读的 PNG 图集。");
         string name=WallpaperLibrary.ValidateName(Text(json,"displayName",Path.GetFileName(directory)));
         var pack=new PetPack{Id=Path.GetFileName(directory),Name=name,Directory=directory,AtlasFile=file,Builtin=builtin,Author="本地导入",Source="",Optional=optional,Format=format,ProceduralMotion=json.ContainsKey("proceduralMotion")&&Object.Equals(json["proceduralMotion"],true)};
@@ -69,7 +69,7 @@ internal sealed class PetPack {
         var result=new List<PetPack>();foreach(var pair in new[]{Tuple.Create(Path.Combine(root,@"source\assets\pets"),true),Tuple.Create(Path.Combine(state,"pets"),false)}){
             if(!System.IO.Directory.Exists(pair.Item1))continue;
             foreach(string path in System.IO.Directory.GetDirectories(pair.Item1).Where(p=>System.IO.Path.GetFileName(p)!="xiaolemi").OrderBy(x=>x,StringComparer.OrdinalIgnoreCase))try{result.Add(Read(path,pair.Item2));}catch(InvalidDataException){}catch(IOException){}catch(ArgumentException){}catch(InvalidOperationException){}
-        }return result.Where(pack=>pack.Id!="xiaolemi").GroupBy(pack=>pack.Id,StringComparer.OrdinalIgnoreCase).Select(group=>group.OrderByDescending(pack=>pack.Available).First()).OrderBy(pack=>pack.Optional?4:pack.Id=="deepseek"?0:pack.Id=="deepseek-fat-fish"?1:pack.Id.StartsWith("dyber-")?2:3).ThenBy(pack=>pack.Name,StringComparer.CurrentCulture).ToList();
+        }return result.Where(pack=>pack.Id!="xiaolemi").GroupBy(pack=>pack.Id,StringComparer.OrdinalIgnoreCase).Select(group=>group.OrderByDescending(pack=>pack.Available).First()).OrderBy(pack=>pack.Id=="deepseek"?0:pack.Id=="deepseek-fat-fish"?1:pack.Id=="bailong"?2:pack.Optional?4:3).ThenBy(pack=>pack.Name,StringComparer.CurrentCulture).ToList();
     }
 }
 internal sealed partial class PetAtlas : IDisposable {
@@ -107,7 +107,7 @@ internal sealed partial class PetAtlas : IDisposable {
     }
     public RectangleF ContentBounds(int row){if(IsVideo||previewOnly&&animations!=null)return IdleContentBounds;int key=animations==null?row:ActionIndex(row);RectangleF value;if(contentBounds.TryGetValue(key,out value))return value;Rectangle frame=Frame(row,0);value=MeasureBody(Bitmap,frame);contentBounds[key]=value;return value;}
     // Largest opaque component excludes detached sparkles and caption/VFX pixels.
-    static RectangleF MeasureBody(Bitmap source,Rectangle frame){using(var crop=new Bitmap(frame.Width,frame.Height,PixelFormat.Format32bppArgb)){using(var g=Graphics.FromImage(crop))g.DrawImage(source,new Rectangle(0,0,crop.Width,crop.Height),frame,GraphicsUnit.Pixel);var data=crop.LockBits(new Rectangle(0,0,crop.Width,crop.Height),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);try{int width=crop.Width,height=crop.Height;var bytes=new byte[data.Stride*height];Marshal.Copy(data.Scan0,bytes,0,bytes.Length);var seen=new bool[width*height];var queue=new int[seen.Length];int best=0,left=0,top=0,right=width,bottom=height;for(int at=0;at<seen.Length;at++){if(seen[at]||bytes[(at/width)*data.Stride+(at%width)*4+3]<96)continue;int count=1,read=0,minX=at%width,maxX=minX,minY=at/width,maxY=minY;seen[at]=true;queue[0]=at;while(read<count){int point=queue[read++],x=point%width,y=point/width;minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx<0||xx>=width||yy<0||yy>=height)continue;int next=yy*width+xx;if(seen[next]||bytes[yy*data.Stride+xx*4+3]<96)continue;seen[next]=true;queue[count++]=next;}}if(count>best){best=count;left=minX;right=maxX+1;top=minY;bottom=maxY+1;}}return new RectangleF(left/(float)width,top/(float)height,(right-left)/(float)width,(bottom-top)/(float)height);}finally{crop.UnlockBits(data);}}}
+    internal static RectangleF MeasureBody(Bitmap source,Rectangle frame){using(var crop=new Bitmap(frame.Width,frame.Height,PixelFormat.Format32bppArgb)){using(var g=Graphics.FromImage(crop))g.DrawImage(source,new Rectangle(0,0,crop.Width,crop.Height),frame,GraphicsUnit.Pixel);var data=crop.LockBits(new Rectangle(0,0,crop.Width,crop.Height),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);try{int width=crop.Width,height=crop.Height;var bytes=new byte[data.Stride*height];Marshal.Copy(data.Scan0,bytes,0,bytes.Length);var seen=new bool[width*height];var queue=new int[seen.Length];int best=0,left=0,top=0,right=width,bottom=height;for(int at=0;at<seen.Length;at++){if(seen[at]||bytes[(at/width)*data.Stride+(at%width)*4+3]<96)continue;int count=1,read=0,minX=at%width,maxX=minX,minY=at/width,maxY=minY;seen[at]=true;queue[0]=at;while(read<count){int point=queue[read++],x=point%width,y=point/width;minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);for(int dy=-1;dy<=1;dy++)for(int dx=-1;dx<=1;dx++){int xx=x+dx,yy=y+dy;if(xx<0||xx>=width||yy<0||yy>=height)continue;int next=yy*width+xx;if(seen[next]||bytes[yy*data.Stride+xx*4+3]<96)continue;seen[next]=true;queue[count++]=next;}}if(count>best){best=count;left=minX;right=maxX+1;top=minY;bottom=maxY+1;}}return new RectangleF(left/(float)width,top/(float)height,(right-left)/(float)width,(bottom-top)/(float)height);}finally{crop.UnlockBits(data);}}}
     public int ActionIndex(int row){return row<9?animations.RowMap[Math.Max(0,row)]:Math.Min(animations.Actions.Count-1,row-9);}
     Bitmap Png(string file){
         Bitmap value;if(pngs.TryGetValue(file,out value)){pngOrder.Remove(file);pngOrder.AddLast(file);return value;}

@@ -64,7 +64,7 @@ internal static class CodexPetSurface {
         }catch(Win32Exception){}catch(InvalidOperationException){}catch(ArgumentException){}
         if(trusted.Count==0)return null;
         EnumWindows(delegate(IntPtr window,IntPtr unused){
-            if(!IsWindowVisible(window)||IsIconic(window))return true;uint pid;GetWindowThreadProcessId(window,out pid);
+            if(!IsWindowVisible(window)||IsIconic(window)||!CodexPresence.MainWindow(window))return true;uint pid;GetWindowThreadProcessId(window,out pid);
             if(!trusted.Contains(pid))return true;
             try{
                 int cloaked;if(DwmGetWindowAttribute(window,14,out cloaked,4)==0&&cloaked!=0)return true;
@@ -95,8 +95,8 @@ internal sealed class PetLayout {
 }
 internal sealed class PetPainter : IDisposable {
     readonly PrivateFontCollection fonts=new PrivateFontCollection();readonly FontFamily numbers;readonly Image hubLogo=IconAssets.Create(28);readonly Dictionary<string,GraphicsPath> dialLabels=new Dictionary<string,GraphicsPath>();
-    readonly Font compactLabel=new Font("Microsoft YaHei UI",11.2F,FontStyle.Bold,GraphicsUnit.Pixel);Color hubTint=Color.FromArgb(78,143,228),capsuleTint=Color.FromArgb(78,143,228),ringTint=Color.FromArgb(78,143,228);int capsuleAlpha=240;string lastHub,lastCapsule,lastRing;
-    public void ApplyAppearance(PetPreferences settings){if(settings.HubColor!=lastHub){lastHub=settings.HubColor;hubTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastHub));}if(settings.CapsuleColor!=lastCapsule){lastCapsule=settings.CapsuleColor;capsuleTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastCapsule));}if(settings.RingColor!=lastRing){lastRing=settings.RingColor;ringTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastRing));}capsuleAlpha=(int)Math.Round(Math.Max(0,Math.Min(100,settings.CapsuleOpacity))*2.55);}
+    readonly Font compactLabel=new Font("Microsoft YaHei UI",11.2F,FontStyle.Bold,GraphicsUnit.Pixel);Color hubTint=Color.FromArgb(78,143,228),capsuleTint=Color.FromArgb(78,143,228),ringTint=Color.FromArgb(78,143,228);int capsuleAlpha=240;string lastHub,lastCapsule,lastRing;PetCardPalette taskColors=PetCardPalette.From(Color.FromArgb(78,143,228)),quotaColors=PetCardPalette.From(Color.FromArgb(78,143,228));
+    public void ApplyAppearance(PetPreferences settings){if(settings.HubColor!=lastHub){lastHub=settings.HubColor;hubTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastHub));}if(settings.CapsuleColor!=lastCapsule){lastCapsule=settings.CapsuleColor;capsuleTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastCapsule));taskColors=PetCardPalette.From(capsuleTint);}if(settings.RingColor!=lastRing){lastRing=settings.RingColor;ringTint=ColorTranslator.FromHtml(PetPreferences.NormalizeColor(lastRing));quotaColors=PetCardPalette.From(ringTint);}capsuleAlpha=(int)Math.Round(Math.Max(0,Math.Min(100,settings.CapsuleOpacity))*2.55);}
     public PetPainter(string root){foreach(string name in new[]{"ChakraPetch-Regular.ttf","ChakraPetch-Bold.ttf"}){string file=Path.Combine(root,@"source\assets\fonts",name);if(File.Exists(file))try{fonts.AddFontFile(file);}catch(ArgumentException){}}numbers=fonts.Families.Length>0?fonts.Families[0]:FontFamily.GenericSansSerif;}
     public static Size LogicalSize(bool expanded,float petScale=1,float capsuleScale=1){return new PetLayout(expanded,petScale,capsuleScale).Size;}
     public static RectangleF QuotaRect(bool expanded,float petScale=1,float capsuleScale=1){return new PetLayout(expanded,petScale,capsuleScale).Quota;}
@@ -129,10 +129,11 @@ internal sealed class PetPainter : IDisposable {
     }
     public Bitmap RenderCapsule(float scale,PetQuotaSnapshot quota,string status,string activityLabel,bool busy,double clock){var image=new Bitmap((int)Math.Ceiling(280*scale),(int)Math.Ceiling(54*scale),PixelFormat.Format32bppPArgb);using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=TextRenderingHint.AntiAliasGridFit;using(var number=new Font(numbers,16,FontStyle.Bold,GraphicsUnit.Pixel))using(var small=new Font(numbers,11,FontStyle.Bold,GraphicsUnit.Pixel))using(var label=new Font("Microsoft YaHei UI",10,FontStyle.Bold,GraphicsUnit.Pixel))using(var tiny=new Font("Microsoft YaHei UI",8.5F,FontStyle.Regular,GraphicsUnit.Pixel))DrawQuota(g,false,quota,status,number,small,label,tiny,activityLabel,busy,clock,null,0,false,false);}return image;}
     public static RectangleF PanelShape(RectangleF origin,float progress){float t=Math.Max(0,Math.Min(1,progress));return new RectangleF(origin.X+(6-origin.X)*t,origin.Y+(5-origin.Y)*t,origin.Width+(268-origin.Width)*t,origin.Height+(220-origin.Height)*t);}
-    public Bitmap MorphPanel(Bitmap complete,float scale,RectangleF origin,float progress){if(progress>=1)return new Bitmap(complete);var image=new Bitmap(complete.Width,complete.Height,PixelFormat.Format32bppPArgb);var bounds=PanelShape(origin,progress);float content=Math.Max(0,Math.Min(1,(progress-.18F)/.72F));using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;using(var shape=IconAssets.Round(bounds,20-5*progress))using(var fill=new SolidBrush(Color.FromArgb(255,(int)((origin.Width<60?247:23)*(1-progress)+247*progress),(int)((origin.Width<60?251:43)*(1-progress)+250*progress),(int)((origin.Width<60?255:73)*(1-progress)+255*progress))))using(var border=new Pen(Color.FromArgb(160,167,198,238))){g.FillPath(fill,shape);g.SetClip(shape);float sx=bounds.Width/268F,sy=bounds.Height/220F;using(var attributes=new ImageAttributes()){var matrix=new ColorMatrix();matrix.Matrix33=content;attributes.SetColorMatrix(matrix);g.DrawImage(complete,new[]{new PointF(bounds.Left-6*sx,bounds.Top-5*sy),new PointF(bounds.Left+274*sx,bounds.Top-5*sy),new PointF(bounds.Left-6*sx,bounds.Top+223*sy)},new RectangleF(0,0,complete.Width,complete.Height),GraphicsUnit.Pixel,attributes);}g.ResetClip();g.DrawPath(border,shape);}}return image;}
+    static Color MorphColor(Color a,Color b,float t){return Color.FromArgb(255,(int)(a.R+(b.R-a.R)*t),(int)(a.G+(b.G-a.G)*t),(int)(a.B+(b.B-a.B)*t));}
+    public Bitmap MorphPanel(Bitmap complete,float scale,RectangleF origin,float progress){if(progress>=1)return new Bitmap(complete);var image=new Bitmap(complete.Width,complete.Height,PixelFormat.Format32bppPArgb);var bounds=PanelShape(origin,progress);float content=Math.Max(0,Math.Min(1,(progress-.18F)/.72F));using(var g=Graphics.FromImage(image)){g.ScaleTransform(scale,scale);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;using(var shape=IconAssets.Round(bounds,20-5*progress))using(var fill=new SolidBrush(MorphColor(origin.Width<60?quotaColors.Background:Color.FromArgb((int)(capsuleTint.R*.30),(int)(capsuleTint.G*.30),(int)(capsuleTint.B*.32)),origin.Width<60?quotaColors.Background:taskColors.Background,progress)))using(var border=new Pen(origin.Width<60?quotaColors.Border:taskColors.Border)){g.FillPath(fill,shape);g.SetClip(shape);float sx=bounds.Width/268F,sy=bounds.Height/220F;using(var attributes=new ImageAttributes()){var matrix=new ColorMatrix();matrix.Matrix33=content;attributes.SetColorMatrix(matrix);g.DrawImage(complete,new[]{new PointF(bounds.Left-6*sx,bounds.Top-5*sy),new PointF(bounds.Left+274*sx,bounds.Top-5*sy),new PointF(bounds.Left-6*sx,bounds.Top+223*sy)},new RectangleF(0,0,complete.Width,complete.Height),GraphicsUnit.Pixel,attributes);}g.ResetClip();g.DrawPath(border,shape);}}return image;}
     void DrawTasks(Graphics g,PetActivity activity,int index,Font number,Font label,Font tiny,double clock){
-        Color ink=Color.FromArgb(32,58,98),muted=Color.FromArgb(102,128,167),accent=Color.FromArgb(78,143,228),track=Color.FromArgb(222,233,247);
-        using(var shape=IconAssets.Round(QuotaRect(true),15))using(var fill=new SolidBrush(Color.FromArgb(251,247,250,255)))using(var border=new Pen(Color.FromArgb(181,207,241))){g.FillPath(fill,shape);g.DrawPath(border,shape);}
+        var colors=taskColors;Color ink=colors.Ink,muted=colors.Muted,accent=colors.Accent,track=colors.Track;
+        using(var shape=IconAssets.Round(QuotaRect(true),15))using(var fill=new SolidBrush(colors.Background))using(var border=new Pen(colors.Border)){g.FillPath(fill,shape);g.DrawPath(border,shape);}
         Text(g,"CodexHub · 当前任务",number,ink,new RectangleF(20,12,218,21),StringAlignment.Near);using(var pen=new Pen(accent,1.4F)){g.DrawLine(pen,249,18,256,22);g.DrawLine(pen,249,26,256,22);}using(var line=new Pen(track))g.DrawLine(line,16,36,264,36);
         PetTaskInfo[] tasks=activity==null?new PetTaskInfo[0]:activity.Tasks;var task=tasks.Length==0?null:tasks[index%tasks.Length];
         Text(g,task==null?"等待 Codex 任务":task.Phase,label,accent,new RectangleF(19,43,213,17),StringAlignment.Near);
@@ -145,30 +146,30 @@ internal sealed class PetPainter : IDisposable {
         Text(g,tasks.Length>1?(index%tasks.Length+1)+" / "+tasks.Length+" 项任务 · 点击标题切换":"本机任务状态 · 不显示聊天正文",tiny,muted,new RectangleF(19,207,240,13),StringAlignment.Near);
     }
     void DrawQuota(Graphics g,bool expanded,PetQuotaSnapshot quota,string status,Font number,Font smallNumber,Font label,Font tiny,string activityLabel,bool activityBusy,double clock,PetTokenSnapshot tokens,int tokenRange,bool resetTab,bool refreshing){
-        Color ink=Color.FromArgb(32,58,98),muted=Color.FromArgb(102,128,167),accent=Color.FromArgb(78,143,228),track=Color.FromArgb(222,233,247);
+        var colors=quotaColors;Color ink=colors.Ink,muted=colors.Muted,accent=colors.Accent,track=colors.Track;
         var first=quota==null?null:quota.Short;var week=quota==null?null:quota.Week;
         if(!expanded){
             using(var path=IconAssets.Round(new RectangleF(57,8,165,37),18))using(var fill=new SolidBrush(Color.FromArgb(capsuleAlpha,(int)(capsuleTint.R*.30),(int)(capsuleTint.G*.30),(int)(capsuleTint.B*.32))))using(var pen=new Pen(Color.FromArgb((int)(capsuleAlpha*.64),capsuleTint))){g.FillPath(fill,path);g.DrawPath(pen,path);}
-            using(var fill=new SolidBrush(Color.FromArgb((hubTint.R+765)/4,(hubTint.G+765)/4,(hubTint.B+765)/4)))g.FillEllipse(fill,9,7,40,40);
-            using(var pen=new Pen(hubTint,2))g.DrawEllipse(pen,10,8,38,38);
+            using(var fill=new SolidBrush(Color.FromArgb(capsuleAlpha,(hubTint.R+765)/4,(hubTint.G+765)/4,(hubTint.B+765)/4)))g.FillEllipse(fill,9,7,40,40);
+            using(var pen=new Pen(Color.FromArgb(capsuleAlpha,hubTint),2))g.DrawEllipse(pen,10,8,38,38);
             g.DrawImage(hubLogo,new RectangleF(16,14,26,26));
             using(var pen=new Pen(Color.FromArgb((capsuleTint.R+255)/2,(capsuleTint.G+255)/2,(capsuleTint.B+255)/2),1.5F)){for(int i=0;i<3;i++){double angle=i*Math.PI*2/3-Math.PI/2+(activityBusy?clock*2.8:0);float x=74+(float)Math.Cos(angle)*6,y=25+(float)Math.Sin(angle)*6;g.DrawEllipse(pen,x-1.5F,y-1.5F,3,3);}}
             string name=activityLabel??(quota==null?"等待 Codex":quota.Stale?"额度待读取":"Codex · 陪伴中");
             Text(g,name,compactLabel,Color.FromArgb(233,242,255),new RectangleF(88,10,124,33),StringAlignment.Near);
             DrawQuotaDial(g,new PointF(228,7),first,ringTint,ink);return;
         }
-        using(var shape=IconAssets.Round(QuotaRect(true),15))using(var fill=new SolidBrush(Color.FromArgb(251,247,250,255)))using(var border=new Pen(Color.FromArgb(181,207,241),1)){g.FillPath(fill,shape);g.DrawPath(border,shape);}
+        using(var shape=IconAssets.Round(QuotaRect(true),15))using(var fill=new SolidBrush(colors.Background))using(var border=new Pen(colors.Border,1)){g.FillPath(fill,shape);g.DrawPath(border,shape);}
         using(var pen=new Pen(accent,1.4F)){g.DrawEllipse(pen,20,17,3,3);g.DrawEllipse(pen,15,23,3,3);g.DrawEllipse(pen,25,24,3,3);g.DrawLine(pen,249,18,256,22);g.DrawLine(pen,249,26,256,22);}
         var refreshState=g.Save();if(refreshing){g.TranslateTransform(226,21);g.RotateTransform((float)(clock*300%360));g.TranslateTransform(-226,-21);}DrawRefresh(g,new RectangleF(218,13,16,16),accent);g.Restore(refreshState);
         Text(g,"CodexHub",smallNumber,ink,new RectangleF(34,12,112,21),StringAlignment.Near);
         using(var line=new Pen(track))g.DrawLine(line,16,36,264,36);
         Text(g,activityLabel??"Codex · 陪伴中",label,ink,new RectangleF(18,39,180,17),StringAlignment.Near);
         Text(g,quota==null?"额度待读取":quota.Stale?"额度读数已过期":"真实额度 · 已连接",tiny,muted,new RectangleF(18,57,242,14),StringAlignment.Near);
-        using(var shape=IconAssets.Round(new RectangleF(16,77,123,104),7))using(var fill=new SolidBrush(Color.FromArgb(235,242,252)))g.FillPath(fill,shape);
-        using(var shape=IconAssets.Round(new RectangleF(145,77,119,104),7))using(var fill=new SolidBrush(Color.FromArgb(235,242,252)))g.FillPath(fill,shape);
+        using(var shape=IconAssets.Round(new RectangleF(16,77,123,104),7))using(var fill=new SolidBrush(colors.Panel))g.FillPath(fill,shape);
+        using(var shape=IconAssets.Round(new RectangleF(145,77,119,104),7))using(var fill=new SolidBrush(colors.Panel))g.FillPath(fill,shape);
         DrawQuotaBar(g,first,first==null?"短周期剩余":first.Label.Replace(" ","")+"剩余",new RectangleF(22,81,111,45),number,label,tiny,ink,muted,accent,track);
         DrawQuotaBar(g,week,week==null?"本周剩余":week.Label+"剩余",new RectangleF(22,132,111,45),number,label,tiny,ink,muted,accent,track);
-        using(var shape=IconAssets.Round(new RectangleF(resetTab?205:149,80,53,17),4))using(var fill=new SolidBrush(Color.FromArgb(215,229,249)))g.FillPath(fill,shape);
+        using(var shape=IconAssets.Round(new RectangleF(resetTab?205:149,80,53,17),4))using(var fill=new SolidBrush(colors.Selected))g.FillPath(fill,shape);
         Text(g,"Token",smallNumber,resetTab?muted:ink,new RectangleF(149,80,53,17),StringAlignment.Center);Text(g,"重置",tiny,resetTab?ink:muted,new RectangleF(205,80,53,17),StringAlignment.Center);
         if(resetTab){
             Text(g,"短周期重置",tiny,muted,new RectangleF(151,103,107,13),StringAlignment.Near);Text(g,ResetClock(first),smallNumber,ink,new RectangleF(151,118,107,16),StringAlignment.Near);
@@ -194,9 +195,9 @@ internal sealed class PetPainter : IDisposable {
     public RectangleF QuotaLabelBounds(string text){return DialLabel(text).GetBounds();}
     void DrawQuotaDial(Graphics g,PointF origin,PetQuotaWindow value,Color accent,Color ink){
         var saved=g.Save();g.TranslateTransform(origin.X,origin.Y);g.SmoothingMode=SmoothingMode.AntiAlias;
-        using(var fill=new SolidBrush(Color.FromArgb(247,251,255)))g.FillEllipse(fill,.5F,.5F,39,39);
+        using(var fill=new SolidBrush(Color.FromArgb(capsuleAlpha,(accent.R+765)/4,(accent.G+765)/4,(accent.B+765)/4)))g.FillEllipse(fill,.5F,.5F,39,39);
         using(var track=new Pen(Color.FromArgb(219,225,237),4.6F))using(var arc=new Pen(accent,4.6F)){track.StartCap=track.EndCap=arc.StartCap=arc.EndCap=LineCap.Round;var box=new RectangleF(3.4F,3.4F,33.2F,33.2F);g.DrawArc(track,box,135,270);if(value!=null&&value.Remaining.HasValue&&value.Remaining.Value>0)g.DrawArc(arc,box,135,(float)(270*Math.Min(100,value.Remaining.Value)/100));}
-        using(var fill=new SolidBrush(ink))g.FillPath(fill,DialLabel(CompactQuotaText(value)));g.Restore(saved);
+        var glyph=DialLabel(CompactQuotaText(value));if(capsuleAlpha<160)using(var halo=new Pen(Color.FromArgb(230,255,255,255),1.5F)){halo.LineJoin=LineJoin.Round;g.DrawPath(halo,glyph);}using(var fill=new SolidBrush(ink))g.FillPath(fill,glyph);g.Restore(saved);
     }
     // Native vector construction follows Phosphor's circular-arrow proportions.
     // The arc ends at the arrow shaft; one path keeps the join continuous.

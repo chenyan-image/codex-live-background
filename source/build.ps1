@@ -6,6 +6,7 @@ param(
   [Parameter(Mandatory=$true)][string]$PortSource,
   [Parameter(Mandatory=$true)][string]$ThirdPartySource,
   [string]$FFmpegRuntimeDirectory,
+  [switch]$BundleFFmpegRuntime,
   [Parameter(Mandatory=$true)][string]$OutputDirectory
 )
 $ErrorActionPreference = 'Stop'
@@ -49,6 +50,7 @@ $nodeRoot = Join-Path $engine 'runtime\node'
 New-Item -ItemType Directory -Path $nodeRoot -Force | Out-Null
 Copy-Item -LiteralPath $NodeExecutable -Destination (Join-Path $nodeRoot 'node.exe')
 Copy-Item -LiteralPath $NodeLicense -Destination (Join-Path $nodeRoot 'LICENSE')
+if($BundleFFmpegRuntime){
 if([string]::IsNullOrWhiteSpace($FFmpegRuntimeDirectory)){throw 'FFmpegRuntimeDirectory is required for bundled transparent pet animations.'}
 $decoderConfig=[IO.File]::ReadAllText((Join-Path $EngineSource 'assets\ffmpeg-runtime.json'))|ConvertFrom-Json
 $decoderMarker=[IO.File]::ReadAllText((Join-Path $FFmpegRuntimeDirectory 'runtime.json'))|ConvertFrom-Json
@@ -60,14 +62,22 @@ foreach($item in $decoderConfig.files){
  Copy-Item -LiteralPath $decoderInput -Destination $decoderOut
 }
 Copy-Item -LiteralPath (Join-Path $FFmpegRuntimeDirectory 'runtime.json') -Destination $decoderOut
+}
 $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $nodeRoot 'node.exe')
 if ($signature.Status -ne 'Valid') { throw ('Bundled Node.js signature is invalid: ' + $signature.Status) }
-foreach ($file in @('control.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
+foreach ($file in @('control.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','historical-install-files.json','cloud-pets.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $out }
 $sourceOut = Join-Path $out 'source'
 New-Item -ItemType Directory -Path $sourceOut | Out-Null
-foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','SoftwareUpdate.cs','ManagerUpdates.cs','ManagerPetAppearance.cs','ManagerFollow.cs','CodexFollow.cs','BuiltinDownloads.cs','CompanionCore.cs','WindowResize.cs','CompanionBehavior.cs','CompanionVideo.cs','CompanionOverlay.cs','CompanionSettings.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','HubPopupMenu.cs','BuiltinWallpapers.cs','NativeUninstall.cs','build-update.ps1','Setup.cs','build-setup.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
+foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','SoftwareUpdate.cs','ManagerUpdates.cs','ManagerPetAppearance.cs','ManagerFollow.cs','CodexFollow.cs','PetCardPalette.cs','DailyUpdates.cs','CloudPets.cs','GuardVersion.cs','BuiltinDownloads.cs','CompanionCore.cs','WindowResize.cs','CompanionBehavior.cs','CompanionVideo.cs','CompanionOverlay.cs','CompanionSettings.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','HubPopupMenu.cs','BuiltinWallpapers.cs','NativeUninstall.cs','build-update.ps1','Setup.cs','build-setup.ps1','native-actions.ps1','native-lifecycle.ps1','legacy-msi-products.json','uninstall-data.ps1','app.manifest','build-msi.ps1','sign-release.ps1','control.ps1','autostart.ps1','skin-removal.ps1','service-removal.ps1','upgrade.ps1','shortcuts.ps1','codex-icons.ps1','legacy-managers.json','historical-install-files.json','cloud-pets.json','service-upgrade.ps1','service-compatibility.ps1','使用说明.txt','build.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $sourceOut }
 $assetOut=Join-Path $sourceOut 'assets';$null=New-Item -ItemType Directory -Path $assetOut
-Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'assets') | Where-Object Name -ne 'wallpapers' | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $assetOut -Recurse}
+Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'assets') | Where-Object Name -notin @('wallpapers','pets') | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $assetOut -Recurse}
+$petOut=Join-Path $assetOut 'pets';$null=New-Item -ItemType Directory -Path $petOut
+foreach($id in @('deepseek','bailong','deepseek-fat-fish')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('assets\pets\'+$id)) -Destination $petOut -Recurse}
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets\pets\sources.json') -Destination $petOut
+$checks=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'assets\pets\material-checksums.json'))|ConvertFrom-Json
+$checks.files=@($checks.files|Where-Object{Test-Path -LiteralPath (Join-Path $petOut $_.path)})
+foreach($entry in $checks.files){if($entry.path -eq 'deepseek-fat-fish/pet.json'){$file=Get-Item -LiteralPath (Join-Path $petOut $entry.path);$entry.bytes=$file.Length;$entry.sha256=(Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant()}}
+[IO.File]::WriteAllText((Join-Path $petOut 'material-checksums.json'),($checks|ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 $port = Join-Path $out 'startup'
 New-Item -ItemType Directory -Path $port | Out-Null
 Copy-Item -LiteralPath (Join-Path $PortSource 'DreamSkinPortHook.cs'),(Join-Path $PortSource 'ShellIdentity.cs'),(Join-Path $PortSource 'register-port.ps1') -Destination $port
@@ -85,10 +95,12 @@ $iconProcess=Start-Process -FilePath $iconBuilder -ArgumentList ('"'+$iconPath+'
 if($iconProcess.ExitCode -ne 0){throw 'Icon generation failed.'}
 Copy-Item -LiteralPath $iconPath -Destination (Join-Path $out 'CodexBackground.ico')
 Remove-Item -LiteralPath $iconBuilder -Force
-$managerSources=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','SoftwareUpdate.cs','ManagerUpdates.cs','ManagerPetAppearance.cs','ManagerFollow.cs','CodexFollow.cs','BuiltinDownloads.cs','CompanionCore.cs','WindowResize.cs','CompanionBehavior.cs','CompanionVideo.cs','CompanionOverlay.cs','CompanionSettings.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','HubPopupMenu.cs')|ForEach-Object{Join-Path $PSScriptRoot $_}
+$managerSources=@('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryControls.cs','GalleryManager.cs','MediaPreviewJob.cs','SoftwareUpdate.cs','ManagerUpdates.cs','ManagerPetAppearance.cs','ManagerFollow.cs','CodexFollow.cs','PetCardPalette.cs','DailyUpdates.cs','CloudPets.cs','BuiltinDownloads.cs','CompanionCore.cs','WindowResize.cs','CompanionBehavior.cs','CompanionVideo.cs','CompanionOverlay.cs','CompanionSettings.cs','CompanionQuota.cs','CompanionWindow.cs','CompanionPage.cs','CompanionActivity.cs','CompanionBailong.cs','CompanionTokens.cs','HubPopupMenu.cs')|ForEach-Object{Join-Path $PSScriptRoot $_}
 & $csc /nologo /target:winexe /main:Manager /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" ("/resource:"+(Join-Path $PSScriptRoot 'assets\brand\codexhub.png')+",CodexHub.Brand") ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexLiveBackground.exe" ("/resource:"+(Join-Path $PSScriptRoot 'assets\sounds\click.wav')+",CodexHub.ClickSound") /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:Accessibility.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll @managerSources
 if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
-& $csc /nologo /target:winexe /main:SoftwareUpdateHost /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexHubUpdater.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll (Join-Path $PSScriptRoot 'SoftwareUpdate.cs') (Join-Path $PSScriptRoot 'CodexFollow.cs')
+& $csc /nologo /target:winexe /main:DreamSkinPortHook /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$port\DreamSkinPortHook.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll (Join-Path $port 'DreamSkinPortHook.cs') (Join-Path $port 'ShellIdentity.cs') (Join-Path $PSScriptRoot 'CodexFollow.cs') (Join-Path $PSScriptRoot 'SoftwareUpdate.cs')
+if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
+& $csc /nologo /target:winexe /main:SoftwareUpdateHost /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexHubUpdater.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll (Join-Path $PSScriptRoot 'SoftwareUpdate.cs') (Join-Path $PSScriptRoot 'CodexFollow.cs') ("/resource:"+(Join-Path $port 'DreamSkinPortHook.exe')+",CodexHub.GuardProgram") ("/resource:"+(Join-Path $port 'DreamSkinPortHook.cs')+",CodexHub.GuardSource") ("/resource:"+(Join-Path $port 'ShellIdentity.cs')+",CodexHub.ShellIdentitySource") ("/resource:"+(Join-Path $PSScriptRoot 'cloud-pets.json')+",CodexHub.CloudPetCatalog") ("/resource:"+(Join-Path $PSScriptRoot 'historical-install-files.json')+",CodexHub.HistoricalInstallCatalog") (Join-Path $PSScriptRoot 'GuardVersion.cs')
 if($LASTEXITCODE -ne 0){throw 'Program updater compilation failed.'}
 & $csc /nologo /target:winexe /main:NativeUninstall /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/win32icon:$iconPath" "/out:$out\卸载 CodexHub.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll (Join-Path $PSScriptRoot 'NativeUninstall.cs')
 if($LASTEXITCODE -ne 0){throw 'Native uninstaller compilation failed.'}
@@ -100,8 +112,6 @@ if(-not(Test-Path -LiteralPath (Join-Path $wallpaperSource 'catalog.json'))){$wa
 $art=Start-Process -FilePath $wallpaperBuilder -ArgumentList ('"'+(Join-Path $out 'wallpapers')+'" "'+$wallpaperSource+'"') -WindowStyle Hidden -Wait -PassThru
 if($art.ExitCode -ne 0){throw 'Wallpaper artwork generation failed.'}
 Remove-Item -LiteralPath $wallpaperBuilder -Force
-& $csc /nologo /target:winexe /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$port\DreamSkinPortHook.exe" (Join-Path $port 'DreamSkinPortHook.cs') (Join-Path $port 'ShellIdentity.cs')
-if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
 $repoRoot = Split-Path -Parent $EngineSource
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE'),(Join-Path $repoRoot 'THIRD_PARTY_NOTICES.md') -Destination $out
 foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
@@ -109,7 +119,7 @@ foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
 }
 if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs')){
   $null=New-Item -ItemType Directory -Path (Join-Path $out 'docs') -Force
-  foreach($name in @('windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.md','release-1.7.0-preview.5.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
+  foreach($name in @('windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.md','release-1.7.0-preview.6.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
   if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\screenshots')){Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\screenshots') -Destination (Join-Path $out 'docs\screenshots') -Recurse}
   if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\badges')){Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\badges') -Destination (Join-Path $out 'docs\badges') -Recurse}
 }
@@ -134,7 +144,7 @@ visible-thread selector repairs, and theme recovery to the MIT-licensed engine.
 Source: https://github.com/xxloocee/Codex-Dream-Skin-Manager
 Upstream: https://github.com/Fei-Away/Codex-Dream-Skin (MIT)
 No original engine preset media are included. The six former generated backgrounds have been removed.
-Two engine JPEG placeholders are locally generated neutral gradients. Four user-selected Wallpaper Engine media items are copied from the validated catalog. Sources and rights are described in wallpapers/NOTICE.md; those media are not covered by the code MIT license. Official Codex icons are read from the local installed app and are not redistributed.
+Two engine JPEG placeholders are locally generated neutral gradients. Only the selected Flower Peach static wallpaper is bundled. Sources and rights are described in wallpapers/NOTICE.md; those media are not covered by the code MIT license. Official Codex icons are read from the local installed app and are not redistributed.
 The OpenAI application, trademarks and accounts are not included.
 '@ | Set-Content -LiteralPath (Join-Path $thirdParty 'MODIFICATIONS.txt') -Encoding UTF8
 # Windows PowerShell 5.1 requires BOM for scripts containing Chinese strings.
@@ -147,12 +157,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.7';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.9';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.7.0.7';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.7.0.9';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

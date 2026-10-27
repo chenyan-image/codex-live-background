@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -20,6 +20,9 @@ internal static class CodexPresence {
     [DllImport("user32.dll")]static extern bool EnumWindows(WindowCallback callback,IntPtr data);
     [DllImport("user32.dll")]static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")]static extern bool IsIconic(IntPtr window);
+    [DllImport("user32.dll")]static extern IntPtr GetWindow(IntPtr window,uint command);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]static extern int GetClassName(IntPtr window,StringBuilder name,int count);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")]static extern IntPtr WindowStyle(IntPtr window,int index);
     [DllImport("user32.dll")]static extern uint GetWindowThreadProcessId(IntPtr window,out uint process);
     [DllImport("user32.dll")]static extern bool GetClientRect(IntPtr window,out Rect rect);
     [DllImport("dwmapi.dll")]static extern int DwmGetWindowAttribute(IntPtr window,int kind,out int value,int size);
@@ -36,11 +39,14 @@ internal static class CodexPresence {
         if(!OfficialPackage.IsMatch(package))return false;uint length=0;GetPackagePathByFullName(package,ref length,null);if(length<2||length>32768)return false;var installed=new StringBuilder((int)length);
         return GetPackagePathByFullName(package,ref length,installed)==0&&MatchesRegisteredImage(image,installed.ToString(),package);
     }
-    internal static bool VisibleFor(HashSet<uint> trusted){bool found=false;if(trusted.Count==0)return false;EnumWindows((window,data)=>{
+    internal static bool MainWindowShape(string name,bool owned,long style,long extended){return name=="Chrome_WidgetWin_1"&&!owned&&(style&0x40000000L)==0&&(extended&(0x80L|0x08000000L))==0;}
+    internal static bool MainWindow(IntPtr window){var name=new StringBuilder(128);GetClassName(window,name,name.Capacity);return MainWindowShape(name.ToString(),GetWindow(window,4)!=IntPtr.Zero,WindowStyle(window,-16).ToInt64(),WindowStyle(window,-20).ToInt64());}
+    internal static bool VisibleFor(HashSet<uint> trusted,bool mainWindowsOnly=false){bool found=false;if(trusted.Count==0)return false;EnumWindows((window,data)=>{
         if(!IsWindowVisible(window)||IsIconic(window))return true;uint owner;GetWindowThreadProcessId(window,out owner);if(!trusted.Contains(owner))return true;
+        if(mainWindowsOnly&&!MainWindow(window))return true;
         int cloaked;if(DwmGetWindowAttribute(window,14,out cloaked,4)==0&&cloaked!=0)return true;Rect client;if(!GetClientRect(window,out client)||client.Right<240||client.Bottom<300)return true;found=true;return false;
     },IntPtr.Zero);return found;}
-    public static bool Visible(){var trusted=new HashSet<uint>();foreach(var process in Process.GetProcessesByName("ChatGPT"))using(process)try{if(process.MainWindowHandle!=IntPtr.Zero&&OfficialProcess(process))trusted.Add((uint)process.Id);}catch(Win32Exception){}catch(InvalidOperationException){}catch(ArgumentException){}return VisibleFor(trusted);}
+    public static bool Visible(){var trusted=new HashSet<uint>();foreach(var process in Process.GetProcessesByName("ChatGPT"))using(process)try{if(process.MainWindowHandle!=IntPtr.Zero&&OfficialProcess(process))trusted.Add((uint)process.Id);}catch(Win32Exception){}catch(InvalidOperationException){}catch(ArgumentException){}return VisibleFor(trusted,true);}
 }
 
 internal sealed class CodexFollowPolicy {
@@ -62,23 +68,33 @@ internal static class CodexFollow {
     internal static string Command(string root,string state){return SoftwareUpdate.Quote(Path.Combine(root,"CodexHubUpdater.exe"))+" --follow "+SoftwareUpdate.Quote(Path.GetFullPath(state));}
     internal static bool Enabled(string state){try{string file=Path.Combine(state,"pet-settings.json");if(!File.Exists(file))return false;using(var stream=new FileStream(file,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete))using(var reader=new StreamReader(stream,Encoding.UTF8)){if(stream.Length>65536)return false;var data=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(reader.ReadToEnd());object value;return data!=null&&data.TryGetValue("FollowCodex",out value)&&Object.Equals(value,true);}}catch(IOException){return false;}catch(ArgumentException){return false;}catch(UnauthorizedAccessException){return false;}}
     static bool OwnRegistration(string command){var match=Regex.Match(command??"",@"^""([^""\r\n]+\\CodexHubUpdater\.exe)"" --follow ""[^""\r\n]+""$",RegexOptions.IgnoreCase);if(!match.Success)return false;try{string root=Path.GetDirectoryName(match.Groups[1].Value),file=Path.Combine(root,".codex-background-install.json");if(!File.Exists(file))return false;var data=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(file));return Convert.ToString(data["productId"])=="codex-live-background/exe"&&String.Equals(Path.GetFullPath(Convert.ToString(data["root"])).TrimEnd('\\'),Path.GetFullPath(root).TrimEnd('\\'),StringComparison.OrdinalIgnoreCase);}catch{return false;}}
+    internal static bool InstalledHere(string root){try{string file=Path.Combine(root,".codex-background-install.json");var data=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(file));return Convert.ToString(data["productId"])=="codex-live-background/exe"&&String.Equals(Path.GetFullPath(Convert.ToString(data["root"])).TrimEnd('\\'),Path.GetFullPath(root).TrimEnd('\\'),StringComparison.OrdinalIgnoreCase);}catch{return false;}}
     public static void Configure(string root,string state,bool enabled){
-        string expected=Command(root,state);using(var key=Registry.CurrentUser.CreateSubKey(RunPath)){string old=Convert.ToString(key.GetValue(RunName));if(enabled){if(!File.Exists(Path.Combine(root,"CodexHubUpdater.exe")))throw new IOException("缺少自动启停组件，请更新软件。");if(old.Length>0&&!old.Equals(expected,StringComparison.OrdinalIgnoreCase)&&!OwnRegistration(old))throw new IOException("自动启停登记不属于已验证安装，未覆盖。");key.SetValue(RunName,expected,RegistryValueKind.String);}else if(old.Equals(expected,StringComparison.OrdinalIgnoreCase))key.DeleteValue(RunName,false);}
+        if(enabled&&!InstalledHere(root))throw new IOException("请在已安装的 CodexHub 中开启跟随；检查目录不写入开机启动。");if(enabled&&File.Exists(Path.Combine(root,@"startup\stop-guard")))throw new IOException("请先装载后台服务，再开启跟随 Codex。");
+        string expected=Command(root,state);using(var key=Registry.CurrentUser.OpenSubKey(RunPath,true)){if(key!=null){string old=Convert.ToString(key.GetValue(RunName));if(old.Equals(expected,StringComparison.OrdinalIgnoreCase)||OwnRegistration(old))key.DeleteValue(RunName,false);}}
         if(enabled)Ensure(root,state);else RequestStop(root,state);
     }
-    public static void Ensure(string root,string state){if(!Enabled(state)||Maintenance(root,state)||Exists(Name("Watch",root,state)))return;using(var stop=new EventWaitHandle(false,EventResetMode.ManualReset,Name("Stop",root,state)))stop.Reset();var start=new ProcessStartInfo(Path.Combine(root,"CodexHubUpdater.exe"),"--follow "+SoftwareUpdate.Quote(Path.GetFullPath(state))){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,WorkingDirectory=root};using(var process=Process.Start(start)){} }
+    public static void Ensure(string root,string state){if(!Enabled(state)||!InstalledHere(root)||Maintenance(root,state)||Exists(Name("Watch",root,state)))return;string guard=Path.Combine(root,@"startup\DreamSkinPortHook.exe");if(!File.Exists(guard)||File.Exists(Path.Combine(root,@"startup\stop-guard")))return;using(var stop=new EventWaitHandle(false,EventResetMode.ManualReset,Name("Stop",root,state)))stop.Reset();using(var process=Process.Start(new ProcessStartInfo(guard,"--ensure"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,WorkingDirectory=Path.GetDirectoryName(guard)})){} }
     public static void RequestStop(string root,string state){try{using(var stop=EventWaitHandle.OpenExisting(Name("Stop",root,state)))stop.Set();}catch(WaitHandleCannotBeOpenedException){}}
     public static void ManualExit(string root,string state){using(var signal=new EventWaitHandle(false,EventResetMode.AutoReset,Name("Manual",root,state)))using(var ack=new EventWaitHandle(false,EventResetMode.AutoReset,Name("ManualAck",root,state))){ack.Reset();signal.Set();Ensure(root,state);ack.WaitOne(3000);}}
     public static void StopAndWait(string root,string state){RequestStop(root,state);string expected=Path.GetFullPath(Path.Combine(root,"CodexHubUpdater.exe"));int self=Process.GetCurrentProcess().Id;foreach(var process in Process.GetProcessesByName("CodexHubUpdater"))using(process)try{if(process.Id==self||process.SessionId!=Process.GetCurrentProcess().SessionId||!process.MainModule.FileName.Equals(expected,StringComparison.OrdinalIgnoreCase))continue;if(!process.WaitForExit(4000))throw new IOException("自动启停组件尚未退出，程序未替换。");}catch(Win32Exception){throw new IOException("无法验证自动启停组件，程序未替换。");}catch(InvalidOperationException){}}
     static bool Maintenance(string root,string state){return Paused(root,state)||Exists("Local\\CodexLiveBackground.NativeLifecycle."+Sid)||Exists("Local\\CodexLiveBackground.Setup."+Sid);}
     static bool RegisteredHere(string root,string state){using(var key=Registry.CurrentUser.OpenSubKey(RunPath)){return key!=null&&String.Equals(Convert.ToString(key.GetValue(RunName)),Command(root,state),StringComparison.OrdinalIgnoreCase);}}
     static bool ManagerRunning(){return Exists("Local\\CodexLiveBackground.Manager."+Sid);}
-    public static int Run(string state){string root=AppDomain.CurrentDomain.BaseDirectory;state=Path.GetFullPath(state);if(!Enabled(state)||!File.Exists(Path.Combine(root,"CodexLiveBackground.exe")))return 0;
-        using(var mutex=new Mutex(false,Name("Watch",root,state))){bool owns=false;try{try{owns=mutex.WaitOne(0);}catch(AbandonedMutexException){owns=true;}if(!owns)return 0;
-            using(var stop=new EventWaitHandle(false,EventResetMode.ManualReset,Name("Stop",root,state)))using(var manual=new EventWaitHandle(false,EventResetMode.AutoReset,Name("Manual",root,state)))using(var ack=new EventWaitHandle(false,EventResetMode.AutoReset,Name("ManualAck",root,state))){var policy=new CodexFollowPolicy();var clock=Stopwatch.StartNew();while(!stop.WaitOne(0)&&Enabled(state)&&RegisteredHere(root,state)){
+    // Legacy Run entries are retired; the updater never remains resident.
+    public static int Run(string state){return 0;}
+    sealed class Embedded:IDisposable {
+        readonly ManualResetEvent cancel=new ManualResetEvent(false);readonly Thread thread;
+        public Embedded(string root,string state){thread=new Thread(delegate(){while(!cancel.WaitOne(0)){if(Enabled(state)&&InstalledHere(root)&&!Maintenance(root,state))try{Watch(root,state,cancel);}catch{}if(cancel.WaitOne(750))break;}}){IsBackground=true,Name="CodexHub follow"};thread.Start();}
+        public void Dispose(){cancel.Set();if(thread.Join(2500))cancel.Dispose();}
+    }
+    public static IDisposable StartEmbedded(string root,string state){return new Embedded(root,state);}
+    static void Watch(string root,string state,WaitHandle cancel){
+        using(var mutex=new Mutex(false,Name("Watch",root,state))){bool owns=false;try{try{owns=mutex.WaitOne(0);}catch(AbandonedMutexException){owns=true;}if(!owns)return;
+            using(var stop=new EventWaitHandle(false,EventResetMode.ManualReset,Name("Stop",root,state)))using(var manual=new EventWaitHandle(false,EventResetMode.AutoReset,Name("Manual",root,state)))using(var ack=new EventWaitHandle(false,EventResetMode.AutoReset,Name("ManualAck",root,state))){stop.Reset();var policy=new CodexFollowPolicy();var clock=Stopwatch.StartNew();while(!cancel.WaitOne(0)&&!stop.WaitOne(0)&&Enabled(state)){
                 bool visible=CodexPresence.Visible(),manualExit=manual.WaitOne(0),launch=policy.ShouldLaunch(visible,ManagerRunning(),manualExit,Maintenance(root,state),clock.Elapsed.TotalSeconds);if(manualExit)ack.Set();if(launch)try{using(var process=Process.Start(new ProcessStartInfo(Path.Combine(root,"CodexLiveBackground.exe"),"--follow-start"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,WorkingDirectory=root})){} }catch(IOException){}catch(Win32Exception){}
-                if(stop.WaitOne(750))break;
-            }}return 0;
+                if(WaitHandle.WaitAny(new[]{cancel,stop},750)!=WaitHandle.WaitTimeout)break;
+            }}
         }finally{if(owns)mutex.ReleaseMutex();}}
     }
 }

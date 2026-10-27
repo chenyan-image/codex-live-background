@@ -61,7 +61,7 @@ internal sealed partial class PetAtlas {
     public bool VideoFinished{get{return !IsVideo||video!=null&&(video.Ended||!String.IsNullOrEmpty(video.Error));}}
     public string VideoError{get{return video==null?null:video.Error;}}
     double playbackOffset;
-    string Decoder{get{return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,@"engine\runtime\ffmpeg\ffmpeg.exe");}}
+    string Decoder{get{return PetMediaRuntime.Find();}}
     PetVideoStream Stream(int row,bool movement=false){var a=animations.Actions[ActionIndex(row)];return new PetVideoStream(Decoder,Path.Combine(animations.Directory,a.file),a.cellWidth,a.cellHeight,a.fps,row==dragRow?a.dragStartSeconds:movement?a.moveLeadSeconds:0);}
     public void BeginVideo(int row,int generation,bool direct=false,bool movement=false){if(!IsVideo||previewOnly||generation==videoGeneration)return;videoGeneration=generation;playbackOffset=row==dragRow?animations.Actions[ActionIndex(row)].dragStartSeconds:movement?animations.Actions[ActionIndex(row)].moveLeadSeconds:0;
         if(previousVideo!=null)previousVideo.Dispose();previousVideo=direct||videoFrame==null?null:new Bitmap(videoFrame);

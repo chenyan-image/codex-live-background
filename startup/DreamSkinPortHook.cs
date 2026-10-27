@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,8 +15,8 @@ using System.Reflection;
 [assembly: AssemblyTitle("Codex Background Startup")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.2")]
-[assembly: AssemblyFileVersion("1.7.0.2")]
+[assembly: AssemblyVersion("1.7.0.9")]
+[assembly: AssemblyFileVersion("1.7.0.9")]
 
 [ComImport,Guid("F27C3930-8029-4AD1-94E3-3DBA417810C1"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 internal interface IDreamSkinPackageDebug {
@@ -142,6 +142,7 @@ internal static class DreamSkinPortHook {
       bool acquired=false;try{try{acquired=mutex.WaitOne(0);}catch(AbandonedMutexException){acquired=true;}if(!acquired)return;
         object settings=Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("B1AEC16F-2383-4852-B0E9-8F0B1DC66B4D")));
         var registered=new HashSet<string>();DateTime nextRefresh=DateTime.MinValue,nextMonitor=DateTime.MinValue,nextIcon=DateTime.MinValue;Process monitor=null;
+        var follow=CodexFollow.StartEmbedded(Directory.GetParent(Root.TrimEnd(Path.DirectorySeparatorChar)).FullName,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexDreamSkin"));
         try{
           while(!File.Exists(Path.Combine(Root,"stop-guard"))){
             if(DateTime.UtcNow>=nextIcon){RefreshWindowIcons();nextIcon=DateTime.UtcNow.AddSeconds(5);}
@@ -162,14 +163,14 @@ internal static class DreamSkinPortHook {
                   int result=((IDreamSkinPackageDebug)settings).EnableDebugging(package,Quote(Path.Combine(Root,"DreamSkinPortHook.exe")),IntPtr.Zero);
                   if(result!=0)Marshal.ThrowExceptionForHR(result);registered.Add(package);Log("Startup guard registered "+package);
                 }
-                File.WriteAllText(Path.Combine(Root,"guard-state.json"),"{\"pid\":"+Process.GetCurrentProcess().Id+",\"package\":\""+package+"\",\"registered\":true,\"time\":\""+DateTime.UtcNow.ToString("o")+"\"}");
+                File.WriteAllText(Path.Combine(Root,"guard-state.json"),"{\"pid\":"+Process.GetCurrentProcess().Id+",\"package\":\""+package+"\",\"registered\":true,\"followEmbedded\":true,\"time\":\""+DateTime.UtcNow.ToString("o")+"\"}");
                 nextRefresh=DateTime.UtcNow.AddMinutes(2);
               }catch(Exception error){Log("Startup guard refresh: "+error.Message);nextRefresh=DateTime.UtcNow.AddSeconds(15);}
             }
             Thread.Sleep(1000);
           }
         }finally{
-          foreach(string package in registered)((IDreamSkinPackageDebug)settings).DisableDebugging(package);
+          follow.Dispose();foreach(string package in registered)((IDreamSkinPackageDebug)settings).DisableDebugging(package);
           Marshal.ReleaseComObject(settings);
           if(monitor!=null)monitor.Dispose();
           File.WriteAllText(Path.Combine(Root,"guard-state.json"),"{\"registered\":false,\"stopped\":true}");

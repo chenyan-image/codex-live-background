@@ -1,4 +1,4 @@
-using System;using System.Collections.Generic;using System.Diagnostics;using System.Drawing;using System.IO;using System.Linq;using System.Reflection;using System.Threading;using System.Web.Script.Serialization;using System.Windows.Forms;
+﻿using System;using System.Collections.Generic;using System.Diagnostics;using System.Drawing;using System.IO;using System.Linq;using System.Reflection;using System.Threading;using System.Web.Script.Serialization;using System.Windows.Forms;
 internal static class FollowAppearanceTests {
     [System.Runtime.InteropServices.DllImport("user32.dll")]static extern bool EnableWindow(IntPtr window,bool enabled);
     const BindingFlags Private=BindingFlags.NonPublic|BindingFlags.Instance;static int checks;

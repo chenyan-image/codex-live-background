@@ -1389,8 +1389,15 @@ async function verifyRemovedSession(session) {
 export function rendererBackgroundStatus() {
   const runtime = window.__CODEX_DREAM_SKIN_STATE__;
   const visible = document.visibilityState === "visible" && !document.hidden;
-  const active = document.documentElement.getAttribute("data-dream-skin") === "active";
+  const registry = window.__CODEX_DREAM_SKIN_STYLE_SHEETS__;
+  const stylePresent = Boolean(document.getElementById("codex-dream-skin-style")) ||
+    [...(document.adoptedStyleSheets || [])].some(sheet => registry?.has?.(sheet));
+  const active = document.documentElement.getAttribute("data-dream-skin") === "active" && stylePresent;
   if (!active || !runtime) return {status: "not-applied", visible};
+  if (runtime.mediaType !== "video" && runtime.imageReady && typeof getComputedStyle === "function") {
+    const art = getComputedStyle(document.documentElement).getPropertyValue("--dream-skin-art").trim();
+    if (!art || art === "none") return {status: "not-applied", mediaType: "image", visible};
+  }
   if (runtime.mediaType !== "video") return {
     status: runtime.imageError ? "error" : runtime.imageReady ? "image-ready" : "loading",
     mediaType: "image", visible,
@@ -1874,6 +1881,7 @@ async function runWatch(options) {
   let lastListErrorLogAt = 0;
   let lastThemeErrorLogAt = 0;
   let lastStrongThemeAuditAt = 0;
+  let lastBackgroundHealthAt = 0;
   let identityReconnectFailures = 0;
   let lastIdentityReconnectLogAt = 0;
   let loadedPayload = null;
@@ -2150,6 +2158,18 @@ async function runWatch(options) {
           session?.close();
           if (identityAnchor.closed || error instanceof CdpIdentityMismatchError) break;
           rejectTarget(target, 2500, error);
+        }
+      }
+      if (!paused && Date.now() - lastBackgroundHealthAt >= 5000) {
+        lastBackgroundHealthAt = Date.now();
+        for (const [id, session] of sessions) {
+          try {
+            const health = await session.evaluate(`(${rendererBackgroundStatus.toString()})()`);
+            if (health?.status === "not-applied" || health?.status === "error") {
+              await applyLoadedToSession(session, loadedPayload);
+              diagnostics.log(`[dream-skin] restored saved background for ${id}`);
+            }
+          } catch (error) { diagnostics.error(`[dream-skin] background health retry for ${id}: ${error.message}`); }
         }
       }
       await new Promise((resolve) => setTimeout(resolve, 1200));

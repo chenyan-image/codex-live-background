@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.7")]
-[assembly: AssemblyFileVersion("1.7.0.7")]
+[assembly: AssemblyVersion("1.7.0.9")]
+[assembly: AssemblyFileVersion("1.7.0.9")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -189,7 +189,7 @@ internal sealed partial class Manager : Form {
     readonly FlowLayoutPanel commands=new BufferedFlow();
     readonly ProgressBar progress=new ProgressBar();
     readonly WallpaperPreview preview=new WallpaperPreview();
-    bool busy,closeRequested;volatile bool cancelStatus;string runningAction;int operationGeneration;
+    bool busy,closeRequested,connectionRequested;volatile bool cancelStatus;string runningAction,lastConnectionMessage;int operationGeneration;
     NotifyIcon tray;ContextMenuStrip trayMenu;Icon trayImage;
     bool exitRequested,repaintQueued,nativeWasMinimized,restoringWindow,startHidden;
     readonly bool liveStatusEnabled;
@@ -338,9 +338,12 @@ internal sealed partial class Manager : Form {
             throw new Exception(cancel?"已关闭状态检查。":"操作等待超时。管理器已恢复可用；可查看运行记录后重试。");
         }
     }
+    bool PreviewNativeActionBlocked(){if(liveStatusEnabled)return false;status.Text="○  预览模式";connectionDetail.Text="预览不会更改实际服务、连接或安装程序。";log.Text="预览模式：请在已安装的 CodexHub 中管理服务、连接与程序更新。";return true;}
+    void RequestConnection(){if(busy||checkingStatus||updatingSoftware){connectionRequested=true;status.Text="◌  已排队连接…";connectionDetail.Text="当前操作结束后立即建立连接。";return;}Run("Connect");}
     void Run(string action){
-        if(busy)return;bool statusOnly=action=="Status"||action=="Connection";if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
-        if(statusOnly)checkingStatus=true;
+        if(!liveStatusEnabled&&action!="Status"&&action!="Connection"){PreviewNativeActionBlocked();return;}
+        if(busy)return;bool statusOnly=action=="Status"||action=="Connection"||action=="Connect"||action=="AutoConnect";if(statusOnly&&checkingStatus)return;int generation=++operationGeneration;cancelStatus=false;
+        if(statusOnly){checkingStatus=true;if(action=="Connect"){status.Text="◌  正在连接 Codex…";status.ForeColor=Color.FromArgb(244,192,107);connectionDetail.Text="正在核对服务、端口与壁纸状态…";}}
         if(!statusOnly){CancelPreview();busy=true;runningAction=action;SetBusyControls(true);progress.Visible=true;previewHint.Text=action=="Apply"?"正在应用壁纸，视频不兼容时会自动适配…":"正在处理服务设置…";}
         WallpaperEntry applyingEntry=selected;
         string chosen=selected!=null?selected.Path:media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -358,7 +361,7 @@ internal sealed partial class Manager : Form {
                     using(var outputDone=new ManualResetEvent(false))using(var errorDone=new ManualResetEvent(false)){
                     p.OutputDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{outputDone.Set();}catch(ObjectDisposedException){}return;}if(e.Data.StartsWith("DREAM_STATUS:")){string json=e.Data.Substring(13);Ui(delegate{if(generation==operationGeneration)UpdateConnection(json);});return;}if(e.Data.StartsWith("DREAM_PREVIEW:")){string file=e.Data.Substring(14);Ui(delegate{if(generation==operationGeneration)preview.SetMedia(file);});return;}lock(stdout)stdout.AppendLine(e.Data);Ui(delegate{if(generation==operationGeneration&&busy&&!closeRequested){if(log.TextLength>24000)log.Text=log.Text.Substring(log.TextLength-12000);log.AppendText(Environment.NewLine+e.Data);}});};
                     p.ErrorDataReceived+=delegate(object sender,DataReceivedEventArgs e){if(e.Data==null){try{errorDone.Set();}catch(ObjectDisposedException){}return;}lock(stderr)stderr.AppendLine(e.Data);};
-                    p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,statusOnly?30000:action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
+                    p.BeginOutputReadLine();p.BeginErrorReadLine();WaitForCommand(p,statusOnly?(action=="Connect"?120000:45000):action=="Apply"?1800000:300000,delegate{return statusOnly&&cancelStatus;});outputDone.WaitOne(2000);errorDone.WaitOne(2000);success=p.ExitCode==0;
                     lock(stdout)lock(stderr)result=(stdout.ToString()+Environment.NewLine+stderr.ToString()).Trim();
                     }
                     if(result.Length==0)result=success?"操作完成。":"操作失败，请查看使用说明。";
@@ -367,12 +370,12 @@ internal sealed partial class Manager : Form {
             if(IsDisposed)return;
             Ui(delegate{
                 if(generation!=operationGeneration)return;
-                if(action!="Connection")log.Text=(success?"✓ ":"操作未完成：")+result;busy=false;SetBusyControls(false);progress.Visible=false;
+                if(!statusOnly||action=="Connect")log.Text=(success?"":"操作未完成：")+(statusOnly&&!String.IsNullOrWhiteSpace(lastConnectionMessage)?lastConnectionMessage:result);busy=false;SetBusyControls(false);progress.Visible=false;
                 if(closeRequested){Close();return;}
                 if(!success){if(statusOnly){status.Text="○  检测暂不可用";status.ForeColor=Muted;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
                 if(success&&action=="Apply")AppliedToHistory(applyingEntry);
                 if(success&&(action=="RemoveSkin"||action=="RemoveService"))previewHint.Text=action=="RemoveService"?"背景服务已卸载，壁纸记录和登录资料保留。":"皮肤已卸下，背景服务保留。";
-                if(success&&!statusOnly)Run("Connection");
+                if(connectionRequested){connectionRequested=false;RequestConnection();}else if(success&&!statusOnly)Run("Connection");
             });
         });
     }
@@ -432,6 +435,7 @@ internal sealed partial class Manager : Form {
         }
         File.WriteAllText(reportPath,"{\"pass\":true,\"minimize\":true,\"maximize\":true,\"restore\":true,\"resize\":true,\"resizeCycles\":80,\"resizeNoTrails\":true,\"opacityFeedback\":true,\"sliderDragEvents\":250,\"sliderNoTrails\":true,\"sliderKeyboard\":true,\"commands\":4}");close.PerformClick();if(!IsDisposed)throw new Exception("Close failed");return 0;
     }
+    internal static string InstalledTarget(string root,string installed){try{if(String.IsNullOrWhiteSpace(installed)||Path.GetFullPath(root).TrimEnd('\\').Equals(Path.GetFullPath(installed).TrimEnd('\\'),StringComparison.OrdinalIgnoreCase)||!CodexFollow.InstalledHere(installed))return null;string exe=Path.Combine(installed,"CodexLiveBackground.exe");Version version;if(!Version.TryParse(FileVersionInfo.GetVersionInfo(exe).FileVersion,out version)||version<typeof(Manager).Assembly.GetName().Version)return null;return exe;}catch{return null;}}
     [STAThread]static int Main(string[] args){
         if(args.Length==1&&args[0]=="--msi-action-probe")return 0;
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
@@ -441,9 +445,11 @@ internal sealed partial class Manager : Form {
         bool companionPreview=args.Length==2&&(args[0]=="--pet-preview"||args[0]=="--pet-preview-tray"),followStart=args.Length==1&&args[0]=="--follow-start";
         bool test=smoke||uiTest||previewTest||lifecycle||galleryTest||steamScrollTest||companionPreview;Mutex instance=null;bool owns=false;
         try{
-        if(!test){try{using(var setup=Mutex.OpenExisting("Local\\CodexLiveBackground.Setup."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){MessageBox.Show("安装或卸载正在进行，请等待完成。","CodexHub");return 0;}}catch(WaitHandleCannotBeOpenedException){}instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
+        if(!test){string installed=Convert.ToString(Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\CodexLiveBackground","InstallRoot",null));string target=InstalledTarget(AppDomain.CurrentDomain.BaseDirectory,installed);if(target!=null){using(var process=Process.Start(new ProcessStartInfo(target,String.Join(" ",System.Linq.Enumerable.Select(args,SoftwareUpdate.Quote))){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(target)})){}return 0;}try{using(var setup=Mutex.OpenExisting("Local\\CodexLiveBackground.Setup."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){MessageBox.Show("安装或卸载正在进行，请等待完成。","CodexHub");return 0;}}catch(WaitHandleCannotBeOpenedException){}instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
             if(!owns){if(!followStart)try{using(var activate=EventWaitHandle.OpenExisting("Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))activate.Set();}catch(WaitHandleCannotBeOpenedException){}return 0;}}
+        string guardWarning=test?null:GuardComponents.FinishAtStartup(AppDomain.CurrentDomain.BaseDirectory);
         using(var form=new Manager(!test)){
+            if(guardWarning!=null)form.Shown+=delegate{form.previewHint.Text=guardWarning;form.log.AppendText(Environment.NewLine+guardWarning);};
             if(companionPreview){form.startHidden=args[0]=="--pet-preview-tray";if(form.startHidden){form.ShowInTaskbar=false;IntPtr handle=form.Handle;}form.StartCompanionPreview(args[1]);Application.Run(form);return 0;}
             if(steamScrollTest)return form.TestSteamScroll(args[1]);
             if(galleryTest)return form.TestGallery(args[1]);

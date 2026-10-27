@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\source\service-removal.ps1')
 . (Join-Path $PSScriptRoot '..\source\native-lifecycle.ps1')
 
@@ -45,30 +45,27 @@ Pass-Follow 'foreign-helper-state-and-extra-arguments-preserved'
 
 Reset-FollowMocks
 Write-BackgroundFollowRegistration -Root $root -StateRoot $state
-Assert-Follow ($script:reads -eq 0 -and $script:launches.Count -eq 0) 'Missing helper or preferences caused registration'
+Assert-Follow ($script:launches.Count -eq 0) 'Missing helper or preferences caused registration'
 [IO.File]::WriteAllText($helper,'fixture helper; never executed')
 Write-BackgroundFollowRegistration -Root $root -StateRoot $state
-Assert-Follow ($script:reads -eq 0 -and $script:launches.Count -eq 0) 'Missing preferences caused registration'
+Assert-Follow ($script:launches.Count -eq 0) 'Missing preferences caused registration'
 Pass-Follow 'missing-helper-or-preferences-does-not-register'
 
 foreach($setting in @('{"FollowCodex":false}','{}')){
  Reset-FollowMocks;[IO.File]::WriteAllText($preferences,$setting)
  Write-BackgroundFollowRegistration -Root $root -StateRoot $state
- Assert-Follow ($script:reads -eq 0 -and $script:writes.Count -eq 0 -and $script:launches.Count -eq 0) 'Disabled or absent preference registered the helper'
+ Assert-Follow ($script:writes.Count -eq 0 -and $script:launches.Count -eq 0) 'Disabled or absent preference registered the helper'
 }
 Pass-Follow 'disabled-or-absent-preference-does-not-register'
 
 Reset-FollowMocks;[IO.File]::WriteAllText($preferences,'{"FollowCodex":true}')
 Write-BackgroundFollowRegistration -Root $root -StateRoot $state
-Assert-Follow ($script:writes.Count -eq 1 -and $script:writes[0].Value -ceq $expected -and $script:writes[0].Type -ceq 'String') 'Enabled Run command was incorrect'
-Assert-Follow ($script:launches.Count -eq 1 -and $script:launches[0].FilePath -ceq $helper -and $script:launches[0].ArgumentList -ceq ('--follow "'+$state+'"') -and $script:launches[0].WorkingDirectory -ceq $root -and $script:launches[0].WindowStyle -ceq 'Hidden') 'Follow helper launch path, arguments, working directory or hidden style was incorrect'
-Pass-Follow 'enabled-registration-exact-command-and-hidden-launch'
-
+Assert-Follow ($script:writes.Count -eq 0 -and $script:launches.Count -eq 0) 'Follow created a separate updater registration or process'
+Pass-Follow 'enabled-follow-reuses-existing-guard'
 Reset-FollowMocks;$script:runValue='"C:\foreign\other.exe"'
-try{Write-BackgroundFollowRegistration -Root $root -StateRoot $state;throw 'Foreign registration overwrite was accepted'}catch{if($_.Exception.Message -notmatch '未覆盖'){throw}}
+Write-BackgroundFollowRegistration -Root $root -StateRoot $state
 Assert-Follow ($script:runValue -ceq '"C:\foreign\other.exe"' -and $script:writes.Count -eq 0 -and $script:launches.Count -eq 0) 'Foreign Run value was overwritten or launched'
-Pass-Follow 'foreign-existing-registration-refuses-overwrite'
-
+Pass-Follow 'foreign-registration-preserved'
 # Supply a managed inspection fixture in this fresh test process. No Win32
 # inspection or Get-Process call can reach a real user process.
 if('CodexDreamSkin.NativeInspection' -as [type]){throw 'Run this isolated test in a fresh PowerShell process'}
@@ -112,16 +109,16 @@ function Invoke-BackgroundNativeActivate {param($Root,$ManagerPid) $script:event
 function Remove-DreamBackgroundGeneratedData {param($StateRoot) $script:events+=@('generated-data-cleanup')}
 $packageHelper=Join-Path $package 'CodexHubUpdater.exe';$setup=Join-Path $sandbox 'Setup.exe'
 [IO.File]::WriteAllText($packageHelper,'fixture helper; never executed');[IO.File]::WriteAllText($setup,'fixture uninstaller; never executed')
-[IO.File]::WriteAllText((Join-Path $package 'manifest.json'),(@{version='1.7.0.1';files=@(@{path='CodexHubUpdater.exe';sha256=(Get-FileHash -LiteralPath $packageHelper).Hash})}|ConvertTo-Json -Depth 5))
+[IO.File]::WriteAllText((Join-Path $package 'manifest.json'),(@{version='1.7.0.1';files=@(@{path='CodexHubUpdater.exe';bytes=(Get-Item -LiteralPath $packageHelper).Length;sha256=(Get-FileHash -LiteralPath $packageHelper).Hash})}|ConvertTo-Json -Depth 5))
 $call=@{InstallRoot=$root;StateRoot=$state;PackageRoot=$package;SetupExecutable=$setup;OperationRoot=$sandbox;ManagerPid=$PID}
 foreach($operation in @('install','update')){
  Reset-FollowMocks;if($operation -ceq 'update'){$script:runValue=$expected}
  Invoke-BackgroundNativeAction @call -Action Install
- Assert-Follow ($script:runValue -ceq $expected -and $script:launches.Count -eq 1) 'Native install/update did not restore enabled follow registration'
- Assert-Follow ([Array]::IndexOf($script:events,'activate') -lt [Array]::IndexOf($script:events,'follow-register')) 'Follow registration ran before activation'
+ Assert-Follow (-not $script:runValue -and $script:launches.Count -eq 0 -and $script:writes.Count -eq 0) 'Native install/update left a separate updater registration'
+
  if($operation -ceq 'update'){Assert-Follow ([Array]::IndexOf($script:events,'follow-remove') -lt [Array]::IndexOf($script:events,'activate')) 'Update did not clean the old follow registration'}
 }
-Pass-Follow 'native-install-and-update-restore-follow-only-after-activation'
+Pass-Follow 'native-install-and-update-use-embedded-follow'
 
 Reset-FollowMocks;$script:runValue=$expected
 Invoke-BackgroundNativeAction @call -Action Uninstall

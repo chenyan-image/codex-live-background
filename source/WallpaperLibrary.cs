@@ -57,7 +57,7 @@ internal sealed class WallpaperLibrary {
     public bool CurrentThemeMigrated {get{lock(gate)return index.MigratedCurrentTheme;}}
     public void FinishCurrentThemeMigration(){lock(gate){index.MigratedCurrentTheme=true;Save();}}
     public void RemapBuiltins(IEnumerable<WallpaperEntry> builtins){lock(gate){
-        var currentList=builtins.ToArray();var ids=new HashSet<string>(currentList.Select(v=>v.Id),StringComparer.OrdinalIgnoreCase);bool changed=index.Entries.RemoveAll(v=>v.Source=="builtin"&&!ids.Contains(v.Id))>0;
+        var currentList=builtins.ToArray();bool changed=false;
         foreach(var current in currentList){var saved=index.Entries.FirstOrDefault(x=>x.Source=="builtin"&&x.Id==current.Id);if(saved==null)continue;bool retainVideo=current.Remote!=null&&saved.Kind=="video"&&saved.Available;string path=retainVideo?saved.Path:current.Path,kind=retainVideo?saved.Kind:current.Kind;bool remoteChanged=(saved.Remote==null)!=(current.Remote==null)||(saved.Remote!=null&&current.Remote!=null&&saved.Remote.url!=current.Remote.url);
             if(saved.Path!=path||saved.Thumbnail!=current.Thumbnail||saved.Kind!=kind||saved.Note!=current.Note||saved.Name!=current.Name||remoteChanged){saved.Path=path;saved.Thumbnail=current.Thumbnail;saved.Kind=kind;saved.Note=current.Note;saved.Name=current.Name;saved.Remote=current.Remote;changed=true;}}
         if(changed)Save();

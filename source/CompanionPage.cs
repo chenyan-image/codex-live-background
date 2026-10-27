@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -11,19 +11,20 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 
 internal sealed class PetCard : Control {
-    public readonly PetPack Pack;readonly PetAtlas atlas;public bool Selected;int frame;
-    public PetCard(PetPack pack){Pack=pack;if(pack.Available)atlas=new PetAtlas(pack,true);DoubleBuffered=true;Size=new Size(166,205);Margin=new Padding(0,0,12,12);Cursor=Cursors.Hand;AccessibleName=pack.Name;AccessibleRole=AccessibleRole.RadioButton;TabStop=true;}
+    public readonly PetPack Pack;readonly PetAtlas atlas;Bitmap poster;RectangleF posterBody;public bool Selected,PreviewUnavailable;int frame;
+    public PetCard(PetPack pack){Pack=pack;if(pack.Available)atlas=new PetAtlas(pack,true);else if(File.Exists(pack.AtlasFile))using(var image=Image.FromFile(pack.AtlasFile))SetPoster(new Bitmap(image));DoubleBuffered=true;Size=new Size(166,205);Margin=new Padding(0,0,12,12);Cursor=Cursors.Hand;AccessibleName=pack.Name;AccessibleRole=AccessibleRole.RadioButton;TabStop=true;}
+    internal void SetPoster(Bitmap image){if(poster!=null)poster.Dispose();poster=image;var body=PetAtlas.MeasureBody(image,new Rectangle(0,0,image.Width,image.Height));posterBody=new RectangleF(body.X*image.Width,body.Y*image.Height,body.Width*image.Width,body.Height*image.Height);Invalidate();}
     public void Animate(){if(Visible){frame++;Invalidate();}}
     protected override void OnKeyDown(KeyEventArgs e){base.OnKeyDown(e);if(e.KeyCode==Keys.Enter||e.KeyCode==Keys.Space){OnClick(EventArgs.Empty);e.Handled=true;}}
     protected override void OnPaint(PaintEventArgs e){
         var g=e.Graphics;g.Clear(Parent.BackColor);g.SmoothingMode=SmoothingMode.AntiAlias;
         using(var shape=IconAssets.Round(new RectangleF(1,1,Width-3,Height-3),14))using(var fill=new SolidBrush(Selected?Color.FromArgb(27,43,43):Color.FromArgb(21,25,32)))using(var border=new Pen(Selected?Color.FromArgb(135,235,194):Color.FromArgb(42,49,60),Selected?2:1)){g.FillPath(fill,shape);g.DrawPath(border,shape);}
-        float ratio=Math.Min((Width-24)/192F,(Height-57)/208F);float width=192*ratio,height=208*ratio;g.InterpolationMode=InterpolationMode.HighQualityBicubic;if(atlas!=null)atlas.Draw(g,new RectangleF((Width-width)/2,6,width,height),Selected?3:0,frame/10D);else{using(var logo=IconAssets.Create(64))g.DrawImage(logo,(Width-64)/2,45,64,64);}
+        float ratio=Math.Min((Width-24)/192F,(Height-57)/208F);float width=192*ratio,height=208*ratio;g.InterpolationMode=InterpolationMode.HighQualityBicubic;if(atlas!=null)atlas.Draw(g,new RectangleF((Width-width)/2,6,width,height),Selected?3:0,frame/10D);else if(poster!=null){float fit=Math.Min((Width-30)/posterBody.Width,(Height-66)/posterBody.Height);g.DrawImage(poster,new RectangleF((Width-posterBody.Width*fit)/2,10+(Height-66-posterBody.Height*fit)/2,posterBody.Width*fit,posterBody.Height*fit),posterBody,GraphicsUnit.Pixel);}else{TextRenderer.DrawText(g,PreviewUnavailable?"形象预览暂不可用":"正在获取形象…",Font,new Rectangle(10,20,Width-20,105),Color.FromArgb(137,155,170),TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter);}
         var name=Pack.Name;
         TextRenderer.DrawText(g,name,Font,new Rectangle(12,Height-48,Width-24,23),Color.FromArgb(231,240,238),TextFormatFlags.Left|TextFormatFlags.EndEllipsis);
-        using(var small=new Font(Font.FontFamily,8F))TextRenderer.DrawText(g,!Pack.Available?"点击加载作者原动作包":Pack.ProceduralMotion?Pack.Actions.Count+" 个表情 / 轻动画":Pack.Actions!=null?Pack.Actions.Count+" 项动作 / 素材":Pack.Builtin?"内置 · 9 种基础动作":"本地导入 · 动态形象",small,new Rectangle(12,Height-22,Width-24,17),Color.FromArgb(137,155,170),TextFormatFlags.Left|TextFormatFlags.EndEllipsis);
+        using(var small=new Font(Font.FontFamily,8F))TextRenderer.DrawText(g,!Pack.Available?"点击下载完整动作":Pack.ProceduralMotion?Pack.Actions.Count+" 个表情 / 轻动画":Pack.Actions!=null?Pack.Actions.Count+" 项动作 / 素材":Pack.Builtin?"内置 · 9 种基础动作":"本地导入 · 动态形象",small,new Rectangle(12,Height-22,Width-24,17),Color.FromArgb(137,155,170),TextFormatFlags.Left|TextFormatFlags.EndEllipsis);
     }
-    protected override void Dispose(bool disposing){if(disposing&&atlas!=null)atlas.Dispose();base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){if(atlas!=null)atlas.Dispose();if(poster!=null)poster.Dispose();}base.Dispose(disposing);}
 }
 internal sealed class PetCardGallery : Panel {
     readonly Panel viewport=new Panel{Dock=DockStyle.Fill};readonly GalleryScrollBar scrollbar=new GalleryScrollBar{Dock=DockStyle.Right,Width=16};readonly List<PetCard> cards=new List<PetCard>();bool arranging;
@@ -125,7 +126,7 @@ internal sealed partial class Manager {
     void ApplyPetScale(){if(pets==null||petSync)return;if(pets.Preferences.Scale!=petSize.Value||pets.Preferences.CapsuleScale!=petCapsuleSize.Value){pets.Preferences.Scale=petSize.Value;pets.Preferences.CapsuleScale=petCapsuleSize.Value;pets.Apply(false);}}
     void BuildPetCards(){
         foreach(var tile in petTiles)tile.Dispose();petTiles.Clear();petCards.ClearCards();if(pets==null)return;
-        foreach(var pack in pets.Packs){try{var tile=new PetCard(pack){Font=Font,Selected=pets.Preferences.SelectedId==pack.Id};tile.Click+=delegate{try{if(tile.Pack.Optional){if(tile.Pack.Id=="bailong")ImportBailong();}else pets.Select(tile.Pack);}catch(Exception error){MessageBox.Show(this,error.Message,"CodexHub");}};petTiles.Add(tile);petCards.AddCard(tile);}catch(Exception error){petQuotaStatus.Text=error.Message;}}
+        foreach(var pack in pets.Packs){try{var tile=new PetCard(pack){Font=Font,Selected=pets.Preferences.SelectedId==pack.Id};tile.Click+=delegate{try{if(tile.Pack.Optional){if(tile.Pack.Id=="bailong")ImportBailong();else ImportCloudPet(tile.Pack.Id);}else SelectPreparedPet(tile.Pack);}catch(Exception error){MessageBox.Show(this,error.Message,"CodexHub");}};petTiles.Add(tile);petCards.AddCard(tile);if(pack.Optional&&pack.Id=="bailong"){if(tile.IsHandleCreated)LoadPetCardPreview(tile);else tile.HandleCreated+=delegate{LoadPetCardPreview(tile);};}}catch(Exception error){petQuotaStatus.Text=error.Message;}}
         petSummary.Text=petTiles.Count(tile=>tile.Pack.Available)+" 个可用形象 · 点击切换 · 拖动移动 · 双击互动";
     }
     void SyncPetSettings(){
@@ -155,7 +156,7 @@ internal sealed partial class Manager {
             }catch(Exception error){Ui(delegate{previewHint.Text="宠物导入未完成："+error.Message;});}finally{if(stage!=null)PetImporter.DeleteStage(stage,stateDirectory);Ui(delegate{petImportProgress=null;petImporting=false;importButton.Enabled=true;});}});
     }
     static string PetCommandQuote(string value){return "\""+value.Replace("\"","\\\"")+"\"";}
-    void StopCompanion(){if(companionStopped)return;companionStopped=true;followTimer.Stop();followTimer.Dispose();cancelPetImport=true;lock(petImportGate){if(petImportProcess!=null){petImportProcess.Cancel();petImportProcess=null;}}petPreviewTimer.Stop();petPreviewTimer.Dispose();if(pets!=null){pets.Dispose();pets=null;}}
+    void StopCompanion(){if(companionStopped)return;companionStopped=true;dailyUpdateTimer.Stop();dailyUpdateTimer.Dispose();followTimer.Stop();followTimer.Dispose();cancelPetImport=true;lock(petImportGate){if(petImportProcess!=null){petImportProcess.Cancel();petImportProcess=null;}}petPreviewTimer.Stop();petPreviewTimer.Dispose();if(pets!=null){pets.Dispose();pets=null;}}
     void StartCompanionPreview(string directory){
         if(pets!=null)pets.Dispose();stateDirectory=Path.GetFullPath(directory);Directory.CreateDirectory(stateDirectory);companionLive=true;
         library=new WallpaperLibrary(stateDirectory);library.RemapBuiltins(builtinEntries);

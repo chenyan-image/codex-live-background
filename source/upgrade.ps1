@@ -38,7 +38,13 @@ function Resolve-DreamBackgroundUpgradeStartup {
   if(-not[IO.Path]::IsPathRooted($executable) -or $executable.IndexOf('"') -ge 0){throw '旧服务启动路径无效，原服务已保留。'}
   $taskRoot=Split-Path -Parent $executable
   $approved=@($startupRoot)+@($Installs|ForEach-Object{Join-Path $_.Root 'startup'})
-  if(-not @($approved|Where-Object{Test-DreamSkinPathEqual -Left $_ -Right $taskRoot}).Count){throw '旧服务路径不属于已验证的安装。'}
+  if(-not @($approved|Where-Object{Test-DreamSkinPathEqual -Left $_ -Right $taskRoot}).Count){
+    # A verified portable/check copy can own the active task after registration
+    # has moved. Verify its exact guard files and current-user task below;
+    # discovery alone never grants permission to delete that directory.
+    if([IO.Path]::GetFileName($executable) -ine 'DreamSkinPortHook.exe' -or (Split-Path -Leaf $taskRoot) -ine 'startup'){throw '旧服务启动入口不是已验证的后台组件。'}
+    Assert-DreamBackgroundUpgradeTree -Path (Split-Path -Parent $taskRoot) -StateRoot $StateRoot
+  }
   $null=Get-DreamBackgroundServicePlan -Task $Task -StartupRoot $taskRoot -ProfilesPath (Join-Path $PackageRoot 'service-compatibility.json')
   return $taskRoot
 }

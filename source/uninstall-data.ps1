@@ -2,13 +2,13 @@
  param([Parameter(Mandatory=$true)][string]$StateRoot)
  # Only generated directories are removed. Never follow links or delete the
  # independent Codex profile, which can contain login and chat information.
- $directories=@('active-theme','icons','images','previews','requests','runtime','runtime-downloads','compatible-video','compatible-video-v2','themes','shortcut-backups','upgrade-backups','pets','pet-imports','pet-downloads')
+ $directories=@('active-theme','icons','images','previews','requests','runtime','runtime-downloads','compatible-video','compatible-video-v2','themes','shortcut-backups','upgrade-backups','pets','pet-imports','pet-downloads','pet-previews','updates')
  foreach($name in $directories){
   $path=Join-Path $StateRoot $name
   Assert-DreamBackgroundTree -Path $path -Parent $StateRoot
  }
  foreach($name in $directories){$path=Join-Path $StateRoot $name;if(Test-Path -LiteralPath $path){Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction Stop}}
- foreach($name in @('state.json','wallpaper-library.json','wallpaper-library.json.bak','pet-settings.json','pet-settings.json.bak','pet-settings.json.tmp','injector-error.log','injector.log','verify.log','installer-service.log','keep-codex-open','startup-animation.disabled','last-preview-diagnostic.json','last-video-diagnostic.json','last-upgrade.json','paused')){
+ foreach($name in @('state.json','wallpaper-library.json','wallpaper-library.json.bak','pet-settings.json','pet-settings.json.bak','pet-settings.json.tmp','program-update-check-day.txt','injector-error.log','injector.log','verify.log','installer-service.log','keep-codex-open','startup-animation.disabled','last-preview-diagnostic.json','last-video-diagnostic.json','last-upgrade.json','paused')){
   $path=Join-Path $StateRoot $name
   if(Test-Path -LiteralPath $path){$item=Get-Item -LiteralPath $path -Force;if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw '卸载数据文件类型发生变化，已保留。'};Remove-Item -LiteralPath $path -Force -ErrorAction Stop}
  }

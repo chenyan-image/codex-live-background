@@ -19,9 +19,22 @@ function Assert-BackgroundInstallPath {
 function Get-BackgroundOwnedFiles {
  param([string]$Root)
  $manifest=Join-Path $Root 'manifest.json';$marker=Join-Path $Root '.codex-background-install.json'
- if(Test-Path -LiteralPath $marker){$data=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;if($data.productId -cne $script:NativeBackgroundId -or -not(Test-DreamSkinPathEqual -Left $data.root -Right $Root)){throw '安装标记归属不匹配。'};$trusted=[IO.File]::ReadAllText((Join-Path $script:NativePackageRoot 'manifest.json'))|ConvertFrom-Json;$allowed=@($trusted.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','卸载 CodexHub.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles+$script:BackgroundRetiredFiles;foreach($file in $data.files){if($file -notin $allowed){throw '安装标记包含未经核验的文件，已停止。'}};return @($data.files)}
+ if(Test-Path -LiteralPath $marker){
+  $data=[IO.File]::ReadAllText($marker)|ConvertFrom-Json;if($data.productId -cne $script:NativeBackgroundId -or -not(Test-DreamSkinPathEqual -Left $data.root -Right $Root)){throw '安装标记归属不匹配。'}
+  $trusted=[IO.File]::ReadAllText((Join-Path $script:NativePackageRoot 'manifest.json'))|ConvertFrom-Json
+  $allowed=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+  foreach($item in @($trusted.files|ForEach-Object{$_.path})+@('manifest.json','卸载 Codex 动态背景.exe','卸载 CodexHub.exe','.codex-background-install.json')+$script:BackgroundRuntimeFiles+$script:BackgroundRetiredFiles){$null=$allowed.Add($item.Replace('/','\'))}
+  $history=Join-Path $PSScriptRoot 'historical-install-files.json';if(Test-Path -LiteralPath $history){if((Get-Item -LiteralPath $history).Length -gt 1048576){throw '历史安装清单过大。'};$catalog=[IO.File]::ReadAllText($history)|ConvertFrom-Json;if($catalog.schema -ne 1){throw '历史安装清单无效。'};foreach($release in $catalog.releases){foreach($item in $release.files){$null=Get-BackgroundSafePath -Root $Root -Relative $item;$null=$allowed.Add($item.Replace('/','\'))}}}
+  $files=@();foreach($file in $data.files){$null=Get-BackgroundSafePath -Root $Root -Relative $file;$canonical=$file.Replace('/','\');if(-not $allowed.Contains($canonical)){throw ('安装标记包含未经核验的文件，已停止：'+$file)};$files+=@($canonical)};return @($files|Select-Object -Unique)
+ }
  $exe=Join-Path $Root 'CodexLiveBackground.exe';$catalog=Join-Path $PSScriptRoot 'legacy-managers.json'
  if((Test-Path -LiteralPath $exe) -and (Test-Path -LiteralPath $catalog)){$hash=(Get-FileHash -LiteralPath $exe).Hash;$known=([IO.File]::ReadAllText($catalog)|ConvertFrom-Json).releases|Where-Object{$_.sha256 -ceq $hash}|Select-Object -First 1;if($known){return @($known.files)+@('CodexLiveBackground.exe','manifest.json')+$script:BackgroundRuntimeFiles}}
+ if(Test-Path -LiteralPath $exe){
+  $trustedManifest=Join-Path $script:NativePackageRoot 'manifest.json'
+  if(Test-Path -LiteralPath $trustedManifest){$trusted=[IO.File]::ReadAllText($trustedManifest)|ConvertFrom-Json;$entry=@($trusted.files|Where-Object {$_.path -ieq 'CodexLiveBackground.exe'})|Select-Object -First 1;if($entry -and (Get-FileHash -LiteralPath $exe).Hash -ieq $entry.sha256){return @($trusted.files|ForEach-Object {$_.path})+@('manifest.json','.codex-background-install.json')+$script:BackgroundRuntimeFiles}}
+  $history=Join-Path $PSScriptRoot 'historical-install-files.json'
+  if(Test-Path -LiteralPath $history){$hash=(Get-FileHash -LiteralPath $exe).Hash;$release=([IO.File]::ReadAllText($history)|ConvertFrom-Json).releases|Where-Object {$_.managerSha256 -and $_.managerSha256 -ieq $hash}|Select-Object -First 1;if($release){return @($release.files)+@('CodexLiveBackground.exe','manifest.json','.codex-background-install.json')+$script:BackgroundRuntimeFiles}}
+ }
  return @()
 }
 function Get-BackgroundLegacyMsi {
@@ -121,6 +134,15 @@ function Get-BackgroundPlan {
  $products=@(Get-BackgroundLegacyMsi -CatalogPath (Join-Path $PackageRoot 'legacy-msi-products.json') -FallbackRoot $fallback)
  $roots=@($InstallRoot,$fallback,(Join-Path $env:LOCALAPPDATA 'Programs\CodexLiveBackground'),(Join-Path $env:LOCALAPPDATA 'Programs\CodexDreamSkinManager'))+@($registered)+@($products|ForEach-Object{$_.Root})
  $owned=@();foreach($root in @($roots|Select-Object -Unique)){if(-not(Test-Path -LiteralPath $root)){continue};if(@(Get-BackgroundOwnedFiles -Root $root).Count -or @($products|Where-Object{$_.Root -ieq $root}).Count){$owned+=@($root)}elseif((Test-DreamSkinPathEqual -Left $root -Right $InstallRoot) -and @(Get-ChildItem -LiteralPath $root -Force).Count){throw '所选文件夹不是已识别的软件目录，请选择新的专用文件夹。'}}
+ # An already verified service may point at a portable/check copy outside
+ # the stale installation registry. Include it for integration shutdown only;
+ # Get-BackgroundOwnedFiles still independently controls every file removal.
+ $task=Get-ScheduledTask -TaskName CodexDreamSkinPort -ErrorAction SilentlyContinue
+ if($task){
+  $state=Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
+  $service=Resolve-DreamBackgroundUpgradeStartup -Task $task -Installs @($owned|ForEach-Object{[pscustomobject]@{Root=$_}}) -StateRoot $state -PackageRoot $PackageRoot
+  if(-not(Test-DreamSkinPathEqual -Left $service -Right (Join-Path $state 'startup'))){$owned=@($owned)+@(Split-Path -Parent $service);$owned=@($owned|Select-Object -Unique)}
+ }
  $authorization=$products.Count -gt 0
  $parent=[IO.Path]::GetFullPath($InstallRoot);while(-not(Test-Path -LiteralPath $parent)){$parent=Split-Path -Parent $parent;if(-not $parent){throw '安装磁盘不可用。'}}
  $probe=Join-Path $parent ('.codex-write-'+[guid]::NewGuid().ToString('N')+'.tmp')
@@ -158,18 +180,17 @@ function Remove-BackgroundNativeRegistration {
 }
 function Write-BackgroundFollowRegistration {
  param([string]$Root,[string]$StateRoot)
- $helper=Join-Path $Root 'CodexHubUpdater.exe';$preferences=Join-Path $StateRoot 'pet-settings.json'
- if(-not(Test-Path -LiteralPath $helper -PathType Leaf) -or -not(Test-Path -LiteralPath $preferences -PathType Leaf)){return}
- $data=[IO.File]::ReadAllText($preferences)|ConvertFrom-Json;if($data.FollowCodex -ne $true){return}
- $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Run';$expected='"'+$helper+'" --follow "'+[IO.Path]::GetFullPath($StateRoot)+'"'
- $old=(Get-ItemProperty -LiteralPath $key -Name CodexHubFollow -ErrorAction SilentlyContinue).CodexHubFollow
- if($old -and "$old" -ine $expected){throw '自动启停登记不属于当前安装，未覆盖。'}
- $null=New-Item -Path $key -Force;$null=New-ItemProperty -LiteralPath $key -Name CodexHubFollow -Value $expected -PropertyType String -Force
- $null=Start-Process -FilePath $helper -ArgumentList ('--follow "'+[IO.Path]::GetFullPath($StateRoot)+'"') -WorkingDirectory $Root -WindowStyle Hidden
+ # The existing port guard now hosts follow detection; retire only our legacy entry.
+ Remove-BackgroundFollowRegistration -Roots @($Root) -StateRoot $StateRoot
 }
 function Invoke-BackgroundNativeAction {
  param([ValidateSet('Install','Uninstall')][string]$Action,[string]$InstallRoot,[string]$StateRoot,[string]$PackageRoot,[string]$SetupExecutable,[string]$OperationRoot,[int]$ManagerPid)
- $script:NativePackageRoot=$PackageRoot; $plan=Get-BackgroundPlan -InstallRoot $InstallRoot -PackageRoot $PackageRoot
+ $script:NativePackageRoot=$PackageRoot
+ if($Action -eq 'Install'){
+  $preflight=[IO.File]::ReadAllText((Join-Path $PackageRoot 'manifest.json'))|ConvertFrom-Json
+  foreach($entry in $preflight.files){$source=Get-BackgroundSafePath -Root $PackageRoot -Relative $entry.path;if(-not(Test-Path -LiteralPath $source -PathType Leaf) -or (Get-Item -LiteralPath $source).Length -ne $entry.bytes -or (Get-FileHash -LiteralPath $source).Hash -ine $entry.sha256){throw ('安装源文件校验失败，现有服务未停止：'+$entry.path)}}
+ }
+ $plan=Get-BackgroundPlan -InstallRoot $InstallRoot -PackageRoot $PackageRoot
  [Console]::Out.WriteLine('正在停止并验证旧后台组件…')
  Stop-BackgroundIntegrations -Roots $plan.roots -StateRoot $StateRoot -PackageRoot $PackageRoot -Uninstall:($Action -eq 'Uninstall') -ExcludeIds @($PID,$ManagerPid)
  foreach($product in $plan.products){[Console]::Out.WriteLine('正在正式移除旧 MSI 记录 '+$product.Version+'…');Remove-BackgroundLegacyMsi -Product $product -BackupRoot (Join-Path $OperationRoot 'legacy-backup')}
@@ -188,7 +209,7 @@ function Invoke-BackgroundNativeAction {
  if([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){
   $acl=Get-Acl -LiteralPath $InstallRoot;$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User;$rule=[Security.AccessControl.FileSystemAccessRule]::new($sid,'Modify','ContainerInherit,ObjectInherit','None','Allow');$acl.AddAccessRule($rule);Set-Acl -LiteralPath $InstallRoot -AclObject $acl
  }
- foreach($entry in $manifest.files){$source=Get-BackgroundSafePath -Root $PackageRoot -Relative $entry.path;if((Get-FileHash -LiteralPath $source).Hash -cne $entry.sha256){throw '安装源文件校验失败。'};$target=Get-BackgroundSafePath -Root $InstallRoot -Relative $entry.path;Assert-DreamBackgroundTree -Path $target -Parent $InstallRoot;$null=New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force;Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop}
+ foreach($entry in $manifest.files){$source=Get-BackgroundSafePath -Root $PackageRoot -Relative $entry.path;if((Get-FileHash -LiteralPath $source).Hash -ine $entry.sha256){throw '安装源文件校验失败。'};$target=Get-BackgroundSafePath -Root $InstallRoot -Relative $entry.path;Assert-DreamBackgroundTree -Path $target -Parent $InstallRoot;$null=New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force;Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop}
  Copy-Item -LiteralPath (Join-Path $PackageRoot 'manifest.json') -Destination (Join-Path $InstallRoot 'manifest.json') -Force
  $uninstaller=Join-Path $PackageRoot '卸载 CodexHub.exe';if(-not(Test-Path -LiteralPath $uninstaller)){$uninstaller=$SetupExecutable}
  Copy-Item -LiteralPath $uninstaller -Destination (Join-Path $InstallRoot '卸载 CodexHub.exe') -Force -ErrorAction Stop

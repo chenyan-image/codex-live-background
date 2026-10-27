@@ -114,7 +114,17 @@ function Invoke-YzConnectionAttempt {
       $report=Get-YzConnectionReport
       if(-not $report.connected){throw '连接未通过验证，请点击重试。'}
     }
-    $report.message='连接就绪，点击可重新检查连接'
+    if($report.connected -and $report.autostart -and $report.background -in @('not-applied','no-renderer','unknown','error')){
+      $theme=Join-Path $stateRoot 'active-theme\theme.json'
+      if((Test-Path -LiteralPath $theme) -and -not(Test-DreamSkinPaused -StateRoot $stateRoot)){
+        [Console]::Out.WriteLine('正在恢复上次的壁纸…')
+        $codex=Get-DreamSkinCodexInstall;$identity=Get-DreamSkinVerifiedCdpIdentity -Port 9335 -Codex $codex
+        if(-not $identity){$registered=Get-DreamSkinVerifiedCdpIdentityForAnyRegistered -Port 9335;if($registered){$identity=$registered.Identity}}
+        if($identity){$node=Get-DreamSkinNodeRuntime;$lines=@(& $node.Path (Join-Path $engine 'scripts\injector.mjs') --once --port 9335 --browser-id $identity.BrowserId --theme-dir (Split-Path -Parent $theme) 2>&1);if($LASTEXITCODE -ne 0){throw (($lines|ForEach-Object{"$_"})-join "`r`n")}}
+        $report=Get-YzConnectionReport
+      }
+    }
+    $report.message='连接就绪，点击可重新检查并恢复壁纸'
   }catch{$message=$_.Exception.Message;$report=Get-YzConnectionReport;$report.message=$message;$report.connectionError=$true}
   return $report
 }

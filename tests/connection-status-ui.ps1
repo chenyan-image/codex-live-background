@@ -19,9 +19,9 @@ try{
  $type.GetField('checkingStatus',$flags).SetValue($form,$true)
  $click=[Windows.Forms.Control].GetMethod('OnClick',$flags)
  foreach($control in @($status,$detail,$status.Parent)){
-  $type.GetField('pendingConnect',$flags).SetValue($form,$false)
+  $type.GetField('connectionRequested',$flags).SetValue($form,$false)
   $null=$click.Invoke($control,@([EventArgs]::Empty))
-  if(-not $type.GetField('pendingConnect',$flags).GetValue($form)){throw 'Connection click was lost during status query'}
+  if(-not $type.GetField('connectionRequested',$flags).GetValue($form)){throw 'Connection click was lost during status query'}
  }
  @{pass=$true;cases=5;queuedClick=$true;actionableFailure=$true;realConnectionAttempted=$false}|ConvertTo-Json -Compress
 }finally{$form.Dispose()}
