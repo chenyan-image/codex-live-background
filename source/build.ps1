@@ -6,7 +6,7 @@ param(
   [Parameter(Mandatory=$true)][string]$PortSource,
   [Parameter(Mandatory=$true)][string]$ThirdPartySource,
   [string]$FFmpegRuntimeDirectory,
-  [switch]$BundleFFmpegRuntime,
+  [switch]$BundleFFmpegRuntime=$true,
   [Parameter(Mandatory=$true)][string]$OutputDirectory
 )
 $ErrorActionPreference = 'Stop'
@@ -102,7 +102,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Manager compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Startup guard compilation failed.' }
 & $csc /nologo /target:winexe /main:SoftwareUpdateHost /platform:x64 /codepage:65001 /optimize+ "/win32icon:$iconPath" "/resource:$iconPath,CodexHub.AppIcon" ("/resource:"+(Join-Path $PSScriptRoot 'assets\brand\codexhub.png')+",CodexHub.Brand") ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/out:$out\CodexHubUpdater.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll (Join-Path $PSScriptRoot 'SoftwareUpdate.cs') (Join-Path $PSScriptRoot 'CodexFollow.cs') ("/resource:"+(Join-Path $port 'DreamSkinPortHook.exe')+",CodexHub.GuardProgram") ("/resource:"+(Join-Path $port 'DreamSkinPortHook.cs')+",CodexHub.GuardSource") ("/resource:"+(Join-Path $port 'ShellIdentity.cs')+",CodexHub.ShellIdentitySource") ("/resource:"+(Join-Path $PSScriptRoot 'cloud-pets.json')+",CodexHub.CloudPetCatalog") ("/resource:"+(Join-Path $PSScriptRoot 'historical-install-files.json')+",CodexHub.HistoricalInstallCatalog") (Join-Path $PSScriptRoot 'GuardVersion.cs')
 if($LASTEXITCODE -ne 0){throw 'Program updater compilation failed.'}
-& $csc /nologo /target:winexe /main:NativeUninstall /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/win32icon:$iconPath" "/out:$out\卸载 CodexHub.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll (Join-Path $PSScriptRoot 'NativeUninstall.cs')
+& $csc /nologo /target:winexe /main:NativeUninstall /platform:x64 /codepage:65001 /optimize+ ("/win32manifest:"+(Join-Path $PSScriptRoot 'app.manifest')) "/win32icon:$iconPath" "/out:$out\卸载 CodexHub.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll (Join-Path $PSScriptRoot 'NativeUninstall.cs')
 if($LASTEXITCODE -ne 0){throw 'Native uninstaller compilation failed.'}
 $wallpaperBuilder=Join-Path $out 'GenerateWallpapers.exe'
 & $csc /nologo /target:winexe /main:BuiltinWallpapers /codepage:65001 "/out:$wallpaperBuilder" /r:System.Web.Extensions.dll (Join-Path $PSScriptRoot 'BuiltinWallpapers.cs')
@@ -119,7 +119,7 @@ foreach($name in @('README.md','CHANGELOG.md','NOTICE.md')){
 }
 if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs')){
   $null=New-Item -ItemType Directory -Path (Join-Path $out 'docs') -Force
-  foreach($name in @('windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.md','release-1.7.0-preview.11.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
+  foreach($name in @('windows-trust.md','guide.md','bundled-wallpapers.md','desktop-pets.md','release-1.7.0-preview.12.md')){if(Test-Path -LiteralPath (Join-Path $repoRoot ('docs\'+$name))){Copy-Item -LiteralPath (Join-Path $repoRoot ('docs\'+$name)) -Destination (Join-Path $out 'docs')}}
   if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\screenshots')){Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\screenshots') -Destination (Join-Path $out 'docs\screenshots') -Recurse}
   if(Test-Path -LiteralPath (Join-Path $repoRoot 'docs\badges')){Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\badges') -Destination (Join-Path $out 'docs\badges') -Recurse}
 }
@@ -157,12 +157,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.14';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.15';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.7.0.14';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.7.0.15';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out

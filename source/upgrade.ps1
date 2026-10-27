@@ -24,9 +24,11 @@ function Get-DreamBackgroundRegisteredInstallRoots {
     $entry=Get-ItemProperty -LiteralPath $key
     foreach($property in @('InstallRoot','InstallLocation')){
       $value=$entry.PSObject.Properties[$property]
-      if($value -and $value.Value){$path=[Environment]::ExpandEnvironmentVariables("$($value.Value)".Trim().Trim('"'));if([IO.Path]::IsPathRooted($path)){[IO.Path]::GetFullPath($path).TrimEnd('\')}}
+      if($value -and $value.Value){$path="$($value.Value)".Trim().Trim('"');if(-not [IO.Path]::IsPathRooted($path)){$path=[Environment]::ExpandEnvironmentVariables($path)};if([IO.Path]::IsPathRooted($path)){[IO.Path]::GetFullPath($path)}}
     }
   }
+  $history=Join-Path $env:LOCALAPPDATA 'CodexHub\installations.json'
+  if(Test-Path -LiteralPath $history){try{$record=[IO.File]::ReadAllText($history)|ConvertFrom-Json;if($record.schema -eq 1 -and $record.productId -eq 'codex-live-background/exe'){foreach($entry in $record.installations){if($entry.status -eq 'installed' -and [IO.Path]::IsPathRooted("$($entry.root)")){[IO.Path]::GetFullPath("$($entry.root)")}}}}catch{}}
 }
 function Resolve-DreamBackgroundUpgradeStartup {
   param($Task,[object[]]$Installs,[string]$StateRoot,[string]$PackageRoot)

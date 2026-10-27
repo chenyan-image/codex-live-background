@@ -2,8 +2,8 @@
   param([string]$Path,[string]$Parent)
   $root=[IO.Path]::GetFullPath($Parent).TrimEnd('\')
   $target=[IO.Path]::GetFullPath($Path).TrimEnd('\')
-  if($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\') -or -not $target.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)){throw '服务清理路径超出应用数据目录，已停止。'}
-  $ancestors=@($root);$cursor=$root
+  if(-not $target.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase)){throw '服务清理路径超出应用数据目录，已停止。'}
+  $cursor=[IO.Path]::GetFullPath($Parent);$ancestors=@($cursor)
   foreach($component in $target.Substring($root.Length+1).Split('\')){$cursor=Join-Path $cursor $component;$ancestors+=@($cursor)}
   foreach($ancestor in $ancestors){
     if(Test-Path -LiteralPath $ancestor){if((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw '服务目录包含链接或联接，未执行清理。'}}

@@ -2,6 +2,14 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0-preview.12 — 安装路径、离线依赖与历史定位
+
+- 支持本地盘符根目录和任意合法文件夹名，修复路径截断与引用。
+- 新装附带 Node.js 与完整 FFmpeg 解码库；缺少 Codex 时允许先安装管理器。
+- 固定 installations.json 保存安装历史，卸载器自动核验定位。
+- 文件清单控制安装冲突与卸载清理，保留共享目录的其他内容；权限不足时请求 Windows 授权。
+- 减少重复临时解压占用，提前说明空间不足。
+
 ## v1.7.0-preview.11 — 最大化露底修复
 
 - 补上最大化和从最大化还原时的完整布局、背景与子控件重绘，修复画面仍使用旧尺寸而露出桌面。

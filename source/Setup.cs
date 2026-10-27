@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Reflection;
+using System.Linq;
 using System.Threading;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -18,7 +19,7 @@ internal sealed class Setup : Form {
     bool busy,completed;readonly bool uninstall,relocated;string retryAction;
     static readonly JavaScriptSerializer Json=new JavaScriptSerializer();
     Setup(bool mode,string root,bool temporary){
-        uninstall=mode;relocated=temporary;Text="CodexHub · 1.7.0 预览版 11";BackColor=Color.FromArgb(14,21,25);ForeColor=Color.FromArgb(231,240,238);Font=new Font("Microsoft YaHei UI",10);ClientSize=new Size(710,594);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;Padding=new Padding(1);
+        uninstall=mode;relocated=temporary;Text="CodexHub · 1.7.0 预览版 12";BackColor=Color.FromArgb(14,21,25);ForeColor=Color.FromArgb(231,240,238);Font=new Font("Microsoft YaHei UI",10);ClientSize=new Size(710,594);FormBorderStyle=FormBorderStyle.None;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;Padding=new Padding(1);
         try{Icon=new Icon(Assembly.GetExecutingAssembly().GetManifestResourceStream("Codex.Setup.ico"));}catch{}
         var frame=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty};frame.RowStyles.Add(new RowStyle(SizeType.Absolute,32));frame.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(frame);
         var bar=new Panel{Dock=DockStyle.Fill,Margin=Padding.Empty,BackColor=Color.FromArgb(18,27,31)};var caption=new Label{Text=Text,Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleLeft,Padding=new Padding(10,0,0,0),Font=new Font(Font.FontFamily,9),ForeColor=Color.FromArgb(174,197,194)};bar.Controls.Add(caption);
@@ -28,7 +29,7 @@ internal sealed class Setup : Form {
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(24),ColumnCount=1,RowCount=8,Margin=Padding.Empty};foreach(int h in new[]{48,43,42,42})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));foreach(int h in new[]{24,48,35})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));frame.Controls.Add(layout,0,1);
         layout.Controls.Add(new Label{Text=mode?"卸载 CodexHub":"安装 CodexHub",Font=new Font(Font.FontFamily,21,FontStyle.Bold),Dock=DockStyle.Fill},0,0);
         layout.Controls.Add(new Label{Text="动态背景 + 桌面宠物 · 单 EXE 安装 · 自定义目录\r\n原始壁纸与 Codex 登录资料保留。",Dock=DockStyle.Fill,ForeColor=Color.FromArgb(151,176,175)},0,1);
-        var row=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,Margin=Padding.Empty};row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,90));target.Text=root;target.Dock=DockStyle.Fill;target.ReadOnly=mode;row.Controls.Add(target,0,0);browse.Text="选择目录";browse.Dock=DockStyle.Fill;browse.Enabled=!mode;browse.Click+=delegate{using(var picker=new FolderBrowserDialog{Description="请选择当前账号可写的专用软件目录",SelectedPath=target.Text})if(picker.ShowDialog(this)==DialogResult.OK)target.Text=picker.SelectedPath;};row.Controls.Add(browse,1,0);layout.Controls.Add(row,0,2);
+        var row=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,Margin=Padding.Empty};row.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));row.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,90));target.Text=root;target.Dock=DockStyle.Fill;target.ReadOnly=mode;row.Controls.Add(target,0,0);browse.Text="选择目录";browse.Dock=DockStyle.Fill;browse.Enabled=!mode;browse.Click+=delegate{using(var picker=new FolderBrowserDialog{Description="选择安装位置，支持任意文件夹名称和本地盘符",SelectedPath=target.Text})if(picker.ShowDialog(this)==DialogResult.OK)target.Text=picker.SelectedPath;};row.Controls.Add(browse,1,0);layout.Controls.Add(row,0,2);
         status.Text=mode?"准备卸载：先停止本项目进程，再清理程序。":"准备安装：将检测并迁移旧版本。";status.Dock=DockStyle.Fill;status.ForeColor=Color.FromArgb(135,235,194);layout.Controls.Add(status,0,3);
         log.Multiline=true;log.ReadOnly=true;log.ScrollBars=ScrollBars.Vertical;log.Dock=DockStyle.Fill;log.BackColor=Color.FromArgb(23,31,35);log.ForeColor=Color.FromArgb(185,207,204);layout.Controls.Add(log,0,4);progress.Dock=DockStyle.Fill;layout.Controls.Add(progress,0,5);
         var buttons=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft};install.Text=mode?"开始卸载":"安装 / 修复";install.Width=150;install.Height=36;install.Click+=delegate{if(completed){Close();return;}Begin(retryAction??(uninstall?"Uninstall":"Install"));};buttons.Controls.Add(install);remove.Text="只卸载旧版本";remove.Width=150;remove.Height=36;remove.Visible=!mode;remove.Click+=delegate{Begin("Uninstall");};buttons.Controls.Add(remove);layout.Controls.Add(buttons,0,6);
@@ -43,6 +44,17 @@ internal sealed class Setup : Form {
     [System.Runtime.InteropServices.DllImport("user32.dll")]static extern IntPtr SendMessage(IntPtr window,int message,IntPtr wParam,IntPtr lParam);
     static string Quote(string value){var b=new StringBuilder("\"");int slashes=0;foreach(char c in value){if(c=='\\'){slashes++;continue;}if(c=='"')b.Append('\\',slashes*2+1).Append(c);else b.Append('\\',slashes).Append(c);slashes=0;}return b.Append('\\',slashes*2).Append('"').ToString();}
     static bool Admin(){return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);}
+    internal static string InstallPath(string input){
+        string value=(input??"").Trim().Trim('"');if(value.StartsWith("%",StringComparison.Ordinal))value=Environment.ExpandEnvironmentVariables(value);
+        if(System.Text.RegularExpressions.Regex.IsMatch(value,@"^[a-zA-Z]:$"))value+="\\";
+        if(!System.Text.RegularExpressions.Regex.IsMatch(value,@"^(?:[a-zA-Z]:[\\/]|\\\\[^\\]+\\[^\\]+)"))throw new IOException("请填写完整安装路径，例如 E:\\、C:\\我的软件 或 D:\\CodexHub。");
+        return Path.GetFullPath(value);
+    }
+    static string SuggestedInstallRoot(){
+        string registered=Convert.ToString(Registry.GetValue(@"HKEY_CURRENT_USER\Software\CodexLiveBackground","InstallRoot",null));if(!String.IsNullOrWhiteSpace(registered))return registered;
+        try{var data=Json.Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"CodexHub\installations.json")));if(Convert.ToString(data["productId"])=="codex-live-background/exe")foreach(object item in ((IEnumerable)data["installations"]).Cast<object>().Reverse()){var entry=(Dictionary<string,object>)item;string path=Convert.ToString(entry["root"]);if(Convert.ToString(entry["status"])=="installed"&&CodexFollow.InstalledHere(path))return path;}}catch{}
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\CodexLiveBackground");
+    }
     static string NewTemp(string prefix){string path=Path.Combine(Path.GetTempPath(),prefix+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(path);return path;}
     static void RemoveTemp(string path,string prefix){string boundary=Path.GetFullPath(Path.GetTempPath()).TrimEnd('\\')+"\\"+prefix;string full=Path.GetFullPath(path).TrimEnd('\\');if(!full.StartsWith(boundary,StringComparison.OrdinalIgnoreCase)||full.Substring(boundary.Length).Length!=32)throw new Exception("临时目录边界不匹配");if(Directory.Exists(full)){foreach(var f in Directory.EnumerateFileSystemEntries(full,"*",SearchOption.AllDirectories))if((File.GetAttributes(f)&FileAttributes.ReparsePoint)!=0)throw new Exception("临时目录含链接，已保留");Directory.Delete(full,true);}}
         static string Hash(Stream stream){using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-","");}
@@ -55,6 +67,7 @@ internal sealed class Setup : Form {
         using(var payload=Assembly.GetExecutingAssembly().GetManifestResourceStream("Codex.Payload.zip")){
             if(payload==null||!Hash(payload).Equals(SetupPayload.Sha256,StringComparison.OrdinalIgnoreCase))throw new Exception("安装包校验失败，请从项目发行页重新下载。");
             payload.Position=0;using(var zip=new ZipArchive(payload,ZipArchiveMode.Read)){
+                long required=zip.Entries.Sum(entry=>entry.Length)+32L*1024*1024;var disk=new DriveInfo(Path.GetPathRoot(stage));if(disk.AvailableFreeSpace<required)throw new IOException("临时目录所在磁盘空间不足，至少需要 "+(required/1024/1024)+" MiB 可用空间。");
                 if(zip.Entries.Count>1000)throw new Exception("安装包文件数量异常。");long total=0;int count=0;var seen=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach(var entry in zip.Entries){
                     string file=Inside(stage,entry.FullName);if(!seen.Add(file))throw new Exception("安装包包含重复路径。");
@@ -79,14 +92,14 @@ internal sealed class Setup : Form {
     static string ReadShared(string path){if(!File.Exists(path))return "";using(var stream=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite))using(var reader=new StreamReader(stream,Encoding.UTF8))return reader.ReadToEnd();}
     void Begin(string action){
         if(busy)return;if(action=="Uninstall"&&MessageBox.Show(this,"停止并移除本项目后台组件、程序和缓存？\r\n原始壁纸与 Codex 登录资料保留，正常 Codex 聊天不会关闭。",Text,MessageBoxButtons.OKCancel,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2)!=DialogResult.OK)return;
-        string root;try{root=Path.GetFullPath(target.Text);if(Application.ExecutablePath.StartsWith(root.TrimEnd('\\')+"\\",StringComparison.OrdinalIgnoreCase))throw new Exception("请从下载文件夹运行安装包，或使用安装目录内的独立卸载入口。");}catch(Exception e){MessageBox.Show(this,e.Message,Text);return;}
+        string root;try{root=InstallPath(target.Text);target.Text=root;foreach(string name in new[]{"CodexLiveBackground.exe","卸载 CodexHub.exe"})if(Application.ExecutablePath.Equals(Path.Combine(root,name),StringComparison.OrdinalIgnoreCase))throw new Exception("安装包与目标程序同名，请先给安装包改名或移到其他位置后运行。");}catch(Exception e){MessageBox.Show(this,e.Message,Text);return;}
         retryAction=action;busy=true;install.Enabled=remove.Enabled=browse.Enabled=target.Enabled=false;progress.Style=ProgressBarStyle.Marquee;status.Text="正在校验并准备安装文件…";
         ThreadPool.QueueUserWorkItem(delegate{
             string stage=NewTemp("CodexBackgroundSetup-"),operation=NewTemp("CodexBackgroundOperation-");bool success=false;
             try{
-                ExtractAndVerify(stage,delegate{});string output=RunStep(stage,"Plan",root,operation,Process.GetCurrentProcess().Id,delegate{});string planJson=null;foreach(string line in output.Split('\n'))if(line.StartsWith("DREAM_PLAN:"))planJson=line.Substring(11).Trim();if(planJson==null)throw new Exception("旧版本检查没有返回有效结果");var plan=Json.Deserialize<Dictionary<string,object>>(planJson);bool authorization=Convert.ToBoolean(plan["requiresAuthorization"]);
+                ExtractAndVerify(stage,delegate{});string output=RunStep(stage,"Plan",root,operation,Process.GetCurrentProcess().Id,delegate{});string planJson=null;foreach(string line in output.Split('\n'))if(line.StartsWith("DREAM_PLAN:"))planJson=line.Substring(11).Trim();if(planJson==null)throw new Exception("旧版本检查没有返回有效结果");var plan=Json.Deserialize<Dictionary<string,object>>(planJson);bool authorization=Convert.ToBoolean(plan["requiresAuthorization"]);RemoveTemp(stage,"CodexBackgroundSetup-");
                 string requestPath=Path.Combine(operation,"request.json");File.WriteAllText(requestPath,Json.Serialize(new{action=action,root=root,managerPid=Process.GetCurrentProcess().Id,requiresAuthorization=authorization}),new UTF8Encoding(false));
-                var start=new ProcessStartInfo(Application.ExecutablePath,"--worker "+Quote(requestPath)+" "+Quote(WindowsIdentity.GetCurrent().User.Value)){UseShellExecute=authorization&&!Admin(),WindowStyle=ProcessWindowStyle.Hidden};if(start.UseShellExecute){start.Verb="runas";Report("旧 MSI 迁移需要 Windows 授权，请使用原账号确认。");}else start.CreateNoWindow=true;
+                var start=new ProcessStartInfo(Application.ExecutablePath,"--worker "+Quote(requestPath)+" "+Quote(WindowsIdentity.GetCurrent().User.Value)){UseShellExecute=authorization&&!Admin(),WindowStyle=ProcessWindowStyle.Hidden};if(start.UseShellExecute){start.Verb="runas";Report("所选位置或旧版本迁移需要 Windows 授权，请使用原账号确认。");}else start.CreateNoWindow=true;
                 using(var worker=Process.Start(start)){int shown=0;while(!worker.WaitForExit(200)){string lines=ReadShared(Path.Combine(operation,"worker.log"));if(lines.Length>shown){foreach(string line in lines.Substring(shown).Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries))Report(line);shown=lines.Length;}}if(worker.ExitCode!=0&&!File.Exists(Path.Combine(operation,"result.json")))throw new Exception("未取得授权或工作进程未完成。日志："+operation);}
                 var result=Json.Deserialize<Dictionary<string,object>>(File.ReadAllText(Path.Combine(operation,"result.json"),Encoding.UTF8));success=Convert.ToBoolean(result["pass"]);if(!success)throw new Exception(Convert.ToString(result["error"]));Report(action=="Install"?"安装完成，请从桌面打开管理器。":"卸载完成，相关后台组件已退出。");try{RemoveTemp(operation,"CodexBackgroundOperation-");}catch{Report("操作已完成，暂时被占用的临时记录保留在："+operation);}
             }catch(System.ComponentModel.Win32Exception e){Report(e.NativeErrorCode==1223?"已取消 Windows 授权，未继续操作。":e.Message);}catch(Exception e){Report("操作未完成："+e.Message);Report("诊断和恢复文件保留在："+operation);}finally{try{RemoveTemp(stage,"CodexBackgroundSetup-");}catch{}}
@@ -108,7 +121,7 @@ internal sealed class Setup : Form {
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         if(args.Length==3&&args[0]=="--worker")return Worker(args[1],args[2]);
         if(args.Length==2&&args[0]=="--verify-only"){string stage=NewTemp("CodexBackgroundSetup-");try{ExtractAndVerify(stage,delegate{});File.WriteAllText(args[1],Json.Serialize(new{pass=true,version=SetupPayload.Version,baseVersion="1.5.4",msiWrapped=false}));return 0;}finally{RemoveTemp(stage,"CodexBackgroundSetup-");}}
-        bool uninstall=args.Length>=2&&args[0]=="--uninstall";string root=uninstall?Path.GetFullPath(args[1]):Convert.ToString(Registry.GetValue(@"HKEY_CURRENT_USER\Software\CodexLiveBackground","InstallRoot",Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Programs\CodexLiveBackground")));
+        bool uninstall=args.Length>=2&&args[0]=="--uninstall";string root=uninstall?Path.GetFullPath(args[1]):SuggestedInstallRoot();
         if(!uninstall&&Path.GetFileName(Application.ExecutablePath).StartsWith("卸载")){uninstall=true;root=AppDomain.CurrentDomain.BaseDirectory;}
         bool temporary=args.Length>=3&&args[2]=="--relocated";
         if(uninstall&&!temporary&&Application.ExecutablePath.StartsWith(root.TrimEnd('\\')+"\\",StringComparison.OrdinalIgnoreCase)){string folder=NewTemp("CodexBackgroundUninstall-");string copy=Path.Combine(folder,"Uninstall.exe");File.Copy(Application.ExecutablePath,copy);using(var p=Process.Start(new ProcessStartInfo(copy,"--uninstall "+Quote(root)+" --relocated"){UseShellExecute=false})){}return 0;}
