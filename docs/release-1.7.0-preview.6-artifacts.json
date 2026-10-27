@@ -65,5 +65,31 @@
       "bytes": 314,
       "sha256": "0d91d7b1c5bc172b246c6b6e538bde5c4a47f2da4b3fa2d52d2ba2668163f81a"
     }
-  ]
+  ],
+  "published": true,
+  "releaseUrl": "https://github.com/chenyan-image/codex-live-background/releases/tag/v1.7.0-preview.6",
+  "githubAssetDigestsMatch": true,
+  "publicHomepageImagesVerified": 9,
+  "publishedUpdateVerified": {
+    "pass": true,
+    "version": "1.7.0.9",
+    "tag": "v1.7.0-preview.6",
+    "bytes": 1953483,
+    "sha256": "7e5dd600cf306082787bfe00ef333800a78bfe2d12ad26d2aab9a31f97212cd3",
+    "files": 115,
+    "rawChannel": "https://raw.githubusercontent.com/chenyan-image/codex-live-background/main/updates/preview.json",
+    "publishedDownload": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.6/CodexHub-1.7.0-preview.6-Update.zip",
+    "from7SelectsPreview6": true,
+    "from8SelectsPreview6": true,
+    "current9HasNoUpdate": true,
+    "publicArchiveVerified": true,
+    "archiveHashVerified": true,
+    "perFileHashesVerified": true,
+    "noMaterialsOrPersonalSettings": true,
+    "noStartupOrRuntimePayload": true,
+    "softwareApplied": false
+  },
+  "mainReadmeCommit": "a73b7fa63b18742ce2934925f5bc170084ff26ab",
+  "publicChannelCommit": "b49f67d71d84cb4dd473c9b426dcb25e19529015",
+  "stableLatestUnchanged": "v1.5.4.5"
 }
