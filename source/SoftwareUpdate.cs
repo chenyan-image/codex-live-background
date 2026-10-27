@@ -12,7 +12,8 @@ internal sealed class UpdateLookupState {
     internal readonly object Gate=new object();internal bool HasCache;internal SoftwareRelease Cached;internal DateTime CachedUntilUtc,ApiRetryUtc;internal int ApiStatus;
 }
 internal static class SoftwareUpdate {
-    public const string Repository="chenyan-image/codex-live-background";
+    public const string Repository="chenyan-image/codex-live-background-pet";
+    internal const string LegacyRepository="chenyan-image/codex-live-background";
     static readonly JavaScriptSerializer Json=new JavaScriptSerializer{MaxJsonLength=8*1024*1024};
     static string Slash(string value){return value.Replace('\\','/');}
     public static bool Allowed(string value){
@@ -25,8 +26,11 @@ internal static class SoftwareUpdate {
     }
     public static string Hash(string path){using(var stream=File.OpenRead(path))using(var sha=SHA256.Create())return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-","").ToLowerInvariant();}
     public static bool Digest(string value){return value!=null&&value.Length==64&&value.All(Uri.IsHexDigit);}
-    public static Uri ReleaseUri(string value){Uri uri;if(!Uri.TryCreate(value,UriKind.Absolute,out uri)||uri.Scheme!="https"||!uri.IsDefaultPort||uri.Host!="github.com"||uri.UserInfo.Length>0||uri.Fragment.Length>0||!uri.AbsolutePath.StartsWith("/"+Repository+"/releases/download/",StringComparison.Ordinal))throw new InvalidDataException("更新来源不是本项目 GitHub 发行页。");return uri;}
-    internal const string PreviewChannel="https://raw.githubusercontent.com/"+Repository+"/main/updates/preview.json";
+    public static Uri ReleaseUri(string value){Uri uri;if(!Uri.TryCreate(value,UriKind.Absolute,out uri)||uri.Scheme!="https"||!uri.IsDefaultPort||uri.Host!="github.com"||uri.UserInfo.Length>0||uri.Fragment.Length>0||!(uri.AbsolutePath.StartsWith("/"+Repository+"/releases/download/",StringComparison.Ordinal)||uri.AbsolutePath.StartsWith("/"+LegacyRepository+"/releases/download/",StringComparison.Ordinal)))throw new InvalidDataException("更新来源不是本项目 GitHub 发行页。");return uri;}
+    static string ReleasePrefix(Uri uri){return "https://github.com/"+(uri.AbsolutePath.StartsWith("/"+Repository+"/",StringComparison.Ordinal)?Repository:LegacyRepository)+"/releases/download/";}
+    internal static bool SameReleaseLocation(string left,string right){try{var a=ReleaseUri(left);var b=ReleaseUri(right);return a.AbsoluteUri.Substring(ReleasePrefix(a).Length).Equals(b.AbsoluteUri.Substring(ReleasePrefix(b).Length),StringComparison.Ordinal);}catch(InvalidDataException){return false;}}
+    internal const string StableChannel="https://raw.githubusercontent.com/"+Repository+"/main/updates/stable.json";
+    internal const string PreviewChannel=StableChannel; // Retain the internal name for older callers/tests.
     internal const string ReleasesApi="https://api.github.com/repos/"+Repository+"/releases?per_page=15";
     static readonly UpdateLookupState Lookup=new UpdateLookupState();
     internal static DateTime RetryTime(DateTime now,string retryAfter,string remaining,string reset){
@@ -48,8 +52,8 @@ internal static class SoftwareUpdate {
         if(info==null||!Version.TryParse(info.version,out version)||version.Build<0||!Digest(info.sha256)||info.bytes<1||info.bytes>64*1024*1024||String.IsNullOrEmpty(info.tag))throw new InvalidDataException("公开更新频道清单字段无效。");
         tag=System.Text.RegularExpressions.Regex.Match(info.tag,@"^v([0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?)(?:-preview\.[0-9]+)?$");Version tagged;
         if(!tag.Success||!Version.TryParse(tag.Groups[1].Value,out tagged)||tagged.Major!=version.Major||tagged.Minor!=version.Minor||tagged.Build!=version.Build)throw new InvalidDataException("公开更新频道版本与发行标记不一致。");
-        string expected="https://github.com/"+Repository+"/releases/download/"+info.tag+"/CodexHub-"+info.tag.Substring(1)+"-Update.zip";
-        if(!ReleaseUri(info.url).AbsoluteUri.Equals(expected,StringComparison.Ordinal))throw new InvalidDataException("更新包地址与本项目发行标记不一致。");
+        var uri=ReleaseUri(info.url);string expected=ReleasePrefix(uri)+info.tag+"/CodexHub-"+info.tag.Substring(1)+"-Update.zip";
+        if(!uri.AbsoluteUri.Equals(expected,StringComparison.Ordinal))throw new InvalidDataException("更新包地址与本项目发行标记不一致。");
         return info;
     }
     internal static SoftwareRelease ParseRelease(string text){
@@ -59,13 +63,13 @@ internal static class SoftwareUpdate {
     static SoftwareRelease ReadApi(Func<string,int,string> fetch){
         string text=fetch(ReleasesApi,8*1024*1024);if(text==null||Encoding.UTF8.GetByteCount(text)>8*1024*1024)throw new InvalidDataException("GitHub 发行清单过大或为空。");
         var data=Json.DeserializeObject(text) as object[];if(data==null)throw new InvalidDataException("GitHub 发行清单无效。");SoftwareRelease selected=null;
-        foreach(object release in data){if(Object.Equals(Get(release,"draft"),true))continue;var assets=Get(release,"assets") as object[];object manifest=(assets??new object[0]).FirstOrDefault(a=>Convert.ToString(Get(a,"name"))=="CodexHub-Update.json");if(manifest==null)continue;
-            string tag=Convert.ToString(Get(release,"tag_name"));var manifestUri=ReleaseUri(Convert.ToString(Get(manifest,"browser_download_url")));string expected="https://github.com/"+Repository+"/releases/download/"+tag+"/CodexHub-Update.json";if(!manifestUri.AbsoluteUri.Equals(expected,StringComparison.Ordinal))throw new InvalidDataException("GitHub 更新清单地址与发行标记不一致。");
-            var info=ParseRelease(fetch(manifestUri.AbsoluteUri,131072));if(info.tag!=tag)throw new InvalidDataException("GitHub 更新清单与发行标记不一致。");var uri=ReleaseUri(info.url);object archive=(assets??new object[0]).FirstOrDefault(a=>Convert.ToString(Get(a,"browser_download_url"))==uri.AbsoluteUri&&Convert.ToInt64(Get(a,"size"))==info.bytes);if(archive==null)throw new InvalidDataException("更新包与发行清单不一致。");string digest=Convert.ToString(Get(archive,"digest"));if(digest.StartsWith("sha256:")&&!digest.Substring(7).Equals(info.sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("GitHub 更新包校验值不一致。");
+        foreach(object release in data){string tag=Convert.ToString(Get(release,"tag_name"));if(Object.Equals(Get(release,"draft"),true)||Object.Equals(Get(release,"prerelease"),true)||tag.IndexOf("-preview.",StringComparison.Ordinal)>=0)continue;var assets=Get(release,"assets") as object[];object manifest=(assets??new object[0]).FirstOrDefault(a=>Convert.ToString(Get(a,"name"))=="CodexHub-Update.json");if(manifest==null)continue;
+            var manifestUri=ReleaseUri(Convert.ToString(Get(manifest,"browser_download_url")));string expected=ReleasePrefix(manifestUri)+tag+"/CodexHub-Update.json";if(!manifestUri.AbsoluteUri.Equals(expected,StringComparison.Ordinal))throw new InvalidDataException("GitHub 更新清单地址与发行标记不一致。");
+            var info=ParseRelease(fetch(manifestUri.AbsoluteUri,131072));if(info.tag!=tag)throw new InvalidDataException("GitHub 更新清单与发行标记不一致。");object archive=(assets??new object[0]).FirstOrDefault(a=>SameReleaseLocation(Convert.ToString(Get(a,"browser_download_url")),info.url)&&Convert.ToInt64(Get(a,"size"))==info.bytes);if(archive==null)throw new InvalidDataException("更新包与发行清单不一致。");string digest=Convert.ToString(Get(archive,"digest"));if(digest.StartsWith("sha256:")&&!digest.Substring(7).Equals(info.sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("GitHub 更新包校验值不一致。");
             if(selected==null||Version.Parse(info.version)>Version.Parse(selected.version))selected=info;
         }return selected;
     }
-    static SoftwareRelease Newer(SoftwareRelease info,Version current){if(info==null||Version.Parse(info.version)<=current)return null;return new SoftwareRelease{version=info.version,tag=info.tag,url=info.url,sha256=info.sha256,bytes=info.bytes};}
+    static SoftwareRelease Newer(SoftwareRelease info,Version current){if(info==null||info.tag.IndexOf("-preview.",StringComparison.Ordinal)>=0||Version.Parse(info.version)<=current)return null;return new SoftwareRelease{version=info.version,tag=info.tag,url=info.url,sha256=info.sha256,bytes=info.bytes};}
     static IOException Backoff(UpdateLookupState state){return new IOException("GitHub 更新接口暂时限制请求（HTTP "+state.ApiStatus+"），下次可在 "+state.ApiRetryUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")+" 后重试。公开频道当前也无法连接；未更改现有程序。");}
     public static SoftwareRelease FindRelease(Version current){ServicePointManager.SecurityProtocol|=SecurityProtocolType.Tls12;return FindRelease(current,GetText,()=>DateTime.UtcNow,Lookup);}
     internal static SoftwareRelease FindRelease(Version current,Func<string,int,string> fetch,Func<DateTime> clock,UpdateLookupState state){

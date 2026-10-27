@@ -2,6 +2,12 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0.1 — 稳定版仓库更名兼容
+
+- 仓库更名为 codex-live-background-pet，软件内更新兼容新旧仓库地址。
+- 首页使用新版图标截图，统一为稳定版下载入口。
+- 正式版只推荐稳定更新，继续保留素材和设置。
+
 ## v1.7.0 — 稳定版
 
 - 正式发布动态壁纸、桌面宠物、任务与额度卡片及 Wallpaper Engine 壁纸库。

@@ -21,6 +21,6 @@ try{
  $entry=$zip.CreateEntry('update-manifest.json');$writer=[IO.StreamWriter]::new($entry.Open(),[Text.UTF8Encoding]::new($false));try{$writer.Write((@{product='CodexHub-program-update';version=$package.version;files=$files}|ConvertTo-Json -Depth 6))}finally{$writer.Dispose()}
 }finally{$zip.Dispose()}
 $hash=(Get-FileHash -LiteralPath $zipPath).Hash.ToLowerInvariant()
-$release=[ordered]@{version=$package.version;tag=$Tag;url=('https://github.com/chenyan-image/codex-live-background/releases/download/'+$Tag+'/'+$name);sha256=$hash;bytes=(Get-Item -LiteralPath $zipPath).Length}
+$release=[ordered]@{version=$package.version;tag=$Tag;url=('https://github.com/chenyan-image/codex-live-background-pet/releases/download/'+$Tag+'/'+$name);sha256=$hash;bytes=(Get-Item -LiteralPath $zipPath).Length}
 [IO.File]::WriteAllText((Join-Path $out 'CodexHub-Update.json'),($release|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
 [ordered]@{files=$files.Count;zip=$zipPath;bytes=$release.bytes;sha256=$hash;materialsIncluded=$false;settingsIncluded=$false}|ConvertTo-Json -Compress

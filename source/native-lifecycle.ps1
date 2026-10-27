@@ -102,7 +102,7 @@ function Resolve-BackgroundMsiCache {
  $candidates=@();if($Product.LocalRecoveryFile){$candidates+=@($Product.LocalRecoveryFile)}
  foreach($root in @((Split-Path -Parent $script:NativeSetupExecutable),(Join-Path $env:USERPROFILE Downloads),[Environment]::GetFolderPath('Desktop'))){if($root -and (Test-Path -LiteralPath $root)){$candidates+=@(Get-ChildItem -LiteralPath $root -File -Filter $Product.SourceName -ErrorAction SilentlyContinue|ForEach-Object{$_.FullName})}}
  $found=$false;foreach($file in $candidates){if((Test-Path -LiteralPath $file) -and (Get-FileHash -LiteralPath $file).Hash -ieq $Product.SourceSha256){Copy-Item -LiteralPath $file -Destination $target -Force;$found=$true;break}}
- if(-not $found){$uri=[uri]$Product.SourceUrl;if($uri.Scheme -ne 'https' -or $uri.Host -ne 'github.com' -or -not $uri.AbsolutePath.StartsWith('/chenyan-image/codex-live-background/releases/download/')){throw '旧缓存下载来源无效。'};[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;$client=[Net.WebClient]::new();try{$client.DownloadFile($uri,$target)}finally{$client.Dispose()}}
+ if(-not $found){$uri=[uri]$Product.SourceUrl;if($uri.Scheme -ne 'https' -or $uri.Host -ne 'github.com' -or -not ($uri.AbsolutePath.StartsWith('/chenyan-image/codex-live-background/releases/download/') -or $uri.AbsolutePath.StartsWith('/chenyan-image/codex-live-background-pet/releases/download/'))){throw '旧缓存下载来源无效。'};[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;$client=[Net.WebClient]::new();try{$client.DownloadFile($uri,$target)}finally{$client.Dispose()}}
  if((Get-FileHash -LiteralPath $target).Hash -ine $Product.SourceSha256){throw '旧卸载缓存校验失败，未继续迁移。'}
  $Product.Cache=$target;$Product|Add-Member -NotePropertyName RecoverySource -NotePropertyValue $target -Force
 }
@@ -214,7 +214,7 @@ function Write-BackgroundNativeRegistration {
  param([string]$Root,[string]$Version)
  $key='HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\CodexLiveBackground'
  $argument=$Root;if($argument.EndsWith('\')){$argument+='\'}
- $null=New-Item -Path $key -Force;$values=@{DisplayName='CodexHub';DisplayVersion=$Version;Publisher='codex-live-background contributors';InstallLocation=$Root;UninstallString=('"'+(Join-Path $Root '卸载 CodexHub.exe')+'" --uninstall "'+$argument+'"');DisplayIcon=(Join-Path $Root 'CodexBackground.ico');NoModify=1;NoRepair=1;URLInfoAbout='https://github.com/chenyan-image/codex-live-background'}
+ $null=New-Item -Path $key -Force;$values=@{DisplayName='CodexHub';DisplayVersion=$Version;Publisher='codex-live-background contributors';InstallLocation=$Root;UninstallString=('"'+(Join-Path $Root '卸载 CodexHub.exe')+'" --uninstall "'+$argument+'"');DisplayIcon=(Join-Path $Root 'CodexBackground.ico');NoModify=1;NoRepair=1;URLInfoAbout='https://github.com/chenyan-image/codex-live-background-pet'}
  foreach($name in $values.Keys){$type=if($values[$name] -is [int]){'DWord'}else{'String'};$null=New-ItemProperty -LiteralPath $key -Name $name -Value $values[$name] -PropertyType $type -Force}
  $key='HKCU:\Software\CodexLiveBackground';$null=New-Item -Path $key -Force;$null=New-ItemProperty -LiteralPath $key -Name InstallRoot -Value $Root -PropertyType String -Force;$null=New-ItemProperty -LiteralPath $key -Name InstallKind -Value EXE -PropertyType String -Force
  Write-BackgroundInstallHistory -Root $Root -Version $Version -Status installed
