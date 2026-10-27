@@ -1,7 +1,7 @@
 {
-  "version": "1.7.0.12",
-  "tag": "v1.7.0-preview.9",
-  "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.9/CodexHub-1.7.0-preview.9-Update.zip",
-  "sha256": "327f37bbc69d80dca28f7f589dca0f252403066105d0fa8fd7ed109df41b12e0",
-  "bytes": 1996133
+  "version": "1.7.0.13",
+  "tag": "v1.7.0-preview.10",
+  "url": "https://github.com/chenyan-image/codex-live-background/releases/download/v1.7.0-preview.10/CodexHub-1.7.0-preview.10-Update.zip",
+  "sha256": "8f7baeedd3c5b1971c733a72a5ef0f661f9899184d51e8d34edd2c4131591e3c",
+  "bytes": 4226639
 }
