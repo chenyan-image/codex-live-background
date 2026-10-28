@@ -398,7 +398,8 @@ internal sealed class PetWindow : Form {
     bool NeedsAutonomyResume{get{return !settings.Roaming||director.ManualActive||director.Sleeping;}}
     void SyncAutonomyMenu(){autonomyItem.Checked=false;autonomyItem.Text=NeedsAutonomyResume?director.Sleeping?"唤醒并恢复自主走动":"恢复自主走动":"暂停自主走动";}
     public void ResumeAutonomy(){settings.Roaming=true;Motion.TravelScale=Math.Max(.6F,BodyRectangle(atlas.IdleContentBounds,false).Width/180F);Motion.ResumeAutonomy(true);double now=watch.Elapsed.TotalSeconds;director.Restore(now);director.Tick(now,Motion,Activity.Stage,atlas,true);SyncAutonomyMenu();Present();if(PreferenceChanged!=null)PreferenceChanged();}
-    Rectangle MotionBounds(Rectangle area){var silhouette=RectangleF.Union(atlas.IdleContentBounds,atlas.ContentBounds(director.Row));var body=BodyRectangle(silhouette,false);body.Inflate(8*RenderScale,8*RenderScale);int left=(int)Math.Floor(body.Left),top=(int)Math.Floor(body.Top),right=Width-(int)Math.Ceiling(body.Right),bottom=Height-(int)Math.Ceiling(body.Bottom);return new Rectangle(area.Left-left,area.Top-top,area.Width+left+right,area.Height+top+bottom);}
+    // Transparent canvas margins are already excluded; keep only a small inset.
+    Rectangle MotionBounds(Rectangle area){var silhouette=RectangleF.Union(atlas.IdleContentBounds,atlas.ContentBounds(director.Row));var body=BodyRectangle(silhouette,false);body.Inflate(2*RenderScale,2*RenderScale);int left=(int)Math.Floor(body.Left),top=(int)Math.Floor(body.Top),right=Width-(int)Math.Ceiling(body.Right),bottom=Height-(int)Math.Ceiling(body.Bottom);return new Rectangle(area.Left-left,area.Top-top,area.Width+left+right,area.Height+top+bottom);}
     void PanelClick(Point point){float scale=RenderScale*capsuleFactor,x=point.X/scale,y=point.Y/scale;
         if(y<36&&x>=240){OpenPanel(taskPanel);return;}
         if(taskPanel){if(y>=40&&y<=115)taskIndex++;return;}

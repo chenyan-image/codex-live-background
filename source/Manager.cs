@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.22")]
-[assembly: AssemblyFileVersion("1.7.0.22")]
+[assembly: AssemblyVersion("1.7.0.24")]
+[assembly: AssemblyFileVersion("1.7.0.24")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -207,7 +207,8 @@ internal sealed partial class Manager : Form {
     [DllImport("user32.dll")] static extern bool RedrawWindow(IntPtr window,IntPtr update,IntPtr region,uint flags);
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
     Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);InitializeCompanion(checkStatus);if(checkStatus)InitializeTray(); }
-    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;value.Style|=0x40000;return value;}}
+    // Each custom control is buffered; avoid a second compositor for the entire HWND tree.
+    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle&=~0x02000000;value.Style|=0x40000;return value;}}
     protected override void SetClientSizeCore(int width,int height){
         // WM_NCCALCSIZE makes our entire borderless HWND the client area.
         // Form's default setter adds the sizing frame then caches the smaller
@@ -217,7 +218,7 @@ internal sealed partial class Manager : Form {
     }
     protected override void SetVisibleCore(bool value){if(value&&startHidden){startHidden=false;base.SetVisibleCore(false);return;}base.SetVisibleCore(value);}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
-    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);if(resizeBridge==null)resizeBridge=new WindowResizeBridge(this);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}WindowFrame.Update(this);}
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);if(resizeBridge==null)resizeBridge=new WindowResizeBridge(this);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);int noBorder=unchecked((int)0xFFFFFFFE);DwmSetWindowAttribute(Handle,34,ref noBorder,4);}catch{}WindowFrame.Update(this);}
     protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(Visible&&!restoringWindow&&WindowState!=FormWindowState.Minimized)stateBeforeHide=WindowState;WindowFrame.Update(this);}
     protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)QueueCompleteRedraw();}
     protected override void OnHandleDestroyed(EventArgs e){repaintQueued=false;base.OnHandleDestroyed(e);}
@@ -263,7 +264,14 @@ internal sealed partial class Manager : Form {
         if(disposing){StopCompanion();if(tray!=null){tray.Visible=false;tray.Dispose();tray=null;}if(trayMenu!=null){trayMenu.Dispose();trayMenu=null;}if(trayImage!=null){trayImage.Dispose();trayImage=null;}}
         base.Dispose(disposing);
     }
-    void ToggleMaximize(){MaximizedBounds=Screen.FromHandle(Handle).WorkingArea;WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;}
+    void UpdateMaximizedBounds(IntPtr window){
+        var screen=Screen.FromHandle(window);var work=screen.WorkingArea;
+        // WM_GETMINMAXINFO expects offsets within the current monitor, not
+        // absolute virtual-desktop coordinates (which are negative on the left).
+        var bounds=new Rectangle(work.X-screen.Bounds.X,work.Y-screen.Bounds.Y,work.Width,work.Height);
+        if(MaximizedBounds!=bounds)MaximizedBounds=bounds;
+    }
+    void ToggleMaximize(){UpdateMaximizedBounds(Handle);WindowState=WindowState==FormWindowState.Maximized?FormWindowState.Normal:FormWindowState.Maximized;}
     void AddTitleBar(){
         var bar=new Panel{Dock=DockStyle.Top,Height=32,BackColor=Color.FromArgb(12,14,17)};
         var controls=new BufferedFlow{Dock=DockStyle.Right,Width=132,FlowDirection=FlowDirection.LeftToRight,WrapContents=false,Margin=Padding.Empty,Padding=Padding.Empty};
@@ -282,6 +290,11 @@ internal sealed partial class Manager : Form {
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);WindowFrame.PaintBorder(this,e.Graphics,Color.FromArgb(49,65,69));}
     protected override void WndProc(ref Message m){
         if(m.Msg==0x83){m.Result=IntPtr.Zero;return;}
+        // WS_THICKFRAME keeps native resizing, but our client area owns the
+        // entire surface. Never let activation/NC paint draw a system frame.
+        if(m.Msg==0x85){m.Result=IntPtr.Zero;return;}
+        if(m.Msg==0x86){m.LParam=(IntPtr)(-1);DefWndProc(ref m);return;}
+        if(m.Msg==0x24)UpdateMaximizedBounds(m.HWnd);
         base.WndProc(ref m);
         if(m.Msg==0x0005){
             bool minimized=m.WParam.ToInt32()==1,maximized=m.WParam.ToInt32()==2,restored=nativeWasMinimized&&!minimized,maximizeChanged=nativeWasMaximized!=maximized;nativeWasMinimized=minimized;nativeWasMaximized=maximized;
@@ -360,7 +373,7 @@ internal sealed partial class Manager : Form {
         if(!statusOnly){CancelPreview();busy=true;runningAction=action;SetBusyControls(true);progress.Visible=true;previewHint.Text=action=="Apply"?"正在应用壁纸，视频不兼容时会自动适配…":"正在处理服务设置…";}
         WallpaperEntry applyingEntry=selected;
         string chosen=selected!=null?selected.Path:media.Text,alpha=(opacity.Value/100M).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if(action!="Connection")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":action=="RemoveService"?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在检查服务状态…";
+        if(!statusOnly||action=="Connect")log.Text=action=="Install"?"正在装载服务并设置自启动…":action=="Apply"?"正在检查素材并更换壁纸…":action=="RemoveService"?"正在彻底卸载背景服务…":action=="RemoveSkin"?"正在卸下当前皮肤…":"正在连接 Codex…";
         ThreadPool.QueueUserWorkItem(delegate{
             string result;bool success=false;
             try{
@@ -383,7 +396,7 @@ internal sealed partial class Manager : Form {
             if(IsDisposed)return;
             Ui(delegate{
                 if(generation!=operationGeneration)return;
-                if(!statusOnly||action=="Connect")log.Text=(success?"":"操作未完成：")+(statusOnly&&!String.IsNullOrWhiteSpace(lastConnectionMessage)?lastConnectionMessage:result);busy=false;SetBusyControls(false);progress.Visible=false;
+                if(!statusOnly||action=="Connect"||!success)log.Text=(success?"":"操作未完成：")+(success&&statusOnly&&!String.IsNullOrWhiteSpace(lastConnectionMessage)?lastConnectionMessage:result);busy=false;SetBusyControls(false);progress.Visible=false;
                 if(closeRequested){Close();return;}
                 if(!success){if(statusOnly){status.Text="○  检测暂不可用";status.ForeColor=Muted;}else previewHint.Text="操作未完成，请在服务与设置中查看运行记录："+(result.Length>120?result.Substring(0,120):result);}
                 if(success&&action=="Apply")AppliedToHistory(applyingEntry);

@@ -1,6 +1,14 @@
-﻿# 更新记录
+# 更新记录
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
+
+## v1.7.0.5 — 副屏最大化与窗口边框修复
+
+- 修复左侧副屏最大化的工作区坐标，移除导致整窗重绘异常的组合缓冲。
+- 阻止系统尺寸边框覆盖自绘界面，处理窗口边缘出现白框的问题。
+- 正常后台状态检查保留运行记录，连接失败显示实际错误。
+- 缩小宠物碰撞的额外安全边距；升级保留个人设置及已有素材。
+- Codex 最小化后恢复时偶发的显示延迟继续跟踪。
 
 ## v1.7.0.4 — 窗口铺满与绘图内存优化
 
