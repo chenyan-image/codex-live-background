@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.8.0.3")]
-[assembly: AssemblyFileVersion("1.8.0.3")]
+[assembly: AssemblyVersion("1.8.0.4")]
+[assembly: AssemblyFileVersion("1.8.0.4")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -252,6 +252,7 @@ internal sealed partial class Manager : Form {
         if(tray!=null)return;
         trayMenu=new HubContextMenu{BackColor=Color.FromArgb(27,32,37),ForeColor=Ink,ShowImageMargin=false};
         trayMenu.Items.Add("打开管理器",null,delegate{RestoreWindow();});trayMenu.Items.Add(new ToolStripSeparator());
+        var stopSpark=trayMenu.Items.Add("停止续火花任务",null,delegate{if(sparkCancellation!=null)sparkCancellation.Cancel();});trayMenu.Opening+=delegate{stopSpark.Visible=sparkCancellation!=null;};
         trayMenu.Items.Add("退出管理器",null,delegate{if(!IsDisposed&&!Disposing)BeginInvoke((MethodInvoker)delegate{RequestManualManagerExit();});});
         HubPopupMenu.Apply(trayMenu);
         trayImage=(Icon)Icon.Clone();tray=new NotifyIcon{Icon=trayImage,Text="CodexHub",ContextMenuStrip=trayMenu,Visible=true};
@@ -494,7 +495,7 @@ internal sealed partial class Manager : Form {
         string guardWarning=test?null:GuardComponents.FinishAtStartup(AppDomain.CurrentDomain.BaseDirectory);
         using(var form=new Manager(!test)){
             if(guardWarning!=null)form.Shown+=delegate{form.previewHint.Text=guardWarning;form.log.AppendText(Environment.NewLine+guardWarning);};
-            if(companionPreview){form.startHidden=args[0]=="--pet-preview-tray";if(form.startHidden){form.ShowInTaskbar=false;IntPtr handle=form.Handle;}form.StartCompanionPreview(args[1],sparkPreview);if(sparkPreview){form.companionStarted=true;form.InitializeSpark(true);form.Navigate("spark");}Application.Run(form);return 0;}
+            if(companionPreview){form.startHidden=args[0]=="--pet-preview-tray";if(sparkPreview)form.PositionSparkPreview();if(form.startHidden){form.ShowInTaskbar=false;IntPtr handle=form.Handle;}form.StartCompanionPreview(args[1],sparkPreview);if(sparkPreview){form.companionStarted=true;form.InitializeSpark(true);form.Navigate("spark");}Application.Run(form);return 0;}
             if(steamScrollTest)return form.TestSteamScroll(args[1]);
             if(galleryTest)return form.TestGallery(args[1]);
             if(lifecycle)return form.TestLifecycle(args[1]);

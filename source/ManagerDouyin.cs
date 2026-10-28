@@ -11,6 +11,7 @@ internal sealed partial class Manager {
     readonly System.Windows.Forms.Timer sparkTimer=new System.Windows.Forms.Timer{Interval=2500};
     SparkStore sparkStore;SparkSettings sparkSettings;SparkRunner sparkRunner;CancellationTokenSource sparkCancellation;bool sparkSync,sparkDisposed;DateTime sparkNextAuto=DateTime.MinValue;IntPtr sparkAutoWindow;
     bool SparkKeepsManagerActive {get{return sparkCancellation!=null||sparkRunner!=null&&(sparkRunner.Running||sparkSettings.AutoStart&&sparkSettings.Contacts.Any(c=>c.Enabled)&&DouyinDesktop.HasForegroundWindow());}}
+    void PositionSparkPreview(){var window=DouyinDesktop.FindOpenWindow();if(window==IntPtr.Zero)return;var area=Screen.FromHandle(window).WorkingArea;StartPosition=FormStartPosition.Manual;Location=new Point(area.Left+Math.Max(0,(area.Width-Width)/2),area.Top+Math.Max(0,(area.Height-Height)/2));}
     void BuildSparkPage(Panel pages){
         sparkPage.Dock=DockStyle.Fill;sparkPage.Visible=false;pages.Controls.Add(sparkPage);
         var layout=new BufferedTable{Dock=DockStyle.Fill,ColumnCount=1,RowCount=7,Margin=Padding.Empty};
@@ -31,7 +32,7 @@ internal sealed partial class Manager {
         sparkState.Dock=DockStyle.Fill;sparkState.ForeColor=Mint;sparkState.Padding=new Padding(2,10,4,0);sparkState.AutoEllipsis=true;sparkState.Text="等待设置名单。自动模式默认关闭；检查名单不会发送消息。";layout.Controls.Add(sparkState,0,6);
     }
     void InitializeSpark(bool live){
-        sparkStore=new SparkStore(stateDirectory);sparkSettings=sparkStore.Load();sparkRunner=new SparkRunner(new DouyinDesktop(),new SparkPetGuide(()=>pets==null?null:pets.Window),s=>sparkStore.Save(s));sparkRunner.Changed+=RefreshSpark;
+        sparkStore=new SparkStore(stateDirectory);sparkSettings=sparkStore.Load();sparkRunner=new SparkRunner(new DouyinDesktop(),new SparkPetGuide(()=>pets==null?null:pets.Window),s=>sparkStore.Save(s));sparkRunner.DiagnosticDirectory=stateDirectory;sparkRunner.Changed+=RefreshSpark;
         sparkSync=true;sparkAuto.Checked=sparkSettings.AutoStart;sparkSync=false;RefreshSpark();if(sparkStore.Warning!=null)sparkState.Text=sparkStore.Warning;
         if(live){sparkTimer.Tick+=delegate{AutoSpark();};sparkTimer.Start();}
     }
@@ -44,7 +45,9 @@ internal sealed partial class Manager {
     }
     void RefreshSpark(){
         if(sparkDisposed||IsDisposed||sparkSettings==null)return;if(InvokeRequired){Ui(RefreshSpark);return;}bool running=sparkCancellation!=null||sparkRunner!=null&&sparkRunner.Running;sparkSync=true;try{
-            sparkGrid.SuspendLayout();sparkGrid.Rows.Clear();foreach(var contact in sparkSettings.Contacts){int row=sparkGrid.Rows.Add(contact.Enabled,contact.Name,contact.Status,contact.Detail);sparkGrid.Rows[row].Tag=contact;}
+            sparkGrid.SuspendLayout();bool same=sparkGrid.Rows.Count==sparkSettings.Contacts.Count&&sparkGrid.Rows.Cast<DataGridViewRow>().Select(row=>((SparkContact)row.Tag).Id).SequenceEqual(sparkSettings.Contacts.Select(contact=>contact.Id));
+            if(!same){sparkGrid.Rows.Clear();foreach(var contact in sparkSettings.Contacts){int index=sparkGrid.Rows.Add(contact.Enabled,contact.Name,contact.Status,contact.Detail);sparkGrid.Rows[index].Tag=contact;}}
+            else for(int i=0;i<sparkSettings.Contacts.Count;i++){var contact=sparkSettings.Contacts[i];var row=sparkGrid.Rows[i];row.Cells[0].Value=contact.Enabled;row.Cells[1].Value=contact.Name;row.Cells[2].Value=contact.Status;row.Cells[3].Value=contact.Detail;}
             sparkAdd.Enabled=sparkRemove.Enabled=sparkName.Enabled=sparkAuto.Enabled=!running;sparkGrid.ReadOnly=running;sparkStart.Enabled=sparkInspect.Enabled=!running;sparkCancel.Enabled=running;
             if(sparkRunner!=null)sparkState.Text=sparkRunner.State;
         }finally{sparkGrid.ResumeLayout();sparkSync=false;}
@@ -53,9 +56,12 @@ internal sealed partial class Manager {
         if(sparkDisposed||sparkRunner==null||sparkRunner.Running||sparkCancellation!=null)return;if(!sparkSettings.Contacts.Any(c=>c.Enabled)){sparkState.Text="请先添加并启用至少一位联系人。";return;}
         if(pets==null||pets.Window==null||!pets.Preferences.Enabled){sparkState.Text="请先在桌面宠物中开启一个宠物。";return;}if(!SaveSpark())return;
         sparkCancellation=new CancellationTokenSource();var active=sparkCancellation;RefreshSpark();
+        // The manager must leave the input foreground before the automation
+        // starts. Status updates below never activate or rebuild this window.
+        bool returnToManager=Visible;HideToTray();
         try{var launcher=new DouyinAppLauncher(sparkSettings.DouyinPath,path=>{sparkSettings.DouyinPath=path;SaveSpark();});await SparkStartFlow.Run(launcher,sparkRunner,sparkSettings,inspect,active.Token);}
         catch(OperationCanceledException){sparkRunner.State="任务已停止。";}catch(Exception error){sparkRunner.State="任务未开始："+error.Message;}
-        finally{active.Dispose();if(sparkCancellation==active)sparkCancellation=null;if(!sparkDisposed)RefreshSpark();}
+        finally{active.Dispose();if(sparkCancellation==active)sparkCancellation=null;if(!sparkDisposed){RefreshSpark();if(returnToManager)RestoreWindow();}}
     }
     void AutoSpark(){
         if(sparkDisposed||sparkRunner==null||sparkRunner.Running||sparkCancellation!=null||!sparkSettings.AutoStart||DateTime.UtcNow<sparkNextAuto||busy||updatingSoftware||petImporting||ImportingWallpapers||HubPopupMenu.AnyOpen)return;

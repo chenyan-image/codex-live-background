@@ -19,7 +19,7 @@ internal static class SparkLocator {
         var logical=nodes.Select(n=>new SparkNode{Key=n.Key,Name=n.Name,Id=n.Id,Kind=n.Kind,Value=n.Value,Enabled=n.Enabled,Bounds=Rectangle.FromLTRB((int)((n.Bounds.Left-bounds.Left)/factor),(int)((n.Bounds.Top-bounds.Top)/factor),(int)Math.Ceiling((n.Bounds.Right-bounds.Left)/factor),(int)Math.Ceiling((n.Bounds.Bottom-bounds.Top)/factor))}).ToList();
         var view=DescribeLogical(handle,new Rectangle(0,0,(int)(bounds.Width/factor),(int)(bounds.Height/factor)),foreground,logical);
         Func<Rectangle,Rectangle> project=r=>r.IsEmpty?Rectangle.Empty:Rectangle.FromLTRB(original.Left+(int)(r.Left*factor),original.Top+(int)(r.Top*factor),original.Left+(int)Math.Ceiling(r.Right*factor),original.Top+(int)Math.Ceiling(r.Bottom*factor));
-        Func<SparkNode,SparkNode> node=n=>n==null?null:nodes.FirstOrDefault(v=>v.Key==n.Key)??new SparkNode{Key=n.Key,Name=n.Name,Kind=n.Kind,Bounds=project(n.Bounds)};
+        Func<SparkNode,SparkNode> node=n=>n==null?null:new SparkNode{Key=n.Key,Name=n.Name,Kind=n.Kind,Id=n.Id,Value=n.Value,Enabled=n.Enabled,Bounds=project(n.Bounds)};
         view.Bounds=original;view.Nodes=nodes;view.MessageButton=node(view.MessageButton);view.SearchBox=node(view.SearchBox);view.Composer=node(view.Composer);view.Back=node(view.Back);view.Emoji=node(view.Emoji);view.Spark=node(view.Spark);view.Contacts=view.Contacts.Select(node).ToList();view.ListBounds=project(view.ListBounds);view.ChatBounds=project(view.ChatBounds);return view;
     }
     static SparkView DescribeLogical(IntPtr handle,Rectangle bounds,bool foreground,List<SparkNode> nodes){
@@ -30,12 +30,16 @@ internal static class SparkLocator {
             view.SearchBox=search;view.ListBounds=Rectangle.FromLTRB(Math.Max(bounds.Left,search.Bounds.Left-20),search.Bounds.Bottom+4,Math.Min(bounds.Right,search.Bounds.Right+48),bounds.Bottom-12);
             foreach(var avatar in nodes.Where(n=>n.Kind=="ListItem"&&view.ListBounds.Contains(n.Center)&&n.Bounds.Width>=20&&n.Bounds.Width<=70)){
                 var name=nodes.Where(n=>n.Kind=="Text"&&n.Bounds.Left>=avatar.Bounds.Right&&n.Bounds.Right<=view.ListBounds.Right&&Near(n.Bounds.Top,avatar.Bounds.Top,18)&&!Regex.IsMatch(n.Name??"",@"^(?:重燃|\d\d?:\d\d|\d+$)")).OrderBy(n=>n.Bounds.Left).FirstOrDefault();
-                if(name!=null&&!view.Contacts.Any(n=>n.Key==name.Key))view.Contacts.Add(name);
+                if(name!=null&&!view.Contacts.Any(n=>n.Key==name.Key)){
+                    var open=nodes.FirstOrDefault(n=>n.Name=="发消息"&&n.Bounds.Left>name.Bounds.Left&&view.ListBounds.Contains(n.Center)&&Near(n.Center.Y,name.Center.Y,24));
+                    view.Contacts.Add(open==null?name:new SparkNode{Key=name.Key,Name=name.Name,Kind=name.Kind,Bounds=open.Bounds,Enabled=open.Enabled});
+                }
             }
             view.SearchComplete=view.Contacts.Count>0||nodes.Any(n=>view.ListBounds.Contains(n.Center)&&Regex.IsMatch(n.Name??"",@"^(?:暂无.*(?:结果|联系人|用户)|没有.*(?:结果|联系人|用户)|未找到.*|无搜索结果)$"));
         }
         view.Composer=nodes.Where(n=>(n.Kind=="Group"||n.Kind=="Edit")&&((n.Value??"").TrimStart().StartsWith("发送消息",StringComparison.Ordinal)||(n.Name??"")=="发送消息")&&n.Bounds.Top>bounds.Top+bounds.Height*.5).OrderByDescending(n=>n.Bounds.Width).FirstOrDefault();
         var header=nodes.FirstOrDefault(n=>n.Id=="ei-conversation-header-title-bar");
+        if(header==null)view.Composer=null;
         if(view.Composer!=null&&header!=null){
             var input=view.Composer.Bounds;int left=Math.Max(bounds.Left,input.Left-20),right=bounds.Right-8;
             view.ChatBounds=Rectangle.FromLTRB(left,Math.Max(bounds.Top,header.Bounds.Top-18),right,bounds.Bottom-8);
@@ -46,7 +50,8 @@ internal static class SparkLocator {
             var overlap=Rectangle.Intersect(view.ListBounds,view.ChatBounds);
             if(!view.ListBounds.IsEmpty&&overlap.Width>view.ListBounds.Width*.5){view.SearchBox=null;view.ListBounds=Rectangle.Empty;view.Contacts.Clear();view.SearchComplete=false;}
             view.Back=new SparkNode{Key="@back",Name="返回消息列表",Kind="Point",Bounds=new Rectangle(left+12,header.Center.Y-10,20,20)};
-            var icons=nodes.Where(n=>n.Kind=="Image"&&n.Bounds.Width>=12&&n.Bounds.Width<=42&&n.Bounds.Height>=12&&n.Bounds.Height<=42&&n.Center.X>input.Right-38&&n.Bounds.Right<=right&&Near(n.Center.Y,input.Top+input.Height/2,23)).OrderByDescending(n=>n.Center.X).ToArray();
+            var candidates=nodes.Where(n=>n.Kind=="Image"&&n.Bounds.Width>=12&&n.Bounds.Width<=42&&n.Bounds.Height>=12&&n.Bounds.Height<=42&&n.Center.X>input.Right-38&&n.Bounds.Right<=right&&Near(n.Center.Y,input.Top+input.Height/2,8)).ToArray();
+            var icons=candidates.Where(n=>!candidates.Any(parent=>parent!=n&&parent.Bounds.Width>n.Bounds.Width*1.3&&parent.Bounds.Contains(n.Center))).OrderByDescending(n=>n.Center.X).ToArray();
             if(icons.Length>=2){var image=icons[1];view.Emoji=new SparkNode{Key="@emoji",Name="表情",Kind="Point",Bounds=image.Bounds};}
             var tiles=nodes.Where(n=>n.Name=="续火花"&&n.Kind=="Group"&&n.Bounds.Width>=24&&n.Bounds.Width<=160&&n.Bounds.Height>=24&&n.Bounds.Top>view.ChatBounds.Top+30&&view.ChatBounds.Contains(n.Center)).ToArray();
             if(tiles.Length==1)view.Spark=tiles[0];
@@ -79,7 +84,8 @@ internal sealed class DouyinDesktop : ISparkDesktop {
     [DllImport("user32.dll",SetLastError=true)]static extern uint SendInput(uint count,Input[] values,int size);
     [DllImport("user32.dll")]static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     [DllImport("user32.dll")]static extern short GetAsyncKeyState(int key);
-    readonly SparkWorkerClient worker=new SparkWorkerClient();IntPtr target;
+    readonly SparkWorkerClient worker=new SparkWorkerClient();IntPtr target;string query="";
+    internal static int GuideRight;
     public static bool HasForegroundWindow(){return FindWindow()!=IntPtr.Zero;}
     internal static IntPtr ForegroundOwner {get{var active=GetForegroundWindow();var owner=GetAncestor(active,3);return owner==IntPtr.Zero?active:owner;}}
     static bool ForegroundMatches(IntPtr window){return window!=IntPtr.Zero&&ForegroundOwner==window;}
@@ -93,12 +99,12 @@ internal sealed class DouyinDesktop : ISparkDesktop {
         var foreground=ForegroundOwner;IntPtr found=IntPtr.Zero;
         EnumWindows(delegate(IntPtr handle,IntPtr unused){if(handle!=foreground||!IsWindowVisible(handle)||IsIconic(handle))return true;uint pid;GetWindowThreadProcessId(handle,out pid);try{using(var process=Process.GetProcessById((int)pid)){if(!String.Equals(process.ProcessName,"douyin",StringComparison.OrdinalIgnoreCase))return true;Rect bounds;if(GetWindowRect(handle,out bounds)&&bounds.Right-bounds.Left>=480&&bounds.Bottom-bounds.Top>=400)found=handle;}}catch(ArgumentException){}catch(InvalidOperationException){}return found==IntPtr.Zero;},IntPtr.Zero);return found;
     }
-    public async Task<SparkView> Read(CancellationToken stop){var reply=await worker.Request(new SparkWorkerRequest{Operation="read"},stop);target=new IntPtr(reply.Window);return reply.View();}
-    public async Task Click(SparkNode node,CancellationToken stop){await worker.Request(new SparkWorkerRequest{Operation="click",Window=target.ToInt64(),Node=node},stop);}
-    public async Task Search(SparkNode field,string name,CancellationToken stop){await worker.Request(new SparkWorkerRequest{Operation="search",Window=target.ToInt64(),Node=field,Query=name},stop);}
+    public async Task<SparkView> Read(CancellationToken stop){var reply=await worker.Request(new SparkWorkerRequest{Operation="read",Query=query},stop);target=new IntPtr(reply.Window);GuideRight=reply.ListBounds.IsEmpty?reply.ChatBounds.IsEmpty?reply.Bounds.Right-360:reply.ChatBounds.Left:reply.ListBounds.Left;return reply.View();}
+    public async Task Click(SparkNode node,CancellationToken stop){await worker.Request(new SparkWorkerRequest{Operation="click",Window=target.ToInt64(),Node=node,Query=query},stop);}
+    public async Task Search(SparkNode field,string name,CancellationToken stop){await worker.Request(new SparkWorkerRequest{Operation="search",Window=target.ToInt64(),Node=field,Query=name},stop);query=name;}
     internal static SparkWorkerReply ExecuteWorker(SparkWorkerRequest request){
         IntPtr dpi=IntPtr.Zero;try{try{dpi=SetThreadDpiAwarenessContext(new IntPtr(-4));}catch(EntryPointNotFoundException){}
-            var desktop=new DouyinDesktop();desktop.target=new IntPtr(request.Window);
+            var desktop=new DouyinDesktop();desktop.target=new IntPtr(request.Window);desktop.query=request.Query??"";
             if(request.Operation=="read")return SparkWorkerReply.From(desktop.ReadCore(CancellationToken.None));
             if(request.Operation=="inspect"){var known=FindOpenWindow();if(known==IntPtr.Zero||known.ToInt64()!=request.Window)throw new SparkFocusLost();return SparkWorkerReply.From(desktop.ReadCore(CancellationToken.None,known));}
             if(request.Window==0||request.Node==null)throw new InvalidDataException("控件请求没有绑定抖音窗口。");
@@ -109,8 +115,17 @@ internal sealed class DouyinDesktop : ISparkDesktop {
     }
     SparkView ReadCore(CancellationToken stop,IntPtr inspect=default(IntPtr)){
         var handle=inspect!=IntPtr.Zero?inspect:FindWindow();if(handle==IntPtr.Zero)throw new InvalidOperationException("未找到前台的抖音主窗口（当前前台进程："+ForegroundProcess()+"），请切到抖音后重试。");target=handle;Rect rect;if(!GetWindowRect(handle,out rect))throw new SparkFocusLost();
-        Rectangle bounds=Rectangle.FromLTRB(rect.Left,rect.Top,rect.Right,rect.Bottom);List<SparkNode> nodes;using(var native=new DouyinNativeUia())nodes=native.Read(handle,bounds,stop);
+        Rectangle bounds=Rectangle.FromLTRB(rect.Left,rect.Top,rect.Right,rect.Bottom);List<SparkNode> nodes;
         float dpi=1;try{dpi=GetDpiForWindow(handle)/96F;}catch(EntryPointNotFoundException){}
+        // OCR reads only the message sidebar. Individual native point lookups
+        // verify names/search values without traversing the full Chromium tree.
+        if(inspect==IntPtr.Zero&&ForegroundMatches(handle))try{
+            SparkWorkerHost.Phase("视觉定位消息栏");using(var native=new DouyinNativeUia()){
+                var visual=DouyinVision.Read(handle,bounds,dpi,query,native.NameAt,native.SearchValueAt,()=>ForegroundMatches(handle),stop,()=>native.HeaderTitle(handle));
+                if(visual.Ready)return visual;
+            }
+        }catch(NotSupportedException){}catch(TypeLoadException){}catch(FileNotFoundException){}catch(COMException){}
+        SparkWorkerHost.Phase("兼容控件定位");using(var native=new DouyinNativeUia())nodes=native.Read(handle,bounds,stop);
         var view=SparkLocator.Describe(handle,bounds,ForegroundMatches(handle),nodes,dpi);
         if(view.Composer!=null)view.Composer.Value="";
         // The helper reply contains controls and names, never chat-body nodes.
@@ -118,9 +133,23 @@ internal sealed class DouyinDesktop : ISparkDesktop {
     }
     SparkNode Revalidate(SparkNode old,CancellationToken stop){
         var expected=target;var view=ReadCore(stop);if(view.Window!=expected||!view.Foreground)throw new SparkFocusLost();
-        var current=old.Key=="@back"?view.Back:old.Key=="@emoji"?view.Emoji:view.Nodes.FirstOrDefault(n=>n.Key==old.Key&&n.Name==old.Name&&n.Kind==old.Kind);
-        if(current==null||!current.Enabled||Math.Abs(current.Center.X-old.Center.X)>4||Math.Abs(current.Center.Y-old.Center.Y)>4)throw new SparkContactError("控件位置已变化，已跳过，避免误点。");
+        if((old.Key=="v:spark"||old.Name=="续火花")&&(String.IsNullOrEmpty(query)||!view.IsChat(query)))throw new SparkContactError("续火花前联系人已改变，未执行发送。");
+        var current=CurrentTarget(view,old);
+        if(current==null||!current.Enabled)throw new SparkContactError("控件位置已变化，已跳过，避免误点。");
         return current;
+    }
+    internal static SparkNode CurrentTarget(SparkView view,SparkNode old){
+        SparkNode current=null;
+        if(old.Name=="返回消息列表")current=view.Back;else if(old.Name=="表情")current=view.Emoji;
+        else if(old.Name=="续火花")current=view.Spark;else if(old.Kind=="Edit"&&old.Name=="搜索")current=view.SearchBox;
+        else if(old.Name=="消息")current=view.MessageButton;
+        else {var names=view.Contacts.Where(n=>String.Equals(n.Name,old.Name,StringComparison.Ordinal)).ToArray();if(names.Length>1)return null;if(names.Length==1){current=names[0];var row=Rectangle.Intersect(new Rectangle(0,old.Bounds.Top,1,old.Bounds.Height),new Rectangle(0,current.Bounds.Top,1,current.Bounds.Height));if(row.Height>=Math.Min(old.Bounds.Height,current.Bounds.Height)*.4)return current;}}
+        if(current==null)current=view.Nodes.FirstOrDefault(n=>n.Key==old.Key&&n.Name==old.Name&&n.Kind==old.Kind);
+        if(current==null)return null;var hit=current.Bounds;hit.Inflate(5,5);
+        // OCR can bound just the first name character while UIA bounds the
+        // whole text. Both must still cover the same observed clickable point.
+        var overlap=Rectangle.Intersect(old.Bounds,current.Bounds);double smaller=Math.Min((double)old.Bounds.Width*old.Bounds.Height,(double)current.Bounds.Width*current.Bounds.Height);
+        return hit.Contains(old.Center)||smaller>0&&(double)overlap.Width*overlap.Height>=smaller*.4?current:null;
     }
     void ClickCore(SparkNode node,CancellationToken stop){
         ClickVerified(Revalidate(node,stop),stop);

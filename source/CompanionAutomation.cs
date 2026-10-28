@@ -14,16 +14,19 @@ internal sealed class SparkPetGuide : ISparkGuide {
 }
 internal sealed partial class PetWindow {
     internal bool SparkGuiding {get{return sparkGuiding;}}
-    bool sparkGuiding,sparkMoving,sparkPanelExpanded;int sparkRow;PointF sparkSavedPosition,sparkDestination;Rectangle sparkArea;double sparkActionAt,sparkMoveAt;
-    TaskCompletionSource<bool> sparkMove;CancellationToken sparkStop;IntPtr sparkForeground;
+    bool sparkGuiding,sparkMoving,sparkPanelExpanded;int sparkRow;PointF sparkSavedPosition,sparkDestination,sparkOrigin;Rectangle sparkArea;double sparkActionAt,sparkMoveAt,sparkDuration;
+    TaskCompletionSource<bool> sparkMove;CancellationToken sparkStop;
     internal Task WalkForSpark(Point target,CancellationToken stop){
         if(!settings.Enabled)throw new InvalidOperationException("桌面宠物已关闭，续火花未执行。");
         if(!sparkGuiding){sparkGuiding=true;sparkSavedPosition=Motion.Position;sparkPanelExpanded=expanded;expanded=false;panelReveal=0;popup.Hide();hud.Hide();menu.Close();Motion.Interact(0);}
-        sparkForeground=DouyinDesktop.ForegroundOwner;sparkArea=PetDisplays.At(target).WorkingArea;FitScale(sparkArea);var body=BodyRectangle(atlas.IdleContentBounds,false);
+        sparkArea=PetDisplays.At(target).WorkingArea;FitScale(sparkArea);var body=BodyRectangle(atlas.IdleContentBounds,false);
         float x=target.X-body.Width-18-body.X,y=target.Y-body.Height*.6F-body.Y;
+        // Keep the pet beside the sidebar so it cannot cover OCR/input targets.
+        if(DouyinDesktop.GuideRight>sparkArea.Left+body.Width+16)x=Math.Min(x,DouyinDesktop.GuideRight-body.Right-14);
         x=Math.Max(sparkArea.Left-body.X,Math.Min(sparkArea.Right-body.Right,x));y=Math.Max(sparkArea.Top-body.Y,Math.Min(sparkArea.Bottom-body.Bottom,y));
         if(new RectangleF(x+body.X-8,y+body.Y-8,body.Width+16,body.Height+16).Contains(target)){x=target.X+18-body.X;x=Math.Max(sparkArea.Left-body.X,Math.Min(sparkArea.Right-body.Right,x));}
-        sparkDestination=new PointF(x,y);sparkMoving=true;sparkStop=stop;sparkRow=x>=Motion.Position.X?1:2;sparkMoveAt=sparkActionAt=watch.Elapsed.TotalSeconds;director.Manual(sparkRow,sparkActionAt);atlas.ResumeVideo();animationGeneration=director.Generation;actionStarted=sparkActionAt;atlas.BeginVideo(sparkRow,animationGeneration,true,true);
+        sparkOrigin=Motion.Position;sparkDestination=new PointF(x,y);sparkMoving=true;sparkStop=stop;sparkRow=x>=Motion.Position.X?1:2;sparkMoveAt=sparkActionAt=watch.Elapsed.TotalSeconds;
+        double dx=x-sparkOrigin.X,dy=y-sparkOrigin.Y;sparkDuration=Math.Max(.18,Math.Min(.55,Math.Sqrt(dx*dx+dy*dy)/1800));director.Manual(sparkRow,sparkActionAt);atlas.ResumeVideo();animationGeneration=director.Generation;actionStarted=sparkActionAt;atlas.BeginVideo(sparkRow,animationGeneration,true,true);
         sparkMove=new TaskCompletionSource<bool>();return sparkMove.Task;
     }
     internal void EndSparkGuide(){
@@ -33,15 +36,12 @@ internal sealed partial class PetWindow {
     }
     void TickSparkGuide(double now,double delta){
         if(sparkStop.IsCancellationRequested||!settings.Enabled){EndSparkGuide();return;}
-        if(DouyinDesktop.ForegroundOwner!=sparkForeground){var pending=sparkMove;sparkMove=null;if(pending!=null)pending.TrySetException(new SparkFocusLost());EndSparkGuide();return;}
         atlas.ResumeVideo();
         if(sparkMoving){
             if(atlas.IsVideo&&atlas.VideoFinished&&now-sparkActionAt>.3){sparkActionAt=now;director.Manual(sparkRow,now);}
-            bool ready=!atlas.IsVideo||atlas.VideoPlaybackTime>.001;
-            if(now-sparkMoveAt>45||atlas.IsVideo&&!ready&&now-sparkMoveAt>8){var failed=sparkMove;sparkMove=null;sparkMoving=false;if(failed!=null)failed.TrySetException(new InvalidOperationException("宠物行走动画未能载入，续火花已停止。"));return;}
-            double dx=sparkDestination.X-Motion.Position.X,dy=sparkDestination.Y-Motion.Position.Y,distance=Math.Sqrt(dx*dx+dy*dy),step=Math.Max(0,Math.Min(.04,delta))*320*Math.Max(1,RenderScale);
-            if(ready&&distance>step){Motion.Position=new PointF(Motion.Position.X+(float)(dx/distance*step),Motion.Position.Y+(float)(dy/distance*step));}
-            else if(distance<=step){Motion.Position=sparkDestination;sparkMoving=false;director.Manual(0,now);}
+            double progress=Math.Max(0,Math.Min(1,(now-sparkMoveAt)/sparkDuration)),ease=progress*progress*(3-2*progress);
+            Motion.Position=new PointF(sparkOrigin.X+(float)((sparkDestination.X-sparkOrigin.X)*ease),sparkOrigin.Y+(float)((sparkDestination.Y-sparkOrigin.Y)*ease));
+            if(progress>=1){Motion.Position=sparkDestination;sparkMoving=false;director.Manual(0,now);}
         }
         Location=Point.Round(Motion.Position);if(!Visible)Show();MaintainTopmost();atlas.MirrorMotion=atlas.IsVideo&&sparkMoving&&pack.Actions[atlas.ActionIndex(director.Row)].moveFacesLeft&&sparkRow==1;
         Present();popup.Hide();hud.Hide();
