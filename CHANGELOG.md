@@ -2,6 +2,11 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0.3 — 背景连接依赖修复
+
+- 补齐控制脚本的主题状态依赖，修复 Test-DreamSkinPaused 未识别，正确处理壁纸暂停与自动恢复。
+- 包含静止待机修复；保留设置、素材和 GitHub 首页排版。
+
 ## v1.7.0.2 — 静止模式待机修复
 
 - 关闭随机行走只停止位移，待机和空闲动作继续轮换；行走过程中关闭会及时恢复待机。

@@ -16,6 +16,7 @@ $startup = Join-Path $installRoot 'startup'
 $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $engine = Join-Path $root 'engine'
 . (Join-Path $engine 'scripts\common-windows.ps1')
+. (Join-Path $engine 'scripts\theme-windows.ps1')
 . (Join-Path $root 'service-compatibility.ps1')
 . (Join-Path $root 'service-upgrade.ps1')
 . (Join-Path $root 'autostart.ps1')
