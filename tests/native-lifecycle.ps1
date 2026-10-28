@@ -38,5 +38,14 @@ foreach($name in @('pets','pet-imports','pet-downloads','pet-settings.json','pet
 try{Get-BackgroundSafePath -Root $root -Relative '..\outside.txt';throw 'Escape accepted'}catch{if($_.Exception.Message -notmatch '超出'){throw}}
 $outside=Join-Path $sandbox outside;$null=New-Item -ItemType Directory -Path $outside
 $link=Join-Path $root linked;$null=New-Item -ItemType Junction -Path $link -Target $outside
-try{Remove-BackgroundOwnedFiles -Root $root -Files @('my-wallpaper.jpg');throw 'Junction accepted'}catch{if($_.Exception.Message -notmatch '链接或联接'){throw}};[IO.Directory]::Delete($link)
-@{pass=$true;cases=12;directExeInstall=$true;customPath=$true;updateAndRetry=$true;uninstallerIncluded=$true;msiUsedForNative=$false;originalsAndLoginPreserved=$true;realServicesModified=$false}|ConvertTo-Json -Compress
+try{
+ [IO.File]::WriteAllText((Join-Path $outside 'personal.txt'),'preserve external data')
+ [IO.File]::WriteAllText((Join-Path $root 'owned-link-probe.txt'),'owned fixture')
+ # A shared directory may contain unrelated links. Only paths selected by the
+ # verified ownership list are traversed, and must reject reparse points.
+ Remove-BackgroundOwnedFiles -Root $root -Files @('owned-link-probe.txt')
+ if((Test-Path -LiteralPath (Join-Path $root 'owned-link-probe.txt')) -or -not(Test-Path -LiteralPath $link)){throw 'Scoped cleanup changed an unrelated link'}
+ try{Remove-BackgroundOwnedFiles -Root $root -Files @('linked\personal.txt');throw 'Owned-path junction accepted'}catch{if($_.Exception.Message -notmatch '链接或联接'){throw}}
+ if([IO.File]::ReadAllText((Join-Path $outside 'personal.txt')) -ne 'preserve external data'){throw 'Cleanup followed the junction to external data'}
+}finally{[IO.Directory]::Delete($link)}
+@{pass=$true;cases=14;directExeInstall=$true;customPath=$true;updateAndRetry=$true;uninstallerIncluded=$true;msiUsedForNative=$false;originalsAndLoginPreserved=$true;unrelatedLinkPreserved=$true;ownedPathJunctionRejected=$true;realServicesModified=$false}|ConvertTo-Json -Compress

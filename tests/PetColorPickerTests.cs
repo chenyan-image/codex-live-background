@@ -82,6 +82,8 @@ internal static class PetColorPickerTests {
     }
     static IEnumerable<Control> Descendants(Control root){foreach(Control child in root.Controls){yield return child;foreach(var nested in Descendants(child))yield return nested;}}
     static Rectangle InForm(Control control,Control root){var bounds=control.Bounds;for(var parent=control.Parent;parent!=null&&parent!=root;parent=parent.Parent)bounds.Offset(parent.Left,parent.Top);return bounds;}
+    static Rectangle VisibleClip(Control control,Control root){var visible=InForm(control,root);for(var parent=control.Parent;parent!=null;parent=parent.Parent){var clip=parent.ClientRectangle;if(parent!=root)clip.Offset(InForm(parent,root).Location);visible.Intersect(clip);if(parent==root)break;}return visible;}
+    static int BrightTextPixels(Bitmap image,Rectangle bounds){int count=0;var clipped=Rectangle.Intersect(new Rectangle(Point.Empty,image.Size),bounds);for(int y=clipped.Top;y<clipped.Bottom;y++)for(int x=clipped.Left;x<clipped.Right;x++){Color pixel=image.GetPixel(x,y);if(pixel.R>160&&pixel.G>160&&pixel.B>160)count++;}return count;}
     static Bitmap HiddenTree(Control control){
         IntPtr handle=control.Handle;var image=new Bitmap(Math.Max(1,control.Width),Math.Max(1,control.Height),PixelFormat.Format32bppArgb);control.DrawToBitmap(image,new Rectangle(Point.Empty,image.Size));
         // WM_PRINT skips descendants whose top-level Form is hidden. Render each
@@ -95,7 +97,7 @@ internal static class PetColorPickerTests {
     static bool Disposed(Bitmap image){if(image==null)return true;try{image.GetPixel(0,0);return false;}catch(ArgumentException){return true;}catch(ObjectDisposedException){return true;}}
     static void CacheDisposed(object control,Bitmap previous,string field){Need(Disposed(previous),"Color bitmap was not released: "+field);}
     static void LayoutAndCacheProof(string output){
-        foreach(float scale in new[]{1F,1.5F,2F}){
+        foreach(float scale in new[]{1F,1.25F,1.5F,2F}){
             var picker=new HubColorPicker(Color.FromArgb(78,143,228),"中间胶囊");var area=Screen.AllScreens.OrderBy(screen=>screen.WorkingArea.Left).First().WorkingArea;var owner=new Form{ShowInTaskbar=false,StartPosition=FormStartPosition.Manual,Bounds=new Rectangle(area.Left+30,area.Top+30,Math.Max(100,area.Width-60),Math.Max(100,area.Height-60))};picker.Owner=owner;Bitmap planeBitmap=null,hueBitmap=null;
             try{
                 picker.AutoScaleMode=AutoScaleMode.None;picker.Scale(new SizeF(scale,scale));
@@ -103,7 +105,13 @@ internal static class PetColorPickerTests {
                 // catches rows whose text height was accidentally hard-coded.
                 picker.Font=new Font(picker.Font.FontFamily,picker.Font.Size*scale*1.1F);
                 Invoke(picker,"OnLoad",EventArgs.Empty);Need(area.Contains(picker.Bounds),"Picker does not fit its owner's working area at "+scale+"x");
-                using(var image=Render(picker,Path.Combine(output,"color-picker-"+scale.ToString("0.0",System.Globalization.CultureInfo.InvariantCulture)+"x.png"))){Need(image.Width>400&&image.Height>400,"Picker render is empty");}
+                using(var image=Render(picker,Path.Combine(output,"color-picker-"+scale.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)+"x.png"))){
+                    Need(image.Width>400&&image.Height>400,"Picker render is empty");
+                    foreach(var input in new[]{Field<TextBox>(picker,"hexInput"),Field<TextBox>(picker,"redInput"),Field<TextBox>(picker,"greenInput"),Field<TextBox>(picker,"blueInput")}){
+                        var bounds=InForm(input,picker);Need(VisibleClip(input,picker)==bounds,"Color value is clipped by an ancestor at "+scale+"x: "+input.AccessibleName+", bounds="+bounds+", visible="+VisibleClip(input,picker));
+                        Need(BrightTextPixels(image,bounds)>=10,"Color value text is not visible in the composed picker at "+scale+"x: "+input.AccessibleName);
+                    }
+                }
                 var plane=Field<Control>(picker,"plane");var hue=Field<Control>(picker,"hueStrip");
                 var close=Descendants(picker).Single(control=>control.AccessibleName=="取消配色");
                 var required=new Control[]{Field<TextBox>(picker,"hexInput"),Field<TextBox>(picker,"redInput"),Field<TextBox>(picker,"greenInput"),Field<TextBox>(picker,"blueInput"),Field<Button>(picker,"confirmButton"),Field<Button>(picker,"cancelButton"),plane,hue,close};
@@ -122,6 +130,6 @@ internal static class PetColorPickerTests {
     }
     [STAThread]static int Main(string[] args){string report=args.Length>0?args[0]:Path.Combine(Path.GetTempPath(),"PetColorPickerTests.json");try{
         Application.EnableVisualStyles();string output=Path.GetDirectoryName(report);MathProof();InputProof();RoutingProof();LayoutAndCacheProof(output);
-        File.WriteAllText(report,new JavaScriptSerializer().Serialize(new{pass=true,checks,hexRgbHsv=true,validationBlocksConfirmation=true,confirmAndCancel=true,targetsPreserved=true,escapeAndEnter=true,hiddenLayoutScales=new[]{1,1.5,2},largeFont=true,gradientCacheReleased=true,windowsShown=false,serviceActions=false,actualUserPreferencesChanged=false,oldResizeTestsRepeated=false}));return 0;
+        File.WriteAllText(report,new JavaScriptSerializer().Serialize(new{pass=true,checks,hexRgbHsv=true,validationBlocksConfirmation=true,confirmAndCancel=true,targetsPreserved=true,escapeAndEnter=true,hiddenLayoutScales=new[]{1D,1.25,1.5,2},inputValuesVisibleInAncestorClip=true,largeFont=true,gradientCacheReleased=true,windowsShown=false,serviceActions=false,actualUserPreferencesChanged=false,oldResizeTestsRepeated=false}));return 0;
     }catch(Exception error){File.WriteAllText(report,new JavaScriptSerializer().Serialize(new{pass=false,checks,error=error.ToString()}));return 1;}}
 }

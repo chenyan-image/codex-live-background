@@ -1,14 +1,14 @@
 # CodexHub Codex动态壁纸+桌面宠物
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.5/CodexHub-1.7.0.5-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0.5" width="238" height="48"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.6/CodexHub-1.7.0.6-Setup.exe"><img src="docs/badges/download-exe.svg" alt="下载 Windows EXE 安装包 · v1.7.0.6" width="238" height="48"></a>
 </p>
 
 **[下载最新稳定版](https://github.com/chenyan-image/codex-live-background-pet/releases/latest) · [更新记录](CHANGELOG.md)**
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="CodexHub Wallpaper Engine 壁纸库" width="100%"></p>
 <p align="center"><img src="docs/screenshots/pets.png" alt="三个宠物、自动启停与胶囊配色设置" width="100%"></p>
 <p align="center">
-  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/tag/v1.7.0.5"><img src="docs/badges/version.svg" alt="稳定版 v1.7.0.5"></a>
-  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.5/CodexHub-1.7.0.5-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 167 MiB"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/tag/v1.7.0.6"><img src="docs/badges/version.svg" alt="稳定版 v1.7.0.6"></a>
+  <a href="https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.6/CodexHub-1.7.0.6-Setup.exe"><img src="docs/badges/download-size.svg" alt="EXE 安装包约 170 MiB"></a>
   <a href="#安装更新与后台运行"><img src="docs/badges/platform.svg" alt="Windows 10 / 11 x64"></a>
   <a href="LICENSE"><img src="docs/badges/license.svg" alt="MIT License"></a>
 </p>
@@ -24,7 +24,7 @@
 - 自动扫描 Wallpaper Engine，支持搜索、筛选、连续向下滚动和预览。
 - 保存壁纸使用记录；新装仅附《花桃全屏》静态背景，其他壁纸自行导入或从 Wallpaper Engine 选择。升级保留已有素材。
 - 下载和导入在后台进行，宠物及卡片动画继续运行。
-- 静态缩略图只保留一帧，隐藏预览释放图片；宠物动作采用限量缓存，降低后台常驻占用。 
+- 静态缩略图只保留一帧，隐藏预览释放图片；宠物动作采用限量缓存，同一图集不再重复预热，降低后台常驻占用。
 <p align="center"><img src="docs/screenshots/wallpaper-engine.png" alt="Wallpaper Engine 连续滚动壁纸库" width="100%"></p>
 
 ## 桌面宠物
@@ -35,7 +35,7 @@
 | :---: | :---: | :---: |
 | 随安装包提供，32 项表情与轻动画 | 随安装包提供，106 段完整透明动画 | 点击从作者 GitHub 下载，或复用本机的 25 段完整动画 |
 
-下一版本新增内置 **奶蛙**，来自 [timerring/codex-pet-naiwa](https://github.com/timerring/codex-pet-naiwa)。随完整安装包提供九种透明动画：待机、左右行走、挥手、大笑、执行任务、等待、完成与受惊；复用拖动、惯性、边界回弹、任务和额度卡片。
+新增内置 **奶蛙**，来自 [timerring/codex-pet-naiwa](https://github.com/timerring/codex-pet-naiwa)。随完整安装包提供九种透明动画：待机、左右行走、挥手、大笑、执行任务、等待、完成与受惊；复用拖动、惯性、边界回弹、任务和额度卡片。
 
 <p align="center"><img src="docs/naifrog.png" alt="新增内置奶蛙宠物" width="144"></p>
 
@@ -51,16 +51,18 @@
 
 ## 安装、更新与后台运行
 
-1. [下载 `CodexHub-1.7.0.5-Setup.exe`](https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.5/CodexHub-1.7.0.5-Setup.exe)，选择安装位置，无需解压；支持 C、D、E 等本地盘符、盘符根目录及任意合法文件夹名。完整安装包附带 Node.js 和 FFmpeg 解码组件。
+1. [下载 `CodexHub-1.7.0.6-Setup.exe`](https://github.com/chenyan-image/codex-live-background-pet/releases/download/v1.7.0.6/CodexHub-1.7.0.6-Setup.exe)，选择安装位置，无需解压；支持 C、D、E 等本地盘符、盘符根目录及任意合法文件夹名。完整安装包附带 Node.js 和 FFmpeg 解码组件。
 2. 若安装失败，可在安装器点击 **深度扫描**，查看安装阻止原因、旧安装和解压缓存；选择 **清理已确认残留** 后重试。清理前会列出位置，保留壁纸、宠物素材和设置。未安装 Codex 也可先安装管理器。
 3. 选择或导入壁纸，预览后点击应用；按需启用桌面宠物。
 4. 在 **服务与设置 → 更新软件** 获取 GitHub 程序更新。更新包只替换程序，壁纸、宠物素材、设置和记录保留；每次启动通过公开频道检查 GitHub 更新，避免匿名 API 限流；有新版时在更新按钮上显示小红点，点击后才安装。
+
+新增的奶蛙随完整 EXE 提供；已安装用户如需奶蛙，请覆盖安装完整 EXE。软件内更新包继续只替换程序，保留已有素材。
 
 <p align="center"><img src="docs/screenshots/settings.png" alt="服务与设置中的更新软件按钮" width="100%"></p>
 
 最小化或关闭管理器会隐藏到托盘，不占任务栏；背景服务随 Windows 登录和 Codex 启动恢复。安装历史保存在 `%LOCALAPPDATA%\CodexHub\installations.json`。完整卸载可运行安装目录中的“卸载 CodexHub.exe”；卸载器可通过记录自动定位，按文件清单清理并保留同目录的其他文件。
 
-适用 Windows 10 / 11 x64 与官方 Codex。稳定主线为 v1.7.0.5，包含动态壁纸与桌面宠物。首次启用背景连接若遇普通启动实例，请保存输入并手动完全退出 Codex 一次。
+适用 Windows 10 / 11 x64 与官方 Codex。稳定主线为 v1.7.0.6，包含动态壁纸与桌面宠物。首次启用背景连接若遇普通启动实例，请保存输入并手动完全退出 Codex 一次。
 
 ## 支持格式
 

@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.25")]
-[assembly: AssemblyFileVersion("1.7.0.25")]
+[assembly: AssemblyVersion("1.7.0.26")]
+[assembly: AssemblyFileVersion("1.7.0.26")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -205,20 +205,31 @@ internal sealed partial class Manager : Form {
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="SendMessageW")] static extern IntPtr SetCueText(IntPtr hwnd,int msg,IntPtr wParam,string text);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd,int attribute,ref int value,int size);
     [DllImport("user32.dll")] static extern bool RedrawWindow(IntPtr window,IntPtr update,IntPtr region,uint flags);
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] static extern IntPtr GetNativeWindowStyle(IntPtr window,int index);
+    [DllImport("user32.dll",EntryPoint="SetWindowLongPtrW")] static extern IntPtr SetNativeWindowStyle(IntPtr window,int index,IntPtr value);
+    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int width,int height,uint flags);
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
     Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);InitializeCompanion(checkStatus);if(checkStatus)InitializeTray(); }
     // Each custom control is buffered; avoid a second compositor for the entire HWND tree.
-    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle&=~0x02000000;value.Style|=0x40000;return value;}}
+    protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle&=~0x02000000;return value;}}
     protected override void SetClientSizeCore(int width,int height){
         // WM_NCCALCSIZE makes our entire borderless HWND the client area.
-        // Form's default setter adds the sizing frame then caches the smaller
-        // requested client size, leaving unpainted right/bottom strips.
+        // Keep direct client-size requests in the same full-window coordinates.
         if(IsHandleCreated&&FormBorderStyle==FormBorderStyle.None){Size=new Size(width,height);return;}
         base.SetClientSizeCore(width,height);
     }
     protected override void SetVisibleCore(bool value){if(value&&startHidden){startHidden=false;base.SetVisibleCore(false);return;}base.SetVisibleCore(value);}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
-    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);if(resizeBridge==null)resizeBridge=new WindowResizeBridge(this);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);int noBorder=unchecked((int)0xFFFFFFFE);DwmSetWindowAttribute(Handle,34,ref noBorder,4);}catch{}WindowFrame.Update(this);}
+    void EnableNativeResizeFrame(){
+        // Form's restore path converts cached client bounds through CreateParams.
+        // Keep those parameters borderless; attach the resizing style only to
+        // the HWND so restoring never adds a frame to our full-window client.
+        long style=GetNativeWindowStyle(Handle,-16).ToInt64();
+        if((style&0x40000)!=0)return;
+        SetNativeWindowStyle(Handle,-16,new IntPtr(style|0x40000));
+        SetWindowPos(Handle,IntPtr.Zero,0,0,0,0,0x0037);
+    }
+    protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);EnableNativeResizeFrame();if(resizeBridge==null)resizeBridge=new WindowResizeBridge(this);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);int noBorder=unchecked((int)0xFFFFFFFE);DwmSetWindowAttribute(Handle,34,ref noBorder,4);}catch{}WindowFrame.Update(this);}
     protected override void OnSizeChanged(EventArgs e){base.OnSizeChanged(e);if(Visible&&!restoringWindow&&WindowState!=FormWindowState.Minimized)stateBeforeHide=WindowState;WindowFrame.Update(this);}
     protected override void OnVisibleChanged(EventArgs e){base.OnVisibleChanged(e);if(Visible)QueueCompleteRedraw();}
     protected override void OnHandleDestroyed(EventArgs e){repaintQueued=false;base.OnHandleDestroyed(e);}
@@ -290,6 +301,10 @@ internal sealed partial class Manager : Form {
     protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);WindowFrame.PaintBorder(this,e.Graphics,Color.FromArgb(49,65,69));}
     protected override void WndProc(ref Message m){
         if(m.Msg==0x83){m.Result=IntPtr.Zero;return;}
+        // STYLESTRUCT contains two DWORDs; preserve styleNew on native style
+        // updates without advertising a sizing frame to managed calculations.
+        if(m.Msg==0x7C&&unchecked((int)m.WParam.ToInt64())==-16&&FormBorderStyle==FormBorderStyle.None&&m.LParam!=IntPtr.Zero)
+            Marshal.WriteInt32(m.LParam,4,Marshal.ReadInt32(m.LParam,4)|0x40000);
         // WS_THICKFRAME keeps native resizing, but our client area owns the
         // entire surface. Never let activation/NC paint draw a system frame.
         if(m.Msg==0x85){m.Result=IntPtr.Zero;return;}
