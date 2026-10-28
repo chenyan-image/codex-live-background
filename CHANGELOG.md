@@ -2,6 +2,12 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## v1.7.0.4 — 窗口铺满与绘图内存优化
+
+- 修复无边框客户区尺寸错位，放大、缩放后右边和底边完整覆盖。
+- 复用宠物画布、字体，省去已展开卡片的重复复制，降低持续的内存分配压力。
+- 保留动画画质与帧率，升级沿用已有素材和个人设置。
+
 ## v1.7.0.3 — 背景连接依赖修复
 
 - 补齐控制脚本的主题状态依赖，修复 Test-DreamSkinPaused 未识别，正确处理壁纸暂停与自动恢复。

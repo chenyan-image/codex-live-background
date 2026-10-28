@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.21")]
-[assembly: AssemblyFileVersion("1.7.0.21")]
+[assembly: AssemblyVersion("1.7.0.22")]
+[assembly: AssemblyFileVersion("1.7.0.22")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -208,6 +208,13 @@ internal sealed partial class Manager : Form {
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
     Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);InitializeCompanion(checkStatus);if(checkStatus)InitializeTray(); }
     protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle|=0x02000000;value.Style|=0x40000;return value;}}
+    protected override void SetClientSizeCore(int width,int height){
+        // WM_NCCALCSIZE makes our entire borderless HWND the client area.
+        // Form's default setter adds the sizing frame then caches the smaller
+        // requested client size, leaving unpainted right/bottom strips.
+        if(IsHandleCreated&&FormBorderStyle==FormBorderStyle.None){Size=new Size(width,height);return;}
+        base.SetClientSizeCore(width,height);
+    }
     protected override void SetVisibleCore(bool value){if(value&&startHidden){startHidden=false;base.SetVisibleCore(false);return;}base.SetVisibleCore(value);}
     void Ui(MethodInvoker work){if(IsDisposed||!IsHandleCreated)return;try{BeginInvoke((MethodInvoker)delegate{if(!IsDisposed)work();});}catch(InvalidOperationException){}}
     protected override void OnHandleCreated(EventArgs e){base.OnHandleCreated(e);if(resizeBridge==null)resizeBridge=new WindowResizeBridge(this);try{int dark=1;DwmSetWindowAttribute(Handle,20,ref dark,4);}catch{}WindowFrame.Update(this);}
