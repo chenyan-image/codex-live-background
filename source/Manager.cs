@@ -14,8 +14,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("CodexHub")]
 [assembly: AssemblyProduct("CodexHub")]
 [assembly: AssemblyCompany("codex-live-background contributors")]
-[assembly: AssemblyVersion("1.7.0.26")]
-[assembly: AssemblyFileVersion("1.7.0.26")]
+[assembly: AssemblyVersion("1.8.0.3")]
+[assembly: AssemblyFileVersion("1.8.0.3")]
 
 internal sealed class BufferedTable : TableLayoutPanel {
     public BufferedTable(){DoubleBuffered=true;SetStyle(ControlStyles.ResizeRedraw|ControlStyles.AllPaintingInWmPaint,true);}
@@ -209,7 +209,7 @@ internal sealed partial class Manager : Form {
     [DllImport("user32.dll",EntryPoint="SetWindowLongPtrW")] static extern IntPtr SetNativeWindowStyle(IntPtr window,int index,IntPtr value);
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr window,IntPtr after,int x,int y,int width,int height,uint flags);
     Label Caption(string text,float size,Color color){return new Label{Text=text,Font=new Font("Microsoft YaHei UI",size),ForeColor=color,AutoSize=false,Dock=DockStyle.Fill,Margin=Padding.Empty,TextAlign=ContentAlignment.MiddleLeft};}
-    Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);InitializeCompanion(checkStatus);if(checkStatus)InitializeTray(); }
+    Manager(bool checkStatus){ liveStatusEnabled=checkStatus;BuildGallery(checkStatus);InitializeCompanion(checkStatus);InitializeSpark(checkStatus);if(checkStatus)InitializeTray(); }
     // Each custom control is buffered; avoid a second compositor for the entire HWND tree.
     protected override CreateParams CreateParams {get{var value=base.CreateParams;value.ExStyle&=~0x02000000;return value;}}
     protected override void SetClientSizeCore(int width,int height){
@@ -272,7 +272,7 @@ internal sealed partial class Manager : Form {
         if(tray!=null&&liveStatusEnabled){connectionTimer.Start();if(!busy&&!checkingStatus)Run("Connection");}
     }
     protected override void Dispose(bool disposing){
-        if(disposing){StopCompanion();if(tray!=null){tray.Visible=false;tray.Dispose();tray=null;}if(trayMenu!=null){trayMenu.Dispose();trayMenu=null;}if(trayImage!=null){trayImage.Dispose();trayImage=null;}}
+        if(disposing){StopSpark();StopCompanion();if(tray!=null){tray.Visible=false;tray.Dispose();tray=null;}if(trayMenu!=null){trayMenu.Dispose();trayMenu=null;}if(trayImage!=null){trayImage.Dispose();trayImage=null;}}
         base.Dispose(disposing);
     }
     void UpdateMaximizedBounds(IntPtr window){
@@ -478,20 +478,23 @@ internal sealed partial class Manager : Form {
     }
     internal static string InstalledTarget(string root,string installed){try{if(String.IsNullOrWhiteSpace(installed)||Path.GetFullPath(root).TrimEnd('\\').Equals(Path.GetFullPath(installed).TrimEnd('\\'),StringComparison.OrdinalIgnoreCase)||!CodexFollow.InstalledHere(installed))return null;string exe=Path.Combine(installed,"CodexLiveBackground.exe");Version version;if(!Version.TryParse(FileVersionInfo.GetVersionInfo(exe).FileVersion,out version)||version<typeof(Manager).Assembly.GetName().Version)return null;return exe;}catch{return null;}}
     [STAThread]static int Main(string[] args){
+        if(args.Length==3&&args[0]=="--douyin-uia")return SparkWorkerHost.Run(args[1],args[2]);
         if(args.Length==1&&args[0]=="--msi-action-probe")return 0;
         if(args.Length==1&&args[0]=="--wait-test"){Thread.Sleep(30000);return 0;}
         if(args.Length==1&&(args[0]=="--service-install"||args[0]=="--service-remove"))return ServiceCommand(args[0]=="--service-install"?"Install":"RemoveService");
         SetProcessDPIAware();Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         bool smoke=args.Length>=2&&args[0]=="--smoke-test",uiTest=args.Length==2&&args[0]=="--ui-test",previewTest=args.Length==3&&args[0]=="--preview-test",lifecycle=args.Length==2&&args[0]=="--lifecycle-test",galleryTest=args.Length==2&&args[0]=="--gallery-test",steamScrollTest=args.Length==2&&args[0]=="--steam-scroll-test";
-        bool companionPreview=args.Length==2&&(args[0]=="--pet-preview"||args[0]=="--pet-preview-tray"),followStart=args.Length==1&&args[0]=="--follow-start";
+        bool sparkPreview=args.Length==2&&args[0]=="--spark-preview";
+        bool companionPreview=args.Length==2&&(args[0]=="--pet-preview"||args[0]=="--pet-preview-tray"||sparkPreview),followStart=args.Length==1&&args[0]=="--follow-start";
         bool test=smoke||uiTest||previewTest||lifecycle||galleryTest||steamScrollTest||companionPreview;Mutex instance=null;bool owns=false;
         try{
+        if(sparkPreview){instance=new Mutex(false,"Local\\CodexHub.DouyinPreview."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}if(!owns){MessageBox.Show("抖音体验版已在运行。请先从托盘退出旧体验版，再打开这一版。","CodexHub");return 0;}}
         if(!test){string installed=Convert.ToString(Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\CodexLiveBackground","InstallRoot",null));string target=InstalledTarget(AppDomain.CurrentDomain.BaseDirectory,installed);if(target!=null){using(var process=Process.Start(new ProcessStartInfo(target,String.Join(" ",System.Linq.Enumerable.Select(args,SoftwareUpdate.Quote))){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(target)})){}return 0;}try{using(var setup=Mutex.OpenExisting("Local\\CodexLiveBackground.Setup."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value)){MessageBox.Show("安装或卸载正在进行，请等待完成。","CodexHub");return 0;}}catch(WaitHandleCannotBeOpenedException){}instance=new Mutex(false,"Local\\CodexLiveBackground.Manager."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value);try{owns=instance.WaitOne(0);}catch(AbandonedMutexException){owns=true;}
             if(!owns){if(!followStart)try{using(var activate=EventWaitHandle.OpenExisting("Local\\CodexLiveBackground.Activate."+System.Security.Principal.WindowsIdentity.GetCurrent().User.Value))activate.Set();}catch(WaitHandleCannotBeOpenedException){}return 0;}}
         string guardWarning=test?null:GuardComponents.FinishAtStartup(AppDomain.CurrentDomain.BaseDirectory);
         using(var form=new Manager(!test)){
             if(guardWarning!=null)form.Shown+=delegate{form.previewHint.Text=guardWarning;form.log.AppendText(Environment.NewLine+guardWarning);};
-            if(companionPreview){form.startHidden=args[0]=="--pet-preview-tray";if(form.startHidden){form.ShowInTaskbar=false;IntPtr handle=form.Handle;}form.StartCompanionPreview(args[1]);Application.Run(form);return 0;}
+            if(companionPreview){form.startHidden=args[0]=="--pet-preview-tray";if(form.startHidden){form.ShowInTaskbar=false;IntPtr handle=form.Handle;}form.StartCompanionPreview(args[1],sparkPreview);if(sparkPreview){form.companionStarted=true;form.InitializeSpark(true);form.Navigate("spark");}Application.Run(form);return 0;}
             if(steamScrollTest)return form.TestSteamScroll(args[1]);
             if(galleryTest)return form.TestGallery(args[1]);
             if(lifecycle)return form.TestLifecycle(args[1]);
@@ -504,7 +507,7 @@ internal sealed partial class Manager : Form {
             }
         }
         return 0;
-        }catch(Exception error){if(test){File.WriteAllText(args[args.Length-1],new JavaScriptSerializer().Serialize(new{pass=false,error=error.ToString()}));return 1;}MessageBox.Show(error.Message,"CodexHub");return 1;}
+        }catch(Exception error){if(test){string report=args[args.Length-1];if(Directory.Exists(report))report=Path.Combine(report,"preview-error.json");File.WriteAllText(report,new JavaScriptSerializer().Serialize(new{pass=false,error=error.ToString()}));return 1;}MessageBox.Show(error.Message,"CodexHub");return 1;}
         finally{if(instance!=null){if(owns)instance.ReleaseMutex();instance.Dispose();}}
     }
 }

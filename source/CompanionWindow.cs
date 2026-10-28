@@ -267,7 +267,7 @@ internal sealed class PetPainter : IDisposable {
     }
     public void Dispose(){foreach(var path in dialLabels.Values)path.Dispose();dialLabels.Clear();numberFont.Dispose();smallNumberFont.Dispose();labelFont.Dispose();tinyFont.Dispose();compactLabel.Dispose();fonts.Dispose();hubLogo.Dispose();}
 }
-internal sealed class PetWindow : Form {
+internal sealed partial class PetWindow : Form {
     [DllImport("user32.dll")]static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     [DllImport("user32.dll")]static extern uint GetDpiForWindow(IntPtr window);
     [DllImport("user32.dll")]static extern IntPtr GetForegroundWindow();
@@ -341,6 +341,7 @@ internal sealed class PetWindow : Form {
     void TickPhysical(){
         double now=watch.Elapsed.TotalSeconds,delta=last==0?.016:now-last;last=now;
         AdvancePanel(now);
+        if(SparkGuiding){TickSparkGuide(now,delta);return;}
         if(rightHeld&&(Control.MouseButtons&MouseButtons.Right)==0)rightHeld=false;Motion.Pressed=!Motion.Dragging&&((mouseHeld&&bodyHeld&&!moved)||rightHeld);Motion.StepPress(delta);
         if(!settings.Enabled){atlas.SuspendVideo();if(Visible)Hide();popup.Hide();hud.Hide();return;}
         if(lastScope!=settings.CodexOnly){lastScope=settings.CodexOnly;if(!lastScope)desktopDevice=null;settings.X=(int)Motion.Position.X;settings.Y=(int)Motion.Position.Y;checkedSurface=0;previousBounds=Rectangle.Empty;surface=null;}
@@ -383,7 +384,7 @@ internal sealed class PetWindow : Form {
     void PresentPhysical(){
         painter.ApplyAppearance(settings);
         if(surface!=null){var safe=PetMotion.Clamp(Motion.Position,Size,MotionBounds(surface.Bounds));if(safe!=Motion.Position){Motion.Position=safe;Location=Point.Round(safe);}}
-        if(IsDisposed||!IsHandleCreated)return;double time=watch.Elapsed.TotalSeconds;int physical=Motion.Row;Motion.Row=director.Row;if(animationGeneration!=director.Generation){animationGeneration=director.Generation;actionStarted=time;lastMoveClock=0;atlas.BeginVideo(director.Row,animationGeneration,director.DirectSwitch,director.Moving);}atlas.HoldLast=director.Sleeping;var frame=painter.Render(atlas,Motion,false,false,Quota,QuotaStatus,time-actionStarted,RenderScale,Activity.Label,Activity.Active,time,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex,true,presented);Motion.Row=physical;
+        if(IsDisposed||!IsHandleCreated)return;double time=watch.Elapsed.TotalSeconds;int physical=Motion.Row;Motion.Row=director.Row;if(animationGeneration!=director.Generation){animationGeneration=director.Generation;actionStarted=time;lastMoveClock=0;atlas.BeginVideo(director.Row,animationGeneration,SparkGuiding||director.DirectSwitch,SparkGuiding&&sparkMoving||director.Moving);}atlas.HoldLast=director.Sleeping;var frame=painter.Render(atlas,Motion,false,false,Quota,QuotaStatus,time-actionStarted,RenderScale,Activity.Label,Activity.Active,time,Tokens,tokenRange,resetTab,petFactor,capsuleFactor,QuotaRefreshing,0,false,Activity,taskIndex,true,presented);Motion.Row=physical;
         IntPtr screen=GetDC(IntPtr.Zero),dc=CreateCompatibleDC(screen),bitmap=IntPtr.Zero,previous=IntPtr.Zero;
         try{bitmap=frame.GetHbitmap(Color.FromArgb(0));previous=SelectObject(dc,bitmap);var point=new NativePoint(Left,Top);var origin=new NativePoint(0,0);var size=new NativeSize(frame.Width,frame.Height);var blend=new Blend{Alpha=255,Format=1};if(!UpdateLayeredWindow(Handle,screen,ref point,ref size,dc,ref origin,0,ref blend,2))throw new Win32Exception();}
         finally{if(previous!=IntPtr.Zero)SelectObject(dc,previous);if(bitmap!=IntPtr.Zero)DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(IntPtr.Zero,screen);}
@@ -423,7 +424,7 @@ internal sealed class PetWindow : Form {
     public void RandomAction(){director.Click(watch.Elapsed.TotalSeconds);Present();}
     public void Greet(){if(pack.Actions!=null){int index=pack.Actions.FindIndex(a=>a.name.Contains("挥手")||a.name.Contains("招手")||a.name.Contains("打招呼"));if(index>=0){Interact(9+index,true);return;}}Interact(3,true);}
 
-    void PointerDown(MouseEventArgs e,bool fromHud){if(e.Button==MouseButtons.Right){rightHeld=true;Motion.Pressed=true;Motion.StepPress(.016);ReactToClick(false);menu.Show(Cursor.Position);return;}if(e.Button!=MouseButtons.Left)return;draggingFromHud=fromHud;mouseHeld=true;moved=false;Motion.Sliding=false;Motion.Velocity=PointF.Empty;cursorStart=PetOverlay.Pointer;positionStart=Motion.Position;dragTracker.Reset(cursorStart,watch.Elapsed.TotalSeconds);bodyHeld=Motion.Pressed=!fromHud;if(fromHud)hud.Capture=true;else Capture=true;}
+    void PointerDown(MouseEventArgs e,bool fromHud){if(SparkGuiding){EndSparkGuide();return;}if(e.Button==MouseButtons.Right){rightHeld=true;Motion.Pressed=true;Motion.StepPress(.016);ReactToClick(false);menu.Show(Cursor.Position);return;}if(e.Button!=MouseButtons.Left)return;draggingFromHud=fromHud;mouseHeld=true;moved=false;Motion.Sliding=false;Motion.Velocity=PointF.Empty;cursorStart=PetOverlay.Pointer;positionStart=Motion.Position;dragTracker.Reset(cursorStart,watch.Elapsed.TotalSeconds);bodyHeld=Motion.Pressed=!fromHud;if(fromHud)hud.Capture=true;else Capture=true;}
     void HudMouseDown(object sender,MouseEventArgs e){PointerDown(e,true);}
     void HudMouseUp(object sender,MouseEventArgs e){PointerUp(e,true);}
     protected override void OnMouseDown(MouseEventArgs e){base.OnMouseDown(e);PointerDown(e,false);}

@@ -9,6 +9,8 @@
 /node_modules/
 *.exe
 *.dll
+# Managed interface metadata generated from the Windows UI Automation type library.
+!/source/assets/windows/Interop.UIAutomationClient.dll
 *.pdb
 *.zip
 *.7z
