@@ -2,6 +2,13 @@
 
 原始项目：[xxloocee/Codex-Dream-Skin-Manager](https://github.com/xxloocee/Codex-Dream-Skin-Manager)。本仓库仅记录基于原项目的 Bug 修复、兼容处理和源码精简；原引擎来自 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
 
+## 待发布 — 内置奶蛙
+
+- 增加 timerring/codex-pet-naiwa 奶蛙，完整安装包内置九种原始动作，无需运行时下载。
+- 映射左右移动、工作、完成、等待、受惊，复用现有拖拽、边界回弹、菜单与额度卡片。
+- 失败动作只播放六个可见帧，排除原图集的两格透明占位，避免闪空。
+- 增加来源、原许可和第三方素材边界说明；已有宠物、设置与纯程序更新策略保持。
+
 ## v1.7.0.5 — 副屏最大化与窗口边框修复
 
 - 修复左侧副屏最大化的工作区坐标，移除导致整窗重绘异常的组合缓冲。

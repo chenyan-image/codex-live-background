@@ -909,6 +909,36 @@
       "path": "sources.json",
       "bytes": 7286,
       "sha256": "9de1f64b6f033b50eb8d47db296881adacd6c2a3f14291ad24a7c44fb9a20b13"
+    },
+    {
+      "path": "naifrog/LICENSE",
+      "bytes": 1066,
+      "sha256": "3a867f15e11ecb0044cae5f636b747fde8adf54670f84fa692047c3ea9caf92c"
+    },
+    {
+      "path": "naifrog/NOTICE.md",
+      "bytes": 876,
+      "sha256": "f1cfab0d17b6cbd5badd0b8baf40c6f8b7aa17cd3a97c86f1b23fcf6f554764e"
+    },
+    {
+      "path": "naifrog/pet.json",
+      "bytes": 3644,
+      "sha256": "ba97dd939ffc59c64bafe0cb90e90c1c1bb0e31e7e179fda0257ef7d784cac71"
+    },
+    {
+      "path": "naifrog/poster.png",
+      "bytes": 30020,
+      "sha256": "caec929cbc4837d5211a81465c1f9a1d4b5fdd9dcdfdacb42c967a130636e9b0"
+    },
+    {
+      "path": "naifrog/source.json",
+      "bytes": 1228,
+      "sha256": "25a583614c3d5280ce6330816396b43e3b63ffce2079d03296de53fb364552c1"
+    },
+    {
+      "path": "naifrog/spritesheet.png",
+      "bytes": 2213576,
+      "sha256": "e8fe120bd1c6257a83b46538507b09319063e2b621f46fd3471243af61d3b514"
     }
   ]
 }

@@ -1,0 +1,217 @@
+{
+  "id": "naifrog",
+  "displayName": "奶蛙",
+  "description": "timerring/codex-pet-naiwa 的黄色奶蛙，内置九种原始动作。",
+  "spriteVersionNumber": 2,
+  "format": "frame-set",
+  "spritesheetPath": "poster.png",
+  "actions": [
+    {
+      "id": "idle",
+      "name": "安静待机",
+      "file": "spritesheet.png",
+      "durationMs": 600,
+      "frames": 6,
+      "columns": 8,
+      "row": 0,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "running-right",
+      "name": "向右行走",
+      "file": "spritesheet.png",
+      "durationMs": 800,
+      "frames": 8,
+      "columns": 8,
+      "row": 1,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "running-left",
+      "name": "向左行走",
+      "file": "spritesheet.png",
+      "durationMs": 800,
+      "frames": 8,
+      "columns": 8,
+      "row": 2,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "waving",
+      "name": "挥手招呼",
+      "file": "spritesheet.png",
+      "durationMs": 400,
+      "frames": 4,
+      "columns": 8,
+      "row": 3,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "jumping",
+      "name": "捧腹大笑",
+      "file": "spritesheet.png",
+      "durationMs": 500,
+      "frames": 5,
+      "columns": 8,
+      "row": 4,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "running",
+      "name": "执行任务",
+      "file": "spritesheet.png",
+      "durationMs": 600,
+      "frames": 6,
+      "columns": 8,
+      "row": 5,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "waiting",
+      "name": "等待输入",
+      "file": "spritesheet.png",
+      "durationMs": 600,
+      "frames": 6,
+      "columns": 8,
+      "row": 6,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "review",
+      "name": "完成待查看",
+      "file": "spritesheet.png",
+      "durationMs": 600,
+      "frames": 6,
+      "columns": 8,
+      "row": 7,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    {
+      "id": "failed",
+      "name": "受惊与阻塞",
+      "file": "spritesheet.png",
+      "durationMs": 600,
+      "frames": 6,
+      "columns": 8,
+      "row": 8,
+      "cellWidth": 192,
+      "cellHeight": 208
+    }
+  ],
+  "rowMap": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    8,
+    6,
+    5,
+    7
+  ],
+  "behavior": {
+    "idle": [
+      0
+    ],
+    "turn": [
+      7
+    ],
+    "move": [
+      1,
+      2
+    ],
+    "click": [
+      3,
+      4,
+      6,
+      7,
+      8
+    ],
+    "drag": [
+      6
+    ],
+    "sleep": [
+      0
+    ],
+    "collision": [
+      8
+    ],
+    "quota": [
+      [
+        3,
+        4
+      ],
+      [
+        0,
+        3
+      ],
+      [
+        7,
+        0
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        8,
+        6
+      ],
+      [
+        8
+      ]
+    ],
+    "work": [
+      [
+        7,
+        5
+      ],
+      [
+        5,
+        7
+      ],
+      [
+        7,
+        5
+      ],
+      [
+        6
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        8
+      ]
+    ],
+    "categories": [
+      {
+        "name": "日常互动",
+        "weight": 30,
+        "actions": [
+          3,
+          4,
+          6
+        ]
+      },
+      {
+        "name": "任务回应",
+        "weight": 15,
+        "actions": [
+          5,
+          7,
+          8
+        ]
+      }
+    ]
+  }
+}

@@ -32,3 +32,5 @@ Historical application icon geometry is adapted from Mountains (duotone) in http
 ## CodexHub desktop pets and supplied logo
 
 See [Pet-Assets/README.md](THIRD_PARTY/Pet-Assets/README.md) and the per-pack source and license files. Pet artwork, supplied logo and fonts have separate rights; the repository code MIT license does not relicense them. The application now uses the user-supplied Hub logo. Chakra Petch font and OFL text are bundled in source/assets/fonts.
+
+Naifrog / 奶蛙 is bundled from [timerring/codex-pet-naiwa](https://github.com/timerring/codex-pet-naiwa), revision `3c0cd7ca231f02e0d4d6956fc6ce86eb9f0cfb50`. The original repository MIT notice is preserved. Upstream explicitly excludes credited third-party materials from that MIT grant; see the per-pet [NOTICE](source/assets/pets/naifrog/NOTICE.md) for credits and rights boundaries.

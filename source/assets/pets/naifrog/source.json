@@ -1,0 +1,23 @@
+{
+  "author": "timerring",
+  "source": "https://github.com/timerring/codex-pet-naiwa",
+  "revision": "3c0cd7ca231f02e0d4d6956fc6ce86eb9f0cfb50",
+  "license": "Original repository content: MIT. Upstream credits exclude third-party material from its MIT grant; character and third-party rights remain with their owners.",
+  "credits": [
+    "https://github.com/Nitrogen216/awesome_pets",
+    "https://github.com/LynnShaw/naiwa-pet"
+  ],
+  "modification": "Desktop v2 atlas losslessly decoded from WebP to transparent PNG; nine source animation rows retain frame order and use the existing CodexHub task, movement, drag, recoil and non-repeating action controller. No new character animation is generated. The failed row has six nonempty cells in the pinned source; its final two transparent padding cells are excluded from playback despite the upstream README count of eight.",
+  "files": [
+    {
+      "path": "naifrog/spritesheet.webp",
+      "bytes": 1600282,
+      "sha256": "e86e8b61584df7897ef7a60c3ba6a8dd92a798b3a5bdba5080351a896927f588"
+    },
+    {
+      "path": "naifrog/pet.json",
+      "bytes": 334,
+      "sha256": "b2f9fa5814d04a6aeedc2f5e74ad1fa506628c64df6516072b2be694c4a646c7"
+    }
+  ]
+}

@@ -72,7 +72,7 @@ foreach ($file in @('Manager.cs','IconAssets.cs','WallpaperLibrary.cs','GalleryC
 $assetOut=Join-Path $sourceOut 'assets';$null=New-Item -ItemType Directory -Path $assetOut
 Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'assets') | Where-Object Name -notin @('wallpapers','pets') | ForEach-Object {Copy-Item -LiteralPath $_.FullName -Destination $assetOut -Recurse}
 $petOut=Join-Path $assetOut 'pets';$null=New-Item -ItemType Directory -Path $petOut
-foreach($id in @('deepseek','bailong','deepseek-fat-fish')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('assets\pets\'+$id)) -Destination $petOut -Recurse}
+foreach($id in @('deepseek','bailong','deepseek-fat-fish','naifrog')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot ('assets\pets\'+$id)) -Destination $petOut -Recurse}
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'assets\pets\sources.json') -Destination $petOut
 $checks=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'assets\pets\material-checksums.json'))|ConvertFrom-Json
 $checks.files=@($checks.files|Where-Object{Test-Path -LiteralPath (Join-Path $petOut $_.path)})
@@ -160,12 +160,12 @@ $currentHashes = [ordered]@{}
 foreach ($name in @('DreamSkinPortHook.exe','monitor-skin.ps1','register-port.ps1')) {
   $currentHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $port $name)).Hash
 }
-$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.24';hashes=$currentHashes})
+$compatibility.profiles = @($compatibility.profiles) + @([pscustomobject]@{name='packaged-1.7.0.25';hashes=$currentHashes})
 foreach ($destination in @($out,$sourceOut)) {
   [IO.File]::WriteAllText((Join-Path $destination 'service-compatibility.json'),($compatibility | ConvertTo-Json -Depth 6),[Text.UTF8Encoding]::new($false))
 }
 $entries = @(Get-ChildItem -LiteralPath $out -Recurse -File | ForEach-Object {
   [ordered]@{path=$_.FullName.Substring($out.Length+1);bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}
 })
-[ordered]@{version='1.7.0.24';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
+[ordered]@{version='1.7.0.25';platform='windows-x64';files=$entries} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $out 'manifest.json') -Encoding UTF8
 Write-Output $out
